@@ -1,2 +1,4 @@
 *.dmg
 /node_modules
+# Build de Vite (se genera con npm run build)
+/dist

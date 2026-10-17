@@ -52,6 +52,7 @@ export const XP_PICKUP = 3;
 export const XP_SELL = 2;
 export const XP_STEAL = 8;
 export const XP_CRAFT = 10;
+export const XP_BEG = 4;
 
 // === Robo de retrovisores ===
 export const STEAL_CAUGHT_CHANCE = 0.25;   // probabilidad de ser atrapado
@@ -62,7 +63,7 @@ export const CAR_COOLDOWN = 40;            // segundos hasta que revive el auto
 // === Venta de sustancias ===
 export const SUBSTANCE_PRICE_MULT = 1.8;   // las sustancias se venden más caras de noche
 export const SUBSTANCE_RISK_CHANCE = 0.15; // probabilidad de problema con la ley
-
+// Removed duplicate SORT_BASE_TIME declaration to fix redeclaration error
 // Colores del juego (estética Noir)
 export const COLORS = {
   BG: 0x1a1a1d,
@@ -78,4 +79,31 @@ export const COLORS = {
   FLOOR: 0x2b2b30,
   CAR: 0x2c3e50,
   DEALER: 0x6c3483
+};
+
+
+// ===== Decay de necesidades (unidades por segundo) =====
+export const DECAY = {
+  hambre:  0.35,
+  sed:     0.50,
+  energia: 0.20,
+  higiene: 0.10,   // ~10 min reales para vaciarse
+  animo:   0.08    // ~20 min reales para vaciarse
+};
+
+// ===== Umbrales de efectos =====
+export const STAT_THRESHOLDS = {
+  higieneEnfermedad: 30,    // higiene < 30 → +50% prob. de enfermedad
+  higieneRechazo:    20,    // higiene < 20 → NPCs rechazan (futuro)
+  animoVelocidad:    30,    // ánimo < 30 → velocidad -20%
+  animoVision:       50,    // ánimo < 50 → desaturación
+  animoCritico:      10     // ánimo < 10 → alucinaciones (futuro)
+};
+
+// ===== Recuperación de stats =====
+export const RECOVERY = {
+  higienePorJabon:  40,     // jabón sube 40 de higiene
+  animoPorDormir:   20,     // dormir bien sube 20 de ánimo
+  animoPorCafe:     15,
+  animoPorComida:   5
 };

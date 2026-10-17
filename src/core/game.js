@@ -56,8 +56,7 @@ export class Game {
 
     // Mundo + jugador
     this.world = new World(this.sceneMgr.scene);
-    this.player = new Player(this.sceneMgr.scene, this.input);
-
+this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     // Interacción
     this.interaction = new InteractionSystem(
       this.player, this.inventory, this.stats, this.audio,

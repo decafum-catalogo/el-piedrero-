@@ -37,4 +37,26 @@ export class SceneManager {
     this.scene.background.setHSL(0.6, 0.05, 0.05 + dayFactor * 0.15);
     this.scene.fog.color.copy(this.scene.background);
   }
+
+    /** Ajusta el color de fondo/fog según ánimo */
+  applyMentalState(desaturation) {
+    // desaturation: 0 = normal, 1 = gris total
+    if (desaturation <= 0) return;
+
+    // Mezcla el color actual del fondo hacia gris
+    const bg = this.scene.background;
+    const fog = this.scene.fog?.color;
+    if (!bg) return;
+
+    const r = bg.r, g = bg.g, b = bg.b;
+    const gray = (r + g + b) / 3;
+
+    bg.setRGB(
+      r * (1 - desaturation) + gray * desaturation,
+      g * (1 - desaturation) + gray * desaturation,
+      b * (1 - desaturation) + gray * desaturation
+    );
+
+    if (fog) fog.copy(bg);
+  }
 }

@@ -113,6 +113,39 @@ export class DiseaseSystem {
     );
   }
 
+  /** Efectos agregados de todas las enfermedades activas */
+  getAggregatedEffects() {
+    let healthDrain = 0;
+    let mentalDrain = 0;
+    let speedMultiplier = 1;
+    let hungerDrainMultiplier = 1;
+    let energyDrainMultiplier = 1;
+    let hygieneDrain = 0;
+    let canEat = true;
+
+    for (const id of Object.keys(this.active)) {
+      const def = DISEASES[id];
+      if (!def) continue;
+      healthDrain += def.healthDrain ?? 0;
+      mentalDrain += def.mentalDrain ?? 0;
+      if (def.speedMultiplier) speedMultiplier *= def.speedMultiplier;
+      if (def.hungerDrainMultiplier) hungerDrainMultiplier *= def.hungerDrainMultiplier;
+      if (def.energyDrainMultiplier) energyDrainMultiplier *= def.energyDrainMultiplier;
+      if (def.hygieneDrain) hygieneDrain += def.hygieneDrain;
+      if (def.canEat === false) canEat = false;
+    }
+
+    return {
+      healthDrain: healthDrain || this.healthDrain,
+      mentalDrain: mentalDrain || this.mentalDrain,
+      speedMultiplier,
+      hungerDrainMultiplier,
+      energyDrainMultiplier,
+      hygieneDrain,
+      canEat
+    };
+  }
+
   serialize() { return { active: this.active }; }
   deserialize(d) { this.active = d?.active ?? {}; }
 }

@@ -1,4 +1,3 @@
-// src/systems/InteractionSystem.js
 import { ITEMS } from '../data/items.js';
 import {
   INTERACT_RANGE,
@@ -10,7 +9,8 @@ import {
   XP_PICKUP,
   XP_SELL,
   XP_STEAL,
-  XP_CRAFT
+  XP_CRAFT,
+  XP_BEG
 } from '../utils/constants.js';
 
 export class InteractionSystem {
@@ -33,6 +33,10 @@ export class InteractionSystem {
     // Estado de selección de basura
     this.sortingPickup = null;
     this.isHoldingQ = false;
+
+    // Pedir limosna
+    this._lastBegTime = -9999;
+    this.begCooldown = 4; // segundos entre pedir limosna
   }
 
   register(target) { this.targets.push(target); }
@@ -127,15 +131,27 @@ export class InteractionSystem {
         case 'car':
           this._stealCar(nearest);
           break;
-        case 'dealer':
-          this._sellSubstances(nearest, clock);
+        case 'dealer': {
+          const hasSubstances = this.inventory.items.some((i) => ITEMS[i.id]?.substance);
+          if (hasSubstances && clock.isNight) {
+            this._sellSubstances(nearest, clock);
+          } else {
+            // Abre la tienda del dealer para comprar
+            window.dispatchEvent(new CustomEvent('dealer-toggle', { detail: { dealer: nearest } }));
+          }
           break;
+        }
       }
     }
 
-    // === Comprar sustancia (Q en dealer, sin pickup cerca) ===
+    // === Comprar producto / Abrir tienda del dealer (Q) ===
     if (nearestType === 'dealer' && input.consumePress('KeyQ')) {
-      this._buySubstance(nearest);
+      window.dispatchEvent(new CustomEvent('dealer-toggle', { detail: { dealer: nearest } }));
+    }
+
+    // === Pedir limosna (B o L) ===
+    if (input.consumePress('KeyB') || input.consumePress('KeyL')) {
+      this._beg();
     }
 
     // === Boost (F) ===
@@ -242,8 +258,9 @@ export class InteractionSystem {
     }
   }
 
-  _buySubstance(target) {
-    const result = target.buySubstance(this.inventory, this.stats);
+  _buySubstance(target, itemId = null) {
+    if (!target || typeof target.buySubstance !== 'function') return null;
+    const result = target.buySubstance(this.inventory, this.stats, itemId);
     if (result.bought) {
       this.audio?.play('pickup');
       window.dispatchEvent(new CustomEvent('substance-buy', {
@@ -251,7 +268,113 @@ export class InteractionSystem {
       }));
     } else {
       this.audio?.play('empty');
-      window.dispatchEvent(new CustomEvent('substance-buy-fail', {}));
+      window.dispatchEvent(new CustomEvent('substance-buy-fail', {
+        detail: { reason: result.reason, cost: result.cost }
+      }));
     }
+    return result;
+  }
+
+  buySubstanceFromDealer(itemId = null) {
+    const dealer = this.targets.find((t) => typeof t.buySubstance === 'function');
+    if (dealer) {
+      return this._buySubstance(dealer, itemId);
+    }
+    return null;
+  }
+
+  _beg() {
+    const now = performance.now();
+    const elapsed = (now - this._lastBegTime) / 1000;
+    if (elapsed < this.begCooldown) {
+      const waitSec = Math.ceil(this.begCooldown - elapsed);
+      window.dispatchEvent(new CustomEvent('beg-cooldown', { detail: { waitSec } }));
+      return;
+    }
+
+    if (this.stats.energia < 3) {
+      this.audio?.play('empty');
+      window.dispatchEvent(new CustomEvent('beg-fail', { detail: { reason: 'energy' } }));
+      return;
+    }
+
+    this._lastBegTime = now;
+    this.stats.energia = Math.max(0, this.stats.energia - 3);
+
+    // Activar animación en el jugador
+    this.player?.playBeg?.();
+
+    // Check de higiene: si < 20 (STAT_THRESHOLDS.higieneRechazo)
+    const isDirty = typeof this.stats.isRejectedByNPCs === 'function'
+      ? this.stats.isRejectedByNPCs()
+      : this.stats.higiene < 20;
+
+    if (isDirty && Math.random() < 0.70) {
+      this.stats.animo = Math.max(0, this.stats.animo - 2);
+      this.audio?.play('empty');
+      window.dispatchEvent(new CustomEvent('beg-result', {
+        detail: {
+          success: false,
+          reason: 'higiene',
+          message: '🚫 La gente se aleja con disgusto por tu olor (Higiene muy baja)'
+        }
+      }));
+      return;
+    }
+
+    // 20% probabilidad de ser ignorado
+    if (Math.random() < 0.20) {
+      this.stats.animo = Math.max(0, this.stats.animo - 1);
+      this.audio?.play('empty');
+      window.dispatchEvent(new CustomEvent('beg-result', {
+        detail: {
+          success: false,
+          reason: 'ignored',
+          message: '🚶 Los transeúntes te ignoran y siguen de largo...'
+        }
+      }));
+      return;
+    }
+
+    // 18% probabilidad de recibir comida o agua
+    if (Math.random() < 0.18) {
+      const foodItem = Math.random() < 0.5 ? ITEMS.pan : ITEMS.agua;
+      const added = this.inventory.add(foodItem, 1);
+      this.stats.animo = Math.min(100, this.stats.animo + 4);
+      this.stats.addXP(XP_BEG, this.talents);
+      this.audio?.play('pickup');
+      window.dispatchEvent(new CustomEvent('beg-result', {
+        detail: {
+          success: true,
+          item: foodItem.name,
+          message: added
+            ? `🍞 ¡Un alma caritativa te regaló ${foodItem.name}!`
+            : `🍞 Te ofrecieron ${foodItem.name}, pero tu inventario está lleno`
+        }
+      }));
+      return;
+    }
+
+    // Dinero recibido: normal ($1 a $5) o raro ($8 a $15)
+    const isRare = Math.random() < 0.08;
+    let amount = isRare
+      ? Math.floor(Math.random() * 8) + 8
+      : Math.floor(Math.random() * 5) + 1;
+
+    this.stats.dinero += amount;
+    this.stats.animo = Math.min(100, this.stats.animo + (isRare ? 6 : 2));
+    this.stats.addXP(XP_BEG * (isRare ? 2 : 1), this.talents);
+    this.audio?.play(isRare ? 'treasure' : 'sell');
+
+    window.dispatchEvent(new CustomEvent('beg-result', {
+      detail: {
+        success: true,
+        money: amount,
+        rare: isRare,
+        message: isRare
+          ? `💎 ¡Un transeúnte generoso te dio un billete de $${amount}!`
+          : `🪙 Recibiste $${amount} de limosna`
+      }
+    }));
   }
 }

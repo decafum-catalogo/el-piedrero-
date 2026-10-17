@@ -30,7 +30,8 @@ const WALKABLE = new Set(['sidewalk', 'dirt', 'floor', 'road', 'roadV']);
 const PLAZAS = {
   player: { bx: 0, by: 0 }, // spawn (izq-arriba)
   stall:  { bx: 3, by: 0 }, // puesto de venta (der-arriba)
-  bed:    { bx: 0, by: 3 }  // cama / refugio (izq-abajo)
+  bed:    { bx: 0, by: 3 }, // cama / refugio (izq-abajo)
+  dealer: { bx: 3, by: 3 }  // rincón del dealer (der-abajo)
 };
 
 /** Clasifica un índice 1D según el patrón: 'wall' | 'walk' | 'bldg' | 'road' */
@@ -54,14 +55,15 @@ function plazaCenter(bx, by) {
 }
 
 /**
- * Posiciones (en índices de tile) donde colocar jugador, puesto y cama.
+ * Posiciones (en índices de tile) donde colocar jugador, puesto, cama y dealer.
  * Si tu mundo usa el centro del tile, suma +0.5 a x y z.
  */
 export function getSpawnPoints() {
   return {
     player: plazaCenter(PLAZAS.player.bx, PLAZAS.player.by),
     stall:  plazaCenter(PLAZAS.stall.bx,  PLAZAS.stall.by),
-    bed:    plazaCenter(PLAZAS.bed.bx,    PLAZAS.bed.by)
+    bed:    plazaCenter(PLAZAS.bed.bx,    PLAZAS.bed.by),
+    dealer: plazaCenter(PLAZAS.dealer.bx, PLAZAS.dealer.by)
   };
 }
 
@@ -115,13 +117,17 @@ export function generateDistrict(size = 32, rng = Math.random) {
     }
   }
 
-  // ===== 3. Plazas: spawn, puesto de venta, cama =====
-  for (const { bx, by } of Object.values(PLAZAS)) {
+  // ===== 3. Plazas: spawn, puesto de venta, cama, dealer =====
+  for (const [key, { bx, by }] of Object.entries(PLAZAS)) {
     const o = blockOrigin(bx, by);
     for (let dy = 0; dy < 4; dy++) {
       for (let dx = 0; dx < 4; dx++) {
         const x = o.x + dx, y = o.y + dy;
-        map[y][x] = (x + y) % 5 === 0 ? 'dirt' : 'sidewalk';
+        if (key === 'dealer') {
+          map[y][x] = (dx + dy) % 2 === 0 ? 'dirt' : 'floor';
+        } else {
+          map[y][x] = (x + y) % 5 === 0 ? 'dirt' : 'sidewalk';
+        }
       }
     }
   }
@@ -132,7 +138,7 @@ export function generateDistrict(size = 32, rng = Math.random) {
   return map;
 }
 
-/** Flood fill desde el spawn; verifica que puesto y cama sean alcanzables. */
+/** Flood fill desde el spawn; verifica que puesto, cama y dealer sean alcanzables. */
 function validateConnectivity(map, size) {
   const sp = getSpawnPoints();
   const seen = Array.from({ length: size }, () => Array(size).fill(false));
@@ -151,8 +157,8 @@ function validateConnectivity(map, size) {
   }
 
   const ok = (p) => seen[p.z][p.x];
-  if (!ok(sp.stall) || !ok(sp.bed)) {
-    console.error('[RoadGenerator] ¡Puesto o cama NO alcanzables desde el spawn!');
+  if (!ok(sp.stall) || !ok(sp.bed) || !ok(sp.dealer)) {
+    console.error('[RoadGenerator] ¡Puesto, cama o dealer NO alcanzables desde el spawn!');
   }
 
   let unreachable = 0;

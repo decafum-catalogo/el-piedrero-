@@ -1,12 +1,5 @@
 // src/systems/StatsSystem.js
-import { XP_PER_LEVEL } from '../utils/constants.js';
-
-const DECAY = {
-  hambre:  0.35,  // por segundo
-  sed:     0.5,
-  energia: 0.2,
-  salud:   0
-};
+import { DECAY, STAT_THRESHOLDS, XP_PER_LEVEL } from '../utils/constants.js';
 
 export class StatsSystem {
   constructor() {
@@ -14,31 +7,85 @@ export class StatsSystem {
     this.sed     = 100;
     this.energia = 100;
     this.salud   = 100;
-    this.saludMental = 100;
-    this.dinero = 0;
-    this.xp = 0;
-    this.level = 1;
+    this.higiene = 100;   // NUEVA
+    this.animo   = 100;   // NUEVA
+    this.dinero  = 0;
+    this.xp      = 0;
+    this.level   = 1;
+
+    this.diseaseSystem = null;
+  }
+
+  get saludMental() {
+    return this.animo;
+  }
+
+  set saludMental(v) {
+    this.animo = v;
+  }
+
+  setDiseaseSystem(ds) {
+    this.diseaseSystem = ds;
   }
 
   update(dt, player, diseaseSystem = null, clock = null, talentSystem = null) {
+    if (diseaseSystem) this.diseaseSystem = diseaseSystem;
+    const ds = diseaseSystem ?? this.diseaseSystem;
+    // ===== Efectos agregados de enfermedades =====
+    const fx = (typeof ds?.getAggregatedEffects === 'function' ? ds.getAggregatedEffects() : null) ?? {
+      healthDrain: ds?.healthDrain ?? 0,
+      mentalDrain: ds?.mentalDrain ?? 0,
+      speedMultiplier: 1,
+      hungerDrainMultiplier: 1,
+      energyDrainMultiplier: 1,
+      hygieneDrain: 0,
+      canEat: true
+    };
+
     const decayMult = talentSystem?.getEffect('decayMult', 1) ?? 1;
 
-    this.hambre  = Math.max(0, this.hambre  - DECAY.hambre  * dt * decayMult);
+    // ===== Decay base =====
+    this.hambre  = Math.max(0, this.hambre  - DECAY.hambre  * fx.hungerDrainMultiplier * dt * decayMult);
     this.sed     = Math.max(0, this.sed     - DECAY.sed     * dt * decayMult);
-    this.energia = Math.max(0, this.energia - DECAY.energia * dt);
+    this.energia = Math.max(0, this.energia - DECAY.energia * fx.energyDrainMultiplier * dt);
 
-    // Daño si stats críticos
-    if (this.hambre === 0 || this.sed === 0) this.salud -= 2 * dt;
-    if (this.energia === 0) this.salud -= 1 * dt;
+    // Higiene: baja más rápido si estás en la calle (siempre) + efecto de enfermedad
+    this.higiene = Math.max(0, this.higiene - (DECAY.higiene + fx.hygieneDrain) * dt);
 
-    // Drenaje por enfermedades
-    if (diseaseSystem) {
-      this.salud = Math.max(0, this.salud - diseaseSystem.healthDrain * dt);
+    // Ánimo: baja más rápido si estás enfermo o con hambre/sed
+    let animoDecay = DECAY.animo + fx.mentalDrain;
+    if (this.hambre < 30) animoDecay *= 1.5;
+    if (this.sed < 30)    animoDecay *= 1.5;
+    if (this.energia < 30) animoDecay *= 1.3;
+    this.animo = Math.max(0, this.animo - animoDecay * dt);
+
+    // ===== Daño por stats críticos =====
+    let damage = 0;
+    if (this.hambre === 0)  damage += 2;
+    if (this.sed === 0)     damage += 2;
+    if (this.energia === 0) damage += 1;
+    if (this.higiene === 0) damage += 0.5;   // NUEVO
+    if (this.animo === 0)   damage += 0.5;   // NUEVO
+    damage += fx.healthDrain;
+
+    if (damage > 0) {
+      this.salud = Math.max(0, this.salud - damage * dt);
     }
 
-    this.salud = Math.max(0, this.salud);
+    // ===== Regeneración natural =====
+    if (
+      this.hambre > 50 &&
+      this.sed > 50 &&
+      this.energia > 50 &&
+      this.higiene > 40 &&
+      this.animo > 40 &&
+      this.salud < 100 &&
+      fx.healthDrain === 0
+    ) {
+      this.salud = Math.min(100, this.salud + 0.5 * dt);
+    }
 
-    // Subir de nivel
+    // ===== Subir de nivel =====
     while (this.xp >= XP_PER_LEVEL * this.level) {
       this.xp -= XP_PER_LEVEL * this.level;
       this.level++;
@@ -51,21 +98,74 @@ export class StatsSystem {
 
   addXP(amount, talentSystem = null) {
     const mult = talentSystem?.getEffect('xpMult', 1) ?? 1;
-    this.xp += amount * mult;
+    this.xp += Math.round(amount * mult);
   }
 
+  canEat() {
+    const ds = this.diseaseSystem;
+    const fx = typeof ds?.getAggregatedEffects === 'function' ? ds.getAggregatedEffects() : null;
+    return fx?.canEat ?? true;
+  }
+
+  /** ===== Multiplicadores de efectos ===== */
+
+  /** Velocidad: se reduce si ánimo bajo o enfermedad */
+  getSpeedMultiplier() {
+    let mult = 1.0;
+    const ds = this.diseaseSystem;
+    const fx = typeof ds?.getAggregatedEffects === 'function' ? ds.getAggregatedEffects() : null;
+    if (fx?.speedMultiplier) mult *= fx.speedMultiplier;
+
+    if (this.animo < STAT_THRESHOLDS.animoVelocidad) mult *= 0.8;
+    if (this.animo === 0) mult *= 0.7; // crítico
+    if (this.energia === 0) mult *= 0.5;
+    return mult;
+  }
+
+  /** Probabilidad extra de enfermedad por higiene baja */
+  getDiseaseChanceMultiplier() {
+    if (this.higiene < STAT_THRESHOLDS.higieneEnfermedad) return 1.5;
+    return 1.0;
+  }
+
+  /** Nivel de desaturación visual por ánimo (0 = normal, 1 = gris total) */
+  getDesaturation() {
+    if (this.animo >= STAT_THRESHOLDS.animoVision) return 0;
+    const t = 1 - (this.animo / STAT_THRESHOLDS.animoVision);
+    return Math.min(1, t);
+  }
+
+  /** NPCs te rechazan si estás muy sucio (para futuro) */
+  isRejectedByNPCs() {
+    return this.higiene < STAT_THRESHOLDS.higieneRechazo;
+  }
+
+  /** ===== Serialización ===== */
   serialize() {
     return {
-      hambre: this.hambre, sed: this.sed, energia: this.energia,
-      salud: this.salud, saludMental: this.saludMental, dinero: this.dinero,
-      xp: this.xp, level: this.level
+      hambre: this.hambre,
+      sed: this.sed,
+      energia: this.energia,
+      salud: this.salud,
+      higiene: this.higiene,
+      animo: this.animo,
+      dinero: this.dinero,
+      xp: this.xp,
+      level: this.level
     };
   }
 
   deserialize(d) {
-    Object.assign(this, {
-      hambre: 100, sed: 100, energia: 100, salud: 100, saludMental: 100,
-      dinero: 0, xp: 0, level: 1, ...d
-    });
+    if (!d) return;
+    if (d.hambre !== undefined)  this.hambre  = d.hambre;
+    if (d.sed !== undefined)     this.sed     = d.sed;
+    if (d.energia !== undefined) this.energia = d.energia;
+    if (d.salud !== undefined)   this.salud   = d.salud;
+    if (d.higiene !== undefined) this.higiene = d.higiene;
+    if (d.animo !== undefined)   this.animo   = d.animo;
+    else if (d.saludMental !== undefined) this.animo = d.saludMental;
+    if (d.dinero !== undefined)  this.dinero  = d.dinero;
+    if (d.xp !== undefined)      this.xp      = d.xp;
+    if (d.level !== undefined)   this.level   = d.level;
   }
 }

@@ -94,7 +94,7 @@ export class ZonaCero {
       spawn:  { x: 8 * TILE_SIZE,  z: 8 * TILE_SIZE },
       sell:   { x: 22 * TILE_SIZE, z: 8 * TILE_SIZE },
       bed:    { x: 8 * TILE_SIZE,  z: 22 * TILE_SIZE },
-      dealer: { x: 26 * TILE_SIZE, z: 26 * TILE_SIZE },
+      dealer: { x: 27 * TILE_SIZE, z: 27 * TILE_SIZE },
       craft:  { x: 16 * TILE_SIZE, z: 6 * TILE_SIZE }
     };
 

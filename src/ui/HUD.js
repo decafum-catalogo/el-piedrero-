@@ -23,10 +23,13 @@ export class HUD {
     // Paneles
     this.talentPanel = document.getElementById('talent-panel');
     this.craftPanel = document.getElementById('craft-panel');
+    this.dealerPanel = document.getElementById('dealer-panel');
+    this.promptEl = document.getElementById('interaction-prompt');
 
     // Estado de paneles
     this._talentOpen = false;
     this._craftOpen = false;
+    this._dealerOpen = false;
 
     // Toasts
     this._bindEvents();
@@ -38,6 +41,20 @@ export class HUD {
       if (e.code === 'Escape') {
         this.talentPanel?.classList.remove('open');
         this.craftPanel?.classList.remove('open');
+        this.dealerPanel?.classList.remove('open');
+        this._talentOpen = false;
+        this._craftOpen = false;
+        this._dealerOpen = false;
+      }
+    });
+
+    window.addEventListener('dealer-toggle', (e) => {
+      this.toggleDealerPanel(e.detail?.dealer);
+    });
+
+    window.addEventListener('rejected', (e) => {
+      if (e.detail.reason === 'higiene') {
+        this._toast('🚫 El vendedor te rechaza, estás muy sucio', 'warn');
       }
     });
   }
@@ -55,9 +72,33 @@ export class HUD {
       else if (e.detail.added?.length) this._toast(`🪞 Robado: ${e.detail.added.join(', ')}`, 'warn');
     });
     window.addEventListener('substance-sell', (e) => this._toast(`💰 Sustancias vendidas: $${e.detail.earned}`, 'sell'));
-    window.addEventListener('substance-buy', (e) => this._toast(`📦 Comprado: ${e.detail.name} (-$${e.detail.cost})`, 'info'));
+    window.addEventListener('substance-buy', (e) => {
+      this._toast(`📦 Comprado: ${e.detail.name} (-$${e.detail.cost})`, 'info');
+      if (this._dealerOpen) this.renderDealer();
+    });
     window.addEventListener('substance-fail', (e) => {
-      if (e.detail.reason === 'day') this._toast('☀️ El dealer no atiende de día', 'warn');
+      if (e.detail.reason === 'day') this._toast('☀️ El dealer no compra de día (1.8x de noche)', 'warn');
+    });
+    window.addEventListener('substance-buy-fail', (e) => {
+      if (e.detail?.reason === 'insufficient_money') {
+        this._toast(`💸 No tienes suficiente dinero ($${e.detail.cost})`, 'warn');
+      } else if (e.detail?.reason === 'inventory_full') {
+        this._toast('🎒 Inventario lleno', 'warn');
+      } else {
+        this._toast('❌ No se pudo comprar', 'warn');
+      }
+    });
+
+    // Eventos de pedir limosna
+    window.addEventListener('beg-result', (e) => {
+      const type = e.detail.success ? (e.detail.rare ? 'rare' : 'sell') : 'warn';
+      this._toast(e.detail.message, type);
+    });
+    window.addEventListener('beg-cooldown', (e) => {
+      this._toast(`⏳ Espera ${e.detail.waitSec}s antes de pedir limosna`, 'info');
+    });
+    window.addEventListener('beg-fail', () => {
+      this._toast('😴 Demasiado cansado para pedir limosna (-3 energía necesaria)', 'warn');
     });
 
     window.addEventListener('sleep-start', () => this._toast('💤 Durmiendo...', 'info'));
@@ -79,14 +120,23 @@ export class HUD {
     this.craftPanel?.classList.toggle('open', this._craftOpen);
   }
 
+  toggleDealerPanel(dealer = null) {
+    this._dealerOpen = !this._dealerOpen;
+    this.dealerPanel?.classList.toggle('open', this._dealerOpen);
+    if (this._dealerOpen) {
+      this.renderDealer(dealer);
+    }
+  }
+
   update(stats, clock, interaction, inventory, diseaseSystem, talentSystem, craftingSystem) {
     // Barras de stats
-    const map = {
+        const map = {
       hambre: stats.hambre,
       sed: stats.sed,
       energia: stats.energia,
       salud: stats.salud,
-      saludMental: stats.saludMental
+      higiene: stats.higiene,
+      animo: stats.animo
     };
     for (const [k, v] of Object.entries(map)) {
       const el = this.bars[k];
@@ -115,6 +165,31 @@ export class HUD {
       this.boostEl.classList.toggle('active', interaction?.boostActive ?? false);
     }
 
+    // Prompt dinámico de interacción
+    if (this.promptEl) {
+      const nearBed = window.__game?.bed && window.__game.bed.position.distanceTo(window.__game.player.position) < 2.5;
+      if (nearBed) {
+        this.promptEl.textContent = '[E] Dormir (Solo de noche)';
+        this.promptEl.classList.add('visible');
+      } else if (interaction?.currentTarget) {
+        const type = interaction.currentTargetType;
+        let text = '';
+        if (type === 'pickup') text = '[E] Recoger basura · [Mantener Q] Seleccionar';
+        else if (type === 'car') text = '[E] Robar retrovisor de auto';
+        else if (type === 'sell') text = '[E] Vender objetos reciclables';
+        else if (type === 'dealer') text = '[Q / E] Tienda del Dealer · Comprar / Vender';
+
+        if (text) {
+          this.promptEl.textContent = text;
+          this.promptEl.classList.add('visible');
+        } else {
+          this.promptEl.classList.remove('visible');
+        }
+      } else {
+        this.promptEl.classList.remove('visible');
+      }
+    }
+
     // Inventario mini
     if (this.invEl && inventory) {
       this._renderInventory(inventory);
@@ -130,14 +205,57 @@ export class HUD {
     if (this._craftOpen && craftingSystem && inventory) {
       this.renderCrafting(craftingSystem, inventory, talentSystem);
     }
+    if (this._dealerOpen) {
+      this.renderDealer();
+    }
   }
 
   _renderInventory(inv) {
-    const rows = inv.items.map(
-      (i) => `<div class="inv-row">${i.name} <span>x${i.qty}</span></div>`
-    ).join('');
+    const rows = inv.items.map((i) => {
+      const canUse = !!(i.consumable || i.cure);
+      return `<div class="inv-row ${canUse ? 'usable' : ''}" data-id="${i.id}" title="${canUse ? 'Clic para usar/consumir' : ''}">
+        ${i.name} <span>x${i.qty}</span>
+      </div>`;
+    }).join('');
     const weight = `<div class="inv-weight">Peso: ${inv.totalWeight.toFixed(1)}/${inv.maxWeight}</div>`;
     this.invEl.innerHTML = rows + weight;
+
+    this.invEl.querySelectorAll('.inv-row.usable').forEach((el) => {
+      el.addEventListener('click', () => {
+        const id = el.dataset.id;
+        this._useItem(id, inv);
+      });
+    });
+  }
+
+  _useItem(itemId, inv) {
+    const item = inv.items.find((x) => x.id === itemId);
+    if (!item) return;
+    const game = window.__game;
+    if (!game) return;
+
+    if (item.consumable) {
+      const statKey = item.consumable;
+      if (game.stats[statKey] !== undefined) {
+        game.stats[statKey] = Math.min(100, game.stats[statKey] + item.amount);
+      }
+      if (item.animo) {
+        game.stats.animo = Math.min(100, game.stats.animo + item.animo);
+      }
+      if (item.energia && statKey !== 'energia') {
+        game.stats.energia = Math.min(100, game.stats.energia + item.energia);
+      }
+      inv.remove(itemId, 1);
+      game.audio?.play('pickup');
+      this._toast(`🍴 Consumiste: ${item.name}`, 'info');
+      this._renderInventory(inv);
+    } else if (item.cure) {
+      game.diseases?.cure?.(item.cure);
+      inv.remove(itemId, 1);
+      game.audio?.play('pickup');
+      this._toast(`✨ Curaste: ${item.cure} con ${item.name}`, 'info');
+      this._renderInventory(inv);
+    }
   }
 
   _renderDiseases(diseaseSystem) {
@@ -244,6 +362,65 @@ export class HUD {
             window.__game.stats.addXP(XP_CRAFT, window.__game.talents);
           }
           this.renderCrafting(craftingSystem, inventory, talentSystem);
+        }
+      });
+    });
+  }
+
+  renderDealer(dealer = null) {
+    if (!this.dealerPanel) return;
+    const d = dealer || window.__game?.dealer;
+    const stats = window.__game?.stats;
+    const inv = window.__game?.inventory;
+    const products = d?.getProducts ? d.getProducts() : [
+      { id: 'tintico', name: 'Tintico', value: 5, weight: 0.1 },
+      { id: 'pegante', name: 'Pegante', value: 8, weight: 0.2 },
+      { id: 'pastilla', name: 'Pastilla', value: 15, weight: 0.05 }
+    ];
+
+    const itemsHtml = products.map((p) => {
+      const canAfford = (stats?.dinero ?? 0) >= p.value;
+      const weightOk = inv ? (inv.totalWeight + p.weight <= inv.maxWeight) : true;
+      const canBuy = canAfford && weightOk;
+      const effectDesc = p.id === 'tintico' ? '☕ Sube +30 ánimo y +20 energía'
+                       : p.id === 'pegante' ? '🧴 Sube +40 ánimo de golpe'
+                       : '💊 Sube +60 ánimo intensamente';
+
+      return `
+        <div class="dealer-product" data-id="${p.id}">
+          <div class="dealer-prod-info">
+            <div class="dealer-prod-name">${p.name}</div>
+            <div class="dealer-prod-desc">${effectDesc} · Peso: ${p.weight}kg</div>
+          </div>
+          <div class="dealer-prod-action">
+            <div class="dealer-prod-price">$${p.value}</div>
+            <button class="dealer-buy-btn" data-id="${p.id}" ${canBuy ? '' : 'disabled'}>
+              ${canAfford ? (weightOk ? 'Comprar' : 'Lleno') : 'Sin Dinero'}
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    this.dealerPanel.innerHTML = `
+      <div class="dealer-header">
+        <h2>🟣 Rincón del Dealer</h2>
+        <span class="dealer-money">Tu Dinero: $${stats?.dinero ?? 0}</span>
+      </div>
+      <div class="dealer-products">${itemsHtml}</div>
+      <div class="dealer-hint">
+        🌙 De noche puedes vender sustancias aquí (1.8x precio base).<br>
+        Pulsa Q o ESC para cerrar.
+      </div>
+    `;
+
+    this.dealerPanel.querySelectorAll('.dealer-buy-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        if (window.__game?.interaction) {
+          window.__game.interaction.buySubstanceFromDealer(id);
+          this.renderDealer(d);
         }
       });
     });

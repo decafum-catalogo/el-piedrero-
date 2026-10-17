@@ -7,10 +7,10 @@ import {
 } from '../utils/constants.js';
 
 export class Player {
-  constructor(scene, input) {
+  constructor(scene, input, stats=null) {
     this.input = input;
     this.scene = scene;
-
+    this.stats = stats;
     this.position = new THREE.Vector3(16, 0, 16); // zona reservada spawn
     this.radius = PLAYER_RADIUS;
     this.baseWalk = PLAYER_SPEED_WALK;
@@ -30,6 +30,7 @@ export class Player {
     this.state = 'idle';
     this._boostActive = false;
     this._boostPulse = 0;
+    this.beggingTimer = 0;
   }
 
   _buildBody() {
@@ -76,12 +77,22 @@ this.root.traverse((o) => {
     });
   }
 
+  playBeg() {
+    this.beggingTimer = 1.0;
+  }
+
   update(dt, camera, collisions) {
+    if (this.beggingTimer > 0) {
+      this.beggingTimer -= dt;
+    }
+
     const { x, z } = this.input.axis;
     const moving = (x !== 0 || z !== 0);
     const running = this.input.isRunning && moving;
-    const speed = (running ? this.baseRun : this.baseWalk) * this.speedMult;
-
+    let speed = running ? this.speedRun : this.speedWalk;
+    if (this.stats?.getSpeedMultiplier) {
+      speed *= this.stats.getSpeedMultiplier();
+    }
     // Movimiento
     const dir = new THREE.Vector3(x, 0, z);
     if (moving) dir.normalize();
@@ -117,6 +128,21 @@ this.root.traverse((o) => {
   _animateProcedural() {
     const t = this.animTime;
     const { armL, armR, legL, legR, torso, head } = this.parts;
+
+    if (this.beggingTimer > 0) {
+      torso.position.y = 1.25;
+      head.position.y = 1.65;
+      armL.rotation.x = -1.1;
+      armR.rotation.x = -1.1;
+      armL.rotation.z = -0.15;
+      armR.rotation.z = 0.15;
+      legL.rotation.x = 0;
+      legR.rotation.x = 0;
+      return;
+    }
+
+    armL.rotation.z = 0;
+    armR.rotation.z = 0;
 
     if (this.state === 'idle') {
       const breathe = Math.sin(t) * 0.03;

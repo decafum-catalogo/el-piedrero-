@@ -31,7 +31,7 @@ import { HUD } from '../ui/HUD.js';
 import {
   MENTAL_DECAY, MENTAL_DECAY_NIGHT, MENTAL_DECAY_SICK,
   MENTAL_DECAY_HUNGER, MENTAL_RESTORE_SLEEP, MENTAL_LOW_THRESHOLD,
-  INVENTORY_MAX_WEIGHT
+  INVENTORY_MAX_WEIGHT, WITHDRAWAL
 } from '../utils/constants.js';
 
 export class Game {
@@ -268,6 +268,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.stats.energia = Math.min(100, this.stats.energia + 60);
     this.stats.salud = Math.min(100, this.stats.salud + 20);
     this.stats.saludMental = Math.min(100, this.stats.saludMental + MENTAL_RESTORE_SLEEP);
+    this.stats.vicio = Math.max(0, this.stats.vicio - WITHDRAWAL.vicioDormir);
 
     this._save();
 
@@ -304,6 +305,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.stats.salud = 30;
     this.stats.hambre = Math.max(20, this.stats.hambre);
     this.stats.sed = Math.max(20, this.stats.sed);
+    this.stats.vicio = Math.max(30, this.stats.vicio);
     this.diseases.cureAll();
 
     const district = this.world.active;

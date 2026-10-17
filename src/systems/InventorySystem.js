@@ -1,5 +1,6 @@
 // src/systems/InventorySystem.js
 import { INVENTORY_MAX_WEIGHT } from '../utils/constants.js';
+import { ITEMS } from '../data/items.js';
 
 export class InventorySystem {
   constructor(maxWeight = INVENTORY_MAX_WEIGHT) {
@@ -56,5 +57,8 @@ export class InventorySystem {
   }
 
   serialize() { return { items: this.items }; }
-  deserialize(d) { this.items = d.items ?? []; }
+  // Refresca cada objeto con el catálogo actual (precios y efectos pueden haber cambiado)
+  deserialize(d) {
+    this.items = (d.items ?? []).map((i) => (ITEMS[i.id] ? { ...ITEMS[i.id], qty: i.qty } : i));
+  }
 }

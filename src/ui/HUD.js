@@ -1,6 +1,8 @@
 // src/ui/HUD.js
 import { TALENTS, BRANCHES } from '../data/talents.js';
-import { XP_PER_LEVEL } from '../utils/constants.js';
+import { XP_PER_LEVEL, XP_CRAFT } from '../utils/constants.js';
+import { NEEDS } from '../systems/StatsSystem.js';
+import { cop } from '../utils/money.js';
 
 export class HUD {
   constructor() {
@@ -71,9 +73,13 @@ export class HUD {
       if (e.detail.caught) this._toast('🚨 ¡Atrapado robando!', 'death');
       else if (e.detail.added?.length) this._toast(`🪞 Robado: ${e.detail.added.join(', ')}`, 'warn');
     });
-    window.addEventListener('substance-sell', (e) => this._toast(`💰 Sustancias vendidas: $${e.detail.earned}`, 'sell'));
+    window.addEventListener('withdrawal', (e) => {
+      if (e.detail.active) this._toast('🚬 Abstinencia: caminas más lento y pierdes salud', 'death');
+      else this._toast('😮‍💨 Se te calmó la ansiedad', 'info');
+    });
+    window.addEventListener('substance-sell', (e) => this._toast(`💰 Sustancias vendidas: ${cop(e.detail.earned)}`, 'sell'));
     window.addEventListener('substance-buy', (e) => {
-      this._toast(`📦 Comprado: ${e.detail.name} (-$${e.detail.cost})`, 'info');
+      this._toast(`📦 Comprado: ${e.detail.name} (-${cop(e.detail.cost)})`, 'info');
       if (this._dealerOpen) this.renderDealer();
     });
     window.addEventListener('substance-fail', (e) => {
@@ -81,7 +87,7 @@ export class HUD {
     });
     window.addEventListener('substance-buy-fail', (e) => {
       if (e.detail?.reason === 'insufficient_money') {
-        this._toast(`💸 No tienes suficiente dinero ($${e.detail.cost})`, 'warn');
+        this._toast(`💸 No tienes suficiente dinero (${cop(e.detail.cost)})`, 'warn');
       } else if (e.detail?.reason === 'inventory_full') {
         this._toast('🎒 Inventario lleno', 'warn');
       } else {
@@ -130,24 +136,17 @@ export class HUD {
 
   update(stats, clock, interaction, inventory, diseaseSystem, talentSystem, craftingSystem) {
     // Barras de stats
-        const map = {
-      hambre: stats.hambre,
-      sed: stats.sed,
-      energia: stats.energia,
-      salud: stats.salud,
-      higiene: stats.higiene,
-      animo: stats.animo
-    };
-    for (const [k, v] of Object.entries(map)) {
+    for (const k of NEEDS) {
       const el = this.bars[k];
-      if (el) el.style.width = `${Math.max(0, Math.min(100, v))}%`;
+      if (el) el.style.width = `${Math.max(0, Math.min(100, stats[k]))}%`;
     }
+    this.bars.vicio?.parentElement.parentElement.classList.toggle('critical', stats.inWithdrawal);
 
     // Reloj
     const h = Math.floor(clock.hour).toString().padStart(2, '0');
     const m = Math.floor((clock.hour % 1) * 60).toString().padStart(2, '0');
     if (this.clockEl) this.clockEl.textContent = `Día ${clock.day} — ${h}:${m}`;
-    if (this.moneyEl) this.moneyEl.textContent = `$${stats.dinero ?? 0}`;
+    if (this.moneyEl) this.moneyEl.textContent = cop(stats.dinero);
 
     // Nivel y XP
     if (this.levelEl) this.levelEl.textContent = `Nv ${stats.level}`;
@@ -235,15 +234,10 @@ export class HUD {
     if (!game) return;
 
     if (item.consumable) {
-      const statKey = item.consumable;
-      if (game.stats[statKey] !== undefined) {
-        game.stats[statKey] = Math.min(100, game.stats[statKey] + item.amount);
-      }
-      if (item.animo) {
-        game.stats.animo = Math.min(100, game.stats.animo + item.animo);
-      }
-      if (item.energia && statKey !== 'energia') {
-        game.stats.energia = Math.min(100, game.stats.energia + item.energia);
+      // Efecto principal (consumable + amount) y efectos extra por necesidad (p. ej. animo: 15, salud: -3)
+      for (const k of NEEDS) {
+        const delta = (k === item.consumable ? item.amount : 0) + (k !== item.consumable ? (item[k] ?? 0) : 0);
+        if (delta) game.stats[k] = Math.max(0, Math.min(100, game.stats[k] + delta));
       }
       inv.remove(itemId, 1);
       game.audio?.play('pickup');
@@ -372,19 +366,15 @@ export class HUD {
     const d = dealer || window.__game?.dealer;
     const stats = window.__game?.stats;
     const inv = window.__game?.inventory;
-    const products = d?.getProducts ? d.getProducts() : [
-      { id: 'tintico', name: 'Tintico', value: 5, weight: 0.1 },
-      { id: 'pegante', name: 'Pegante', value: 8, weight: 0.2 },
-      { id: 'pastilla', name: 'Pastilla', value: 15, weight: 0.05 }
-    ];
+    const products = d?.getProducts ? d.getProducts() : [];
 
     const itemsHtml = products.map((p) => {
       const canAfford = (stats?.dinero ?? 0) >= p.value;
       const weightOk = inv ? (inv.totalWeight + p.weight <= inv.maxWeight) : true;
       const canBuy = canAfford && weightOk;
-      const effectDesc = p.id === 'tintico' ? '☕ Sube +30 ánimo y +20 energía'
-                       : p.id === 'pegante' ? '🧴 Sube +40 ánimo de golpe'
-                       : '💊 Sube +60 ánimo intensamente';
+      const effectDesc = p.id === 'tintico' ? `☕ +${p.amount} vicio, +${p.animo} ánimo, +${p.energia} energía`
+                       : p.id === 'pegante' ? `🧴 +${p.amount} vicio, +${p.animo} ánimo, ${p.salud} salud`
+                       : `💊 +${p.amount} vicio, +${p.animo} ánimo, ${p.salud} salud`;
 
       return `
         <div class="dealer-product" data-id="${p.id}">
@@ -393,7 +383,7 @@ export class HUD {
             <div class="dealer-prod-desc">${effectDesc} · Peso: ${p.weight}kg</div>
           </div>
           <div class="dealer-prod-action">
-            <div class="dealer-prod-price">$${p.value}</div>
+            <div class="dealer-prod-price">${cop(p.value)}</div>
             <button class="dealer-buy-btn" data-id="${p.id}" ${canBuy ? '' : 'disabled'}>
               ${canAfford ? (weightOk ? 'Comprar' : 'Lleno') : 'Sin Dinero'}
             </button>
@@ -405,7 +395,7 @@ export class HUD {
     this.dealerPanel.innerHTML = `
       <div class="dealer-header">
         <h2>🟣 Rincón del Dealer</h2>
-        <span class="dealer-money">Tu Dinero: $${stats?.dinero ?? 0}</span>
+        <span class="dealer-money">Tu dinero: ${cop(stats?.dinero)}</span>
       </div>
       <div class="dealer-products">${itemsHtml}</div>
       <div class="dealer-hint">
@@ -449,7 +439,7 @@ export class HUD {
   _onSell({ earned }) {
     const el = document.createElement('div');
     el.className = 'loot-toast sell';
-    el.textContent = `💰 Vendido por $${earned}`;
+    el.textContent = `💰 Vendido por ${cop(earned)}`;
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 2500);
   }

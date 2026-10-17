@@ -57,7 +57,7 @@ export const XP_BEG = 4;
 // === Robo de retrovisores ===
 export const STEAL_CAUGHT_CHANCE = 0.25;   // probabilidad de ser atrapado
 export const STEAL_CAUGHT_PENALTY = 25;    // salud perdida al ser atrapado
-export const STEAL_CAUGHT_MONEY = 10;      // dinero perdido al ser atrapado
+export const STEAL_CAUGHT_MONEY = 5000;    // pesos perdidos al ser atrapado
 export const CAR_COOLDOWN = 40;            // segundos hasta que revive el auto
 
 // === Venta de sustancias ===
@@ -88,7 +88,8 @@ export const DECAY = {
   sed:     0.50,
   energia: 0.20,
   higiene: 0.10,   // ~10 min reales para vaciarse
-  animo:   0.08    // ~20 min reales para vaciarse
+  animo:   0.08,   // ~20 min reales para vaciarse
+  vicio:   0.12    // ~14 min reales para vaciarse
 };
 
 // ===== Umbrales de efectos =====
@@ -97,7 +98,16 @@ export const STAT_THRESHOLDS = {
   higieneRechazo:    20,    // higiene < 20 → NPCs rechazan (futuro)
   animoVelocidad:    30,    // ánimo < 30 → velocidad -20%
   animoVision:       50,    // ánimo < 50 → desaturación
-  animoCritico:      10     // ánimo < 10 → alucinaciones (futuro)
+  animoCritico:      10,    // ánimo < 10 → alucinaciones (futuro)
+  vicioAbstinencia:  20     // vicio < 20 → abstinencia: más lento y pierde salud
+};
+
+// ===== Abstinencia =====
+export const WITHDRAWAL = {
+  saludPorSeg:  0.4,        // salud perdida por segundo
+  velocidad:    0.85,       // multiplicador de velocidad
+  animoMult:    1.5,        // el ánimo baja más rápido
+  vicioDormir:  10          // dormir no calma el vicio: baja esto
 };
 
 // ===== Recuperación de stats =====

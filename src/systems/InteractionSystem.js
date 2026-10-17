@@ -10,8 +10,11 @@ import {
   XP_SELL,
   XP_STEAL,
   XP_CRAFT,
-  XP_BEG
+  XP_BEG,
+  STEAL_CAUGHT_PENALTY,
+  STEAL_CAUGHT_MONEY
 } from '../utils/constants.js';
+import { cop } from '../utils/money.js';
 
 export class InteractionSystem {
   constructor(player, inventory, stats, audio, diseaseSystem, talentSystem, craftingSystem) {
@@ -223,8 +226,8 @@ export class InteractionSystem {
     }
 
     if (result.caught) {
-      this.stats.salud = Math.max(0, this.stats.salud - 25);
-      this.stats.dinero = Math.max(0, this.stats.dinero - 10);
+      this.stats.salud = Math.max(0, this.stats.salud - STEAL_CAUGHT_PENALTY);
+      this.stats.dinero = Math.max(0, this.stats.dinero - STEAL_CAUGHT_MONEY);
       window.dispatchEvent(new CustomEvent('steal-caught', {}));
     } else {
       this.audio?.play('pickup');
@@ -355,11 +358,11 @@ export class InteractionSystem {
       return;
     }
 
-    // Dinero recibido: normal ($1 a $5) o raro ($8 a $15)
+    // Dinero recibido: monedas ($200 a $1.500) o billete raro ($5.000 a $10.000)
     const isRare = Math.random() < 0.08;
-    let amount = isRare
-      ? Math.floor(Math.random() * 8) + 8
-      : Math.floor(Math.random() * 5) + 1;
+    const amount = isRare
+      ? (Math.random() < 0.5 ? 5000 : 10000)
+      : (2 + Math.floor(Math.random() * 14)) * 100;
 
     this.stats.dinero += amount;
     this.stats.animo = Math.min(100, this.stats.animo + (isRare ? 6 : 2));
@@ -372,8 +375,8 @@ export class InteractionSystem {
         money: amount,
         rare: isRare,
         message: isRare
-          ? `💎 ¡Un transeúnte generoso te dio un billete de $${amount}!`
-          : `🪙 Recibiste $${amount} de limosna`
+          ? `💎 ¡Un transeúnte generoso te dio un billete de ${cop(amount)}!`
+          : `🪙 Recibiste ${cop(amount)} de limosna`
       }
     }));
   }

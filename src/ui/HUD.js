@@ -1,6 +1,8 @@
 // src/ui/HUD.js
 import { TALENTS, BRANCHES } from '../data/talents.js';
-import { XP_PER_LEVEL } from '../utils/constants.js';
+import { XP_PER_LEVEL, XP_CRAFT } from '../utils/constants.js';
+import { NEEDS } from '../systems/StatsSystem.js';
+import { cop } from '../utils/money.js';
 
 export class HUD {
   constructor() {
@@ -19,6 +21,7 @@ export class HUD {
     this.xpFillEl = document.getElementById('xp-fill');
     this.levelEl = document.getElementById('level-display');
     this.talentPointsEl = document.getElementById('talent-points');
+    this.nameEl = document.getElementById('player-name');
 
     // Paneles
     this.talentPanel = document.getElementById('talent-panel');
@@ -36,6 +39,8 @@ export class HUD {
 
     // Controles de paneles
     window.addEventListener('keydown', (e) => {
+      // No abrir paneles mientras se escribe (nombre) o hay un menú/creador abierto
+      if (e.target instanceof HTMLInputElement || window.__game?.paused) return;
       if (e.code === 'KeyT') this.toggleTalentPanel();
       if (e.code === 'KeyC') this.toggleCraftPanel();
       if (e.code === 'Escape') {
@@ -60,6 +65,7 @@ export class HUD {
   }
 
   _bindEvents() {
+    window.addEventListener('toast', (e) => this._toast(e.detail.text, e.detail.type));
     window.addEventListener('pickup', (e) => this._onPickup(e.detail));
     window.addEventListener('sell', (e) => this._onSell(e.detail));
     window.addEventListener('disease', (e) => this._toast(`☠️ Enfermedad: ${e.detail.name}`, 'death'));
@@ -71,9 +77,13 @@ export class HUD {
       if (e.detail.caught) this._toast('🚨 ¡Atrapado robando!', 'death');
       else if (e.detail.added?.length) this._toast(`🪞 Robado: ${e.detail.added.join(', ')}`, 'warn');
     });
-    window.addEventListener('substance-sell', (e) => this._toast(`💰 Sustancias vendidas: $${e.detail.earned}`, 'sell'));
+    window.addEventListener('withdrawal', (e) => {
+      if (e.detail.active) this._toast('🚬 Abstinencia: caminas más lento y pierdes salud', 'death');
+      else this._toast('😮‍💨 Se te calmó la ansiedad', 'info');
+    });
+    window.addEventListener('substance-sell', (e) => this._toast(`💰 Sustancias vendidas: ${cop(e.detail.earned)}`, 'sell'));
     window.addEventListener('substance-buy', (e) => {
-      this._toast(`📦 Comprado: ${e.detail.name} (-$${e.detail.cost})`, 'info');
+      this._toast(`📦 Comprado: ${e.detail.name} (-${cop(e.detail.cost)})`, 'info');
       if (this._dealerOpen) this.renderDealer();
     });
     window.addEventListener('substance-fail', (e) => {
@@ -81,7 +91,7 @@ export class HUD {
     });
     window.addEventListener('substance-buy-fail', (e) => {
       if (e.detail?.reason === 'insufficient_money') {
-        this._toast(`💸 No tienes suficiente dinero ($${e.detail.cost})`, 'warn');
+        this._toast(`💸 No tienes suficiente dinero (${cop(e.detail.cost)})`, 'warn');
       } else if (e.detail?.reason === 'inventory_full') {
         this._toast('🎒 Inventario lleno', 'warn');
       } else {
@@ -102,9 +112,9 @@ export class HUD {
     });
 
     window.addEventListener('sleep-start', () => this._toast('💤 Durmiendo...', 'info'));
-    window.addEventListener('sleep-end', () => this._toast('🌅 Nuevo día', 'info'));
+    window.addEventListener('sleep-end', (e) => this._toast(`🌅 Dormiste ${e.detail?.hours ?? ''} h · Partida guardada`, 'info'));
     window.addEventListener('sleep-fail', (e) => this._toast(
-      e.detail.reason === 'day' ? '☀️ No puedes dormir de día' : 'No puedes dormir aquí',
+      e.detail.reason === 'nobase' ? '📦 Primero arma la base del cambuche (8 cartones)' : 'No puedes dormir aquí',
       'warn'
     ));
   }
@@ -130,27 +140,21 @@ export class HUD {
 
   update(stats, clock, interaction, inventory, diseaseSystem, talentSystem, craftingSystem) {
     // Barras de stats
-        const map = {
-      hambre: stats.hambre,
-      sed: stats.sed,
-      energia: stats.energia,
-      salud: stats.salud,
-      higiene: stats.higiene,
-      animo: stats.animo
-    };
-    for (const [k, v] of Object.entries(map)) {
+    for (const k of NEEDS) {
       const el = this.bars[k];
-      if (el) el.style.width = `${Math.max(0, Math.min(100, v))}%`;
+      if (el) el.style.width = `${Math.max(0, Math.min(100, stats[k]))}%`;
     }
+    this.bars.vicio?.parentElement.parentElement.classList.toggle('critical', stats.inWithdrawal);
 
     // Reloj
     const h = Math.floor(clock.hour).toString().padStart(2, '0');
     const m = Math.floor((clock.hour % 1) * 60).toString().padStart(2, '0');
     if (this.clockEl) this.clockEl.textContent = `Día ${clock.day} — ${h}:${m}`;
-    if (this.moneyEl) this.moneyEl.textContent = `$${stats.dinero ?? 0}`;
+    if (this.moneyEl) this.moneyEl.textContent = cop(stats.dinero);
 
     // Nivel y XP
     if (this.levelEl) this.levelEl.textContent = `Nv ${stats.level}`;
+    if (this.nameEl) this.nameEl.textContent = window.__game?.look?.nombre ?? '';
     const xpNeeded = XP_PER_LEVEL * stats.level;
     if (this.xpFillEl) {
       this.xpFillEl.style.width = `${Math.min(100, (stats.xp / xpNeeded) * 100)}%`;
@@ -167,16 +171,16 @@ export class HUD {
 
     // Prompt dinámico de interacción
     if (this.promptEl) {
-      const nearBed = window.__game?.bed && window.__game.bed.position.distanceTo(window.__game.player.position) < 2.5;
-      if (nearBed) {
-        this.promptEl.textContent = '[E] Dormir (Solo de noche)';
-        this.promptEl.classList.add('visible');
+      if (window.__game?.paused) {
+        this.promptEl.classList.remove('visible');
       } else if (interaction?.currentTarget) {
         const type = interaction.currentTargetType;
         let text = '';
         if (type === 'pickup') text = '[E] Recoger basura · [Mantener Q] Seleccionar';
         else if (type === 'car') text = '[E] Robar retrovisor de auto';
-        else if (type === 'sell') text = '[E] Vender objetos reciclables';
+        else if (type === 'sell') text = '[E] Recicladora El Progreso · Vender material';
+        else if (type === 'shop') text = `[E] ${interaction.currentTarget.title ?? 'Tienda La Esquinita'} · Comprar`;
+        else if (type === 'cambuche') text = '[E] Tu cambuche · Armar / Dormir';
         else if (type === 'dealer') text = '[Q / E] Tienda del Dealer · Comprar / Vender';
 
         if (text) {
@@ -235,18 +239,14 @@ export class HUD {
     if (!game) return;
 
     if (item.consumable) {
-      const statKey = item.consumable;
-      if (game.stats[statKey] !== undefined) {
-        game.stats[statKey] = Math.min(100, game.stats[statKey] + item.amount);
-      }
-      if (item.animo) {
-        game.stats.animo = Math.min(100, game.stats.animo + item.animo);
-      }
-      if (item.energia && statKey !== 'energia') {
-        game.stats.energia = Math.min(100, game.stats.energia + item.energia);
+      // Efecto principal (consumable + amount) y efectos extra por necesidad (p. ej. animo: 15, salud: -3)
+      for (const k of NEEDS) {
+        const delta = (k === item.consumable ? item.amount : 0) + (k !== item.consumable ? (item[k] ?? 0) : 0);
+        if (delta) game.stats[k] = Math.max(0, Math.min(100, game.stats[k] + delta));
       }
       inv.remove(itemId, 1);
       game.audio?.play('pickup');
+      game.player?.playAction?.('comer', 1.2);
       this._toast(`🍴 Consumiste: ${item.name}`, 'info');
       this._renderInventory(inv);
     } else if (item.cure) {
@@ -372,19 +372,15 @@ export class HUD {
     const d = dealer || window.__game?.dealer;
     const stats = window.__game?.stats;
     const inv = window.__game?.inventory;
-    const products = d?.getProducts ? d.getProducts() : [
-      { id: 'tintico', name: 'Tintico', value: 5, weight: 0.1 },
-      { id: 'pegante', name: 'Pegante', value: 8, weight: 0.2 },
-      { id: 'pastilla', name: 'Pastilla', value: 15, weight: 0.05 }
-    ];
+    const products = d?.getProducts ? d.getProducts() : [];
 
     const itemsHtml = products.map((p) => {
       const canAfford = (stats?.dinero ?? 0) >= p.value;
       const weightOk = inv ? (inv.totalWeight + p.weight <= inv.maxWeight) : true;
       const canBuy = canAfford && weightOk;
-      const effectDesc = p.id === 'tintico' ? '☕ Sube +30 ánimo y +20 energía'
-                       : p.id === 'pegante' ? '🧴 Sube +40 ánimo de golpe'
-                       : '💊 Sube +60 ánimo intensamente';
+      const effectDesc = p.id === 'tintico' ? `☕ +${p.amount} vicio, +${p.animo} ánimo, +${p.energia} energía`
+                       : p.id === 'pegante' ? `🧴 +${p.amount} vicio, +${p.animo} ánimo, ${p.salud} salud`
+                       : `💊 +${p.amount} vicio, +${p.animo} ánimo, ${p.salud} salud`;
 
       return `
         <div class="dealer-product" data-id="${p.id}">
@@ -393,7 +389,7 @@ export class HUD {
             <div class="dealer-prod-desc">${effectDesc} · Peso: ${p.weight}kg</div>
           </div>
           <div class="dealer-prod-action">
-            <div class="dealer-prod-price">$${p.value}</div>
+            <div class="dealer-prod-price">${cop(p.value)}</div>
             <button class="dealer-buy-btn" data-id="${p.id}" ${canBuy ? '' : 'disabled'}>
               ${canAfford ? (weightOk ? 'Comprar' : 'Lleno') : 'Sin Dinero'}
             </button>
@@ -405,7 +401,7 @@ export class HUD {
     this.dealerPanel.innerHTML = `
       <div class="dealer-header">
         <h2>🟣 Rincón del Dealer</h2>
-        <span class="dealer-money">Tu Dinero: $${stats?.dinero ?? 0}</span>
+        <span class="dealer-money">Tu dinero: ${cop(stats?.dinero)}</span>
       </div>
       <div class="dealer-products">${itemsHtml}</div>
       <div class="dealer-hint">
@@ -449,7 +445,7 @@ export class HUD {
   _onSell({ earned }) {
     const el = document.createElement('div');
     el.className = 'loot-toast sell';
-    el.textContent = `💰 Vendido por $${earned}`;
+    el.textContent = `💰 Vendido por ${cop(earned)}`;
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 2500);
   }

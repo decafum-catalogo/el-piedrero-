@@ -89,14 +89,19 @@ export class ZonaCero {
       );
     };
 
-    // Zonas reservadas (spawn, venta, cama, dealer, crafteo)
+    // Zonas reservadas (spawn, recicladora, cambuche, dealer, crafteo, tienda)
     this.reserved = {
       spawn:  { x: 8 * TILE_SIZE,  z: 8 * TILE_SIZE },
       sell:   { x: 22 * TILE_SIZE, z: 8 * TILE_SIZE },
-      bed:    { x: 8 * TILE_SIZE,  z: 22 * TILE_SIZE },
+      bed:    { x: 3.5 * TILE_SIZE, z: 22 * TILE_SIZE },  // cambuche, en el andén contra el edificio
       dealer: { x: 27 * TILE_SIZE, z: 27 * TILE_SIZE },
-      craft:  { x: 16 * TILE_SIZE, z: 6 * TILE_SIZE }
+      craft:  { x: 16 * TILE_SIZE, z: 6 * TILE_SIZE },
+      shop:   { x: 12 * TILE_SIZE, z: 14 * TILE_SIZE }    // tienda, de espaldas al edificio
     };
+
+    // ¿Está cerca (< dist) de alguna zona reservada?
+    this.isNearReserved = (x, z, dist = 6) =>
+      Object.values(this.reserved).some((r) => Math.hypot(x - r.x, z - r.z) < dist);
 
     // Grid de spawn para basura (garantiza distribución)
     this.getSpawnGrid = () => {
@@ -109,13 +114,7 @@ export class ZonaCero {
           if (!this.isWalkableAt(x, z)) continue;
 
           // Evitar zonas reservadas
-          const r = this.reserved;
-          const tooCloseSell  = Math.hypot(x - r.sell.x,  z - r.sell.z)  < 6;
-          const tooCloseBed   = Math.hypot(x - r.bed.x,   z - r.bed.z)   < 6;
-          const tooCloseSpawn = Math.hypot(x - r.spawn.x, z - r.spawn.z) < 6;
-          const tooCloseDealer = Math.hypot(x - r.dealer.x, z - r.dealer.z) < 6;
-          const tooCloseCraft = Math.hypot(x - r.craft.x, z - r.craft.z) < 6;
-          if (tooCloseSell || tooCloseBed || tooCloseSpawn || tooCloseDealer || tooCloseCraft) continue;
+          if (this.isNearReserved(x, z)) continue;
 
           grid.push(new THREE.Vector3(x, 0, z));
         }

@@ -3,8 +3,11 @@ import * as THREE from 'three';
 import {
   PLAYER_RADIUS,
   PLAYER_SPEED_WALK,
-  PLAYER_SPEED_RUN
+  PLAYER_SPEED_RUN,
+  CHARACTER_SCALE
 } from '../utils/constants.js';
+import { createCharacter } from '../character/character.js';
+import { createRealisticCharacter, REALISTIC_SCALE } from '../character/RealisticCharacter.js';
 
 export class Player {
   constructor(scene, input, stats=null) {
@@ -13,77 +16,78 @@ export class Player {
     this.stats = stats;
     this.position = new THREE.Vector3(16, 0, 16); // zona reservada spawn
     this.radius = PLAYER_RADIUS;
-    this.baseWalk = PLAYER_SPEED_WALK;
-    this.baseRun = PLAYER_SPEED_RUN;
     this.speedWalk = PLAYER_SPEED_WALK;
     this.speedRun = PLAYER_SPEED_RUN;
     this.speedMult = 1; // debuff por salud mental baja
 
-    // Contenedor raíz
+    // Contenedor raíz (posición + rumbo); el personaje va escalado adentro
     this.root = new THREE.Group();
     this.root.position.copy(this.position);
     scene.add(this.root);
 
-    this._buildBody();
+    this.character = createCharacter();
+    this.character.group.scale.setScalar(CHARACTER_SCALE);
+    this.character.group.traverse((o) => {
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+    });
+    this.root.add(this.character.group);
+    this.procedural = this.character;
+    this.modelScale = CHARACTER_SCALE;
+    this.modelKind = 'procedural';
 
-    this.animTime = 0;
+    this.time = 0;
+    this.speed = 0;
     this.state = 'idle';
-    this._boostActive = false;
-    this._boostPulse = 0;
-    this.beggingTimer = 0;
+    this.load = 0;            // 0..1: llenado del costal (tamaño del saco)
+    this.action = null;       // 'pedir' | 'buscar' | 'comer' | 'dormir' | 'saludo'
+    this.actionTimer = 0;
+    this.sorting = false;     // seleccionando basura (mantener Q)
   }
 
-  _buildBody() {
-    const mat = new THREE.MeshLambertMaterial({
-      color: 0x9a9a9a,
-      flatShading: true
+  setLook(look) {
+    this.look = look;
+    this.procedural.setLook(look);
+    this.procedural.group.traverse((o) => {
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
     });
-
-    this._originalColors = new Map();
-this.root.traverse((o) => {
-  if (o.isMesh && o.material?.color) {
-    this._originalColors.set(o, o.material.color.clone());
+    this._realistic?.setLook(look);
   }
-});
 
-    const box = (w, h, d, x, y, z) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-      m.position.set(x, y, z);
-      m.castShadow = true;
-      m.receiveShadow = true;
-      return m;
-    };
+  /** Cambia entre el personaje realista (MakeHuman, por defecto) y el procedural (liviano) */
+  async setModel(kind) {
+    if (kind === this.modelKind) return;
+    this.modelKind = kind;
+    if (kind === 'realista') {
+      this._realisticPromise ??= createRealisticCharacter(this.look ?? {});
+      this._realistic = await this._realisticPromise;
+      if (this._realistic.look !== this.look && this.look) await this._realistic.setLook(this.look);
+      if (this.modelKind !== 'realista') return; // se cambió mientras cargaba
+      this.root.remove(this.character.group);
+      this.character = this._realistic;
+      this.modelScale = REALISTIC_SCALE;
+    } else {
+      this.root.remove(this.character.group);
+      this.character = this.procedural;
+      this.modelScale = CHARACTER_SCALE;
+    }
+    this.root.add(this.character.group);
+  }
 
-    this.parts = {
-      hips:  box(0.35, 0.25, 0.25,  0,    0.95, 0),
-      torso: box(0.40, 0.55, 0.25,  0,    1.35, 0),
-      head:  box(0.25, 0.28, 0.25,  0,    1.75, 0),
-      armL:  box(0.14, 0.55, 0.14, -0.28, 1.30, 0),
-      armR:  box(0.14, 0.55, 0.14,  0.28, 1.30, 0),
-      legL:  box(0.16, 0.75, 0.16, -0.10, 0.40, 0),
-      legR:  box(0.16, 0.75, 0.16,  0.10, 0.40, 0)
-    };
-
-    Object.values(this.parts).forEach((p) => this.root.add(p));
-
-    // Pivotes: mover origen del mesh al extremo superior
-    [this.parts.armL, this.parts.armR].forEach((arm) => {
-      arm.geometry.translate(0, -0.275, 0);
-      arm.position.y += 0.275;
-    });
-    [this.parts.legL, this.parts.legR].forEach((leg) => {
-      leg.geometry.translate(0, -0.375, 0);
-      leg.position.y += 0.375;
-    });
+  /** Anima una acción breve (segundos) */
+  playAction(action, duration = 1) {
+    this.action = action;
+    this.actionTimer = duration;
   }
 
   playBeg() {
-    this.beggingTimer = 1.0;
+    this.playAction('pedir', 1.2);
   }
 
   update(dt, camera, collisions) {
-    if (this.beggingTimer > 0) {
-      this.beggingTimer -= dt;
+    this.time += dt;
+    if (this.actionTimer > 0) {
+      this.actionTimer -= dt;
+      if (this.actionTimer <= 0) this.action = null;
     }
 
     const { x, z } = this.input.axis;
@@ -98,6 +102,7 @@ this.root.traverse((o) => {
     if (moving) dir.normalize();
     const delta = dir.clone().multiplyScalar(moving ? speed * dt : 0);
 
+    const before = this.position.clone();
     if (collisions) {
       this.position.copy(
         collisions.resolveMove(this.position, delta, this.radius)
@@ -105,6 +110,7 @@ this.root.traverse((o) => {
     } else {
       this.position.add(delta);
     }
+    this.speed = dt > 0 ? before.distanceTo(this.position) / dt : 0;
 
     this.root.position.copy(this.position);
 
@@ -117,51 +123,17 @@ this.root.traverse((o) => {
       this.root.rotation.y += diff * Math.min(1, 12 * dt);
     }
 
-    // Animación procedural
     this.state = !moving ? 'idle' : (running ? 'run' : 'walk');
-    this.animTime += dt * (
-      this.state === 'run' ? 10 : this.state === 'walk' ? 6 : 1.5
-    );
-    this._animateProcedural();
-  }
 
-  _animateProcedural() {
-    const t = this.animTime;
-    const { armL, armR, legL, legR, torso, head } = this.parts;
-
-    if (this.beggingTimer > 0) {
-      torso.position.y = 1.25;
-      head.position.y = 1.65;
-      armL.rotation.x = -1.1;
-      armR.rotation.x = -1.1;
-      armL.rotation.z = -0.15;
-      armR.rotation.z = 0.15;
-      legL.rotation.x = 0;
-      legR.rotation.x = 0;
-      return;
-    }
-
-    armL.rotation.z = 0;
-    armR.rotation.z = 0;
-
-    if (this.state === 'idle') {
-      const breathe = Math.sin(t) * 0.03;
-      torso.position.y = 1.35 + breathe;
-      head.position.y = 1.75 + breathe;
-      armL.rotation.x = Math.sin(t) * 0.05;
-      armR.rotation.x = Math.sin(t) * 0.05;
-      legL.rotation.x = 0;
-      legR.rotation.x = 0;
-    } else {
-      const amp = this.state === 'run' ? 0.9 : 0.5;
-      const swing = Math.sin(t);
-      legL.rotation.x = swing * amp;
-      legR.rotation.x = -swing * amp;
-      armL.rotation.x = -swing * amp * 0.8;
-      armR.rotation.x = swing * amp * 0.8;
-      torso.position.y = 1.35 + Math.abs(Math.sin(t)) * 0.04;
-      head.position.y = 1.75 + Math.abs(Math.sin(t)) * 0.04;
-    }
+    // Animación del personaje (velocidad en metros del modelo, no del mundo)
+    this.character.update(dt, {
+      speed: this.speed / this.modelScale,
+      running,
+      action: this.sorting ? 'buscar' : this.action,
+      t: this.time,
+      load: this.load,
+      dirt: this.stats ? Math.max(0, (40 - this.stats.higiene) / 40) : 0
+    });
   }
 
   dispose() {

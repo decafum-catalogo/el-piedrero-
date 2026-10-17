@@ -1,99 +1,124 @@
 
- // src/data/items.js
+// src/data/items.js
+// Valores en pesos colombianos (COP): `value` es lo que pagan por el objeto.
 
 export const ITEMS = {
   // ===== BASURA =====
-  lata:     { id: 'lata',     name: 'Lata vacía',    weight: 0.2,  value: 1 },
-  botella:  { id: 'botella',  name: 'Botella PET',   weight: 0.3,  value: 2 },
-  carton:   { id: 'carton',   name: 'Cartón',        weight: 0.5,  value: 3 },
-  chatarra: { id: 'chatarra', name: 'Chatarra',      weight: 1.0,  value: 5 },
-  cable:    { id: 'cable',    name: 'Cable cobre',   weight: 0.4,  value: 8 },
+  lata:     { id: 'lata',     name: 'Lata vacía',    weight: 0.2,  value: 250 },
+  botella:  { id: 'botella',  name: 'Botella PET',   weight: 0.3,  value: 150 },
+  carton:   { id: 'carton',   name: 'Cartón',        weight: 0.5,  value: 200 },
+  chatarra: { id: 'chatarra', name: 'Chatarra',      weight: 1.0,  value: 900 },
+  cable:    { id: 'cable',    name: 'Cable cobre',   weight: 0.4,  value: 2400 },
 
   // ===== TESOROS =====
-  reloj:  { id: 'reloj',  name: 'Reloj oxidado', weight: 0.1,  value: 25, rare: true },
-  moneda: { id: 'moneda', name: 'Moneda vieja',  weight: 0.02, value: 40, rare: true },
-  anillo: { id: 'anillo', name: 'Anillo',        weight: 0.05, value: 60, rare: true },
+  reloj:  { id: 'reloj',  name: 'Reloj oxidado', weight: 0.1,  value: 8000, rare: true },
+  moneda: { id: 'moneda', name: 'Moneda vieja',  weight: 0.02, value: 12000, rare: true },
+  anillo: { id: 'anillo', name: 'Anillo',        weight: 0.05, value: 20000, rare: true },
 
   // ===== OBJETOS ROBADOS (AUTOS) =====
-  retrovisor: { id: 'retrovisor', name: 'Retrovisor',   weight: 0.8, value: 18 },
-  radio:      { id: 'radio',      name: 'Radio auto',   weight: 1.5, value: 35 },
+  retrovisor: { id: 'retrovisor', name: 'Retrovisor',   weight: 0.8, value: 15000 },
+  radio:      { id: 'radio',      name: 'Radio auto',   weight: 1.5, value: 35000 },
 
   // ===== CONSUMIBLES =====
   pan: {
-    id: 'pan', name: 'Pan duro', weight: 0.3, value: 4,
+    id: 'pan', name: 'Pan duro', weight: 0.3, value: 1000,
     consumable: 'hambre', amount: 25, animo: 5
   },
   lataComida: {
-    id: 'lataComida', name: 'Lata de atún', weight: 0.4, value: 8,
+    id: 'lataComida', name: 'Lata de atún', weight: 0.4, value: 4500,
     consumable: 'hambre', amount: 45, animo: 8
   },
   agua: {
-    id: 'agua', name: 'Botella agua', weight: 0.5, value: 3,
+    id: 'agua', name: 'Botella agua', weight: 0.5, value: 1500,
     consumable: 'sed', amount: 35
   },
   refresco: {
-    id: 'refresco', name: 'Refresco', weight: 0.4, value: 5,
+    id: 'refresco', name: 'Refresco', weight: 0.4, value: 2500,
     consumable: 'sed', amount: 50, energia: 10, animo: 10
   },
   cafe: {
-    id: 'cafe', name: 'Café caliente', weight: 0.3, value: 6,
+    id: 'cafe', name: 'Café caliente', weight: 0.3, value: 1500,
     consumable: 'energia', amount: 40, animo: 15
   },
   vendaje: {
-    id: 'vendaje', name: 'Vendaje', weight: 0.1, value: 15,
+    id: 'vendaje', name: 'Vendaje', weight: 0.1, value: 3000,
     consumable: 'salud', amount: 30
   },
 
   // ===== HIGIENE =====
   jabon: {
-    id: 'jabon', name: 'Jabón', weight: 0.2, value: 12,
+    id: 'jabon', name: 'Jabón', weight: 0.2, value: 2500,
     consumable: 'higiene', amount: 40
   },
   cepillo: {
-    id: 'cepillo', name: 'Cepillo', weight: 0.1, value: 8,
+    id: 'cepillo', name: 'Cepillo', weight: 0.1, value: 2000,
     consumable: 'higiene', amount: 20
   },
 
   // ===== CURAS =====
   vacuna: {
-    id: 'vacuna', name: 'Vacuna', weight: 0.1, value: 40,
+    id: 'vacuna', name: 'Vacuna', weight: 0.1, value: 15000,
     cure: 'tetanos'
   },
   carbon: {
-    id: 'carbon', name: 'Carbón activo', weight: 0.1, value: 25,
+    id: 'carbon', name: 'Carbón activo', weight: 0.1, value: 6000,
     cure: 'intoxicacion'
   },
   jarabe: {
-    id: 'jarabe', name: 'Jarabe', weight: 0.2, value: 20,
+    id: 'jarabe', name: 'Jarabe', weight: 0.2, value: 8000,
     cure: 'gripe'
   },
   pomada: {
-    id: 'pomada', name: 'Pomada', weight: 0.15, value: 18,
+    id: 'pomada', name: 'Pomada', weight: 0.15, value: 7000,
     cure: 'sarna'
   },
   antibiotico: {
-    id: 'antibiotico', name: 'Antibiótico', weight: 0.1, value: 45,
+    id: 'antibiotico', name: 'Antibiótico', weight: 0.1, value: 18000,
     cure: 'infeccion'
   },
   antiparasitario: {
-    id: 'antiparasitario', name: 'Antiparasitario', weight: 0.1, value: 30,
+    id: 'antiparasitario', name: 'Antiparasitario', weight: 0.1, value: 9000,
     cure: 'parasitos'
   },
 
   // ===== SUSTANCIAS =====
   tintico: {
-    id: 'tintico', name: 'Tintico', weight: 0.1, value: 5,
-    consumable: 'animo', amount: 30, energia: 20, substance: true
+    id: 'tintico', name: 'Tintico', weight: 0.1, value: 1000,
+    consumable: 'vicio', amount: 20, animo: 15, energia: 20, substance: true
   },
   pegante: {
-    id: 'pegante', name: 'Pegante', weight: 0.2, value: 8,
-    consumable: 'animo', amount: 40, substance: true
+    id: 'pegante', name: 'Pegante', weight: 0.2, value: 3000,
+    consumable: 'vicio', amount: 40, animo: 25, salud: -3, substance: true
   },
   pastilla: {
-    id: 'pastilla', name: 'Pastilla', weight: 0.05, value: 15,
-    consumable: 'animo', amount: 60, substance: true
-  }
+    id: 'pastilla', name: 'Pastilla', weight: 0.05, value: 8000,
+    consumable: 'vicio', amount: 60, animo: 40, salud: -5, substance: true
+  },
+  cigarrillo: {
+    id: 'cigarrillo', name: 'Cigarrillo suelto', weight: 0.01, value: 300,
+    consumable: 'vicio', amount: 35, salud: -1
+  },
+
+  // ===== MATERIALES DEL CAMBUCHE =====
+  lona:    { id: 'lona',    name: 'Lona azul',     weight: 2,    value: 4000, build: true },
+  madera:  { id: 'madera',  name: 'Tablas',        weight: 2,    value: 1500, build: true },
+  colchon: { id: 'colchon', name: 'Colchón viejo', weight: 6,    value: 5000, build: true },
+  vela:    { id: 'vela',    name: 'Vela',          weight: 0.05, value: 500,  build: true }
 };
+
+/** La recicladora compra todo lo que no se come, no cura, no es sustancia ni sirve para construir */
+export const isRecyclable = (item) =>
+  !!item && !item.consumable && !item.cure && !item.substance && !item.build;
+
+// Icono (lucide) para mostrar cada objeto en los menús
+const ICONS = {
+  lata: 'recycle', botella: 'recycle', carton: 'package', chatarra: 'wrench', cable: 'flame',
+  reloj: 'watch', moneda: 'coins', anillo: 'sparkles', retrovisor: 'eye', radio: 'phone',
+  pan: 'bread', lataComida: 'food', agua: 'water', refresco: 'water', cafe: 'coffee',
+  vendaje: 'bandage', jabon: 'bath', cepillo: 'bath', cigarrillo: 'flame',
+  lona: 'tent', madera: 'layers', colchon: 'bed', vela: 'flame'
+};
+export const itemIcon = (id) => ICONS[id] ?? (ITEMS[id]?.cure ? 'pill' : 'box');
 
 // ===== LOOT TABLES =====
 
@@ -106,7 +131,11 @@ export const LOOT_COMMON = [
   { item: 'pan',        weight: 4 },
   { item: 'agua',       weight: 3 },
   { item: 'lataComida', weight: 2 },
-  { item: 'vendaje',    weight: 1 }
+  { item: 'vendaje',    weight: 1 },
+  { item: 'cigarrillo', weight: 2 },
+  { item: 'madera',     weight: 3 },
+  { item: 'lona',       weight: 0.6 },
+  { item: 'colchon',    weight: 0.4 }
 ];
 
 export const LOOT_RARE = [
@@ -121,31 +150,28 @@ export const LOOT_SUBSTANCE = [
   { item: 'pastilla', weight: 20 }
 ];
 
-// ===== TIENDA =====
+// ===== TIENDA LA ESQUINITA (precios en COP) =====
 
 export const SHOP_ITEMS = [
-  // Consumibles
-  { item: 'pan',        buyPrice: 6 },
-  { item: 'agua',       buyPrice: 5 },
-  { item: 'lataComida', buyPrice: 12 },
-  { item: 'refresco',   buyPrice: 8 },
-  { item: 'cafe',       buyPrice: 10 },
-  { item: 'vendaje',    buyPrice: 25 },
-
-  // Higiene
-  { item: 'jabon',   buyPrice: 15 },
-  { item: 'cepillo', buyPrice: 10 },
-
-  // Curas
-  { item: 'vacuna',          buyPrice: 50 },
-  { item: 'carbon',          buyPrice: 30 },
-  { item: 'jarabe',          buyPrice: 25 },
-  { item: 'pomada',          buyPrice: 22 },
-  { item: 'antibiotico',     buyPrice: 55 },
-  { item: 'antiparasitario', buyPrice: 38 },
-
-  // Sustancias
-  { item: 'tintico',  buyPrice: 5 },
-  { item: 'pegante',  buyPrice: 8 },
-  { item: 'pastilla', buyPrice: 15 }
+  { item: 'pan',        price: 1500 },
+  { item: 'lataComida', price: 6000 },
+  { item: 'agua',       price: 2000 },
+  { item: 'refresco',   price: 3500 },
+  { item: 'cafe',       price: 2000, desc: 'Un tinto caliente: quita el sueño.' },
+  { item: 'cigarrillo', price: 500,  desc: 'Calma el vicio. Le quita un poquito a la salud.' },
+  { item: 'vendaje',    price: 4500 },
+  { item: 'jabon',      price: 3500 },
+  { item: 'cepillo',    price: 3000 },
+  { item: 'jarabe',     price: 11000 },
+  { item: 'pomada',     price: 9500 },
+  { item: 'carbon',     price: 9000 },
+  { item: 'antiparasitario', price: 13000 },
+  { item: 'vacuna',     price: 20000 },
+  { item: 'antibiotico', price: 25000 },
+  { item: 'vela',       price: 1000, desc: 'Ilumina el cambuche: duermes más tranquilo.' },
+  { item: 'lona',       price: 9000, desc: 'Para el techo del cambuche.' },
+  { item: 'madera',     price: 6000, qty: 3, label: 'Tablas ×3', desc: 'Para las paredes del cambuche.' },
+  { upgrade: 'costal',  price: 12000, label: 'Costal grande', icon: 'backpack', desc: 'Cargas 20 kg más.' }
 ];
+
+export const COSTAL_BONUS = 20;

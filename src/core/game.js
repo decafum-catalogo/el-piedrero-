@@ -10,7 +10,8 @@ import { World } from '../world/World.js';
 import { Player } from '../entities/Player.js';
 import { Pickup } from '../entities/Pickup.js';
 import { SellPoint } from '../entities/SellPoint.js';
-import { Bed } from '../entities/Bed.js';
+import { Cambuche } from '../entities/Cambuche.js';
+import { Shop } from '../entities/Shop.js';
 import { Car } from '../entities/Car.js';
 import { DrugDealer } from '../entities/DrugDealer.js';
 import { CraftingStation } from '../entities/CraftingStation.js';
@@ -27,11 +28,18 @@ import { TalentSystem } from '../systems/TalentSystem.js';
 import { CraftingSystem } from '../systems/CraftingSystem.js';
 
 import { HUD } from '../ui/HUD.js';
+import { Menu } from '../ui/Menu.js';
+import { createCreator } from '../ui/Creator.js';
+import { openRecycler, openShop, openCambuche } from '../ui/placeMenus.js';
+import { DEFAULT_LOOK, normalizeLook } from '../character/look.js';
+import { ITEMS, COSTAL_BONUS, isRecyclable } from '../data/items.js';
+import { SLEEP } from '../data/cambuche.js';
+import { cop } from '../utils/money.js';
 
 import {
   MENTAL_DECAY, MENTAL_DECAY_NIGHT, MENTAL_DECAY_SICK,
   MENTAL_DECAY_HUNGER, MENTAL_RESTORE_SLEEP, MENTAL_LOW_THRESHOLD,
-  INVENTORY_MAX_WEIGHT
+  INVENTORY_MAX_WEIGHT, WITHDRAWAL
 } from '../utils/constants.js';
 
 export class Game {
@@ -39,6 +47,7 @@ export class Game {
     this.canvas = canvas;
     this.renderer = new Renderer(canvas);
     this.sceneMgr = new SceneManager();
+    this.sceneMgr.scene.environment = this.renderer.createEnvironment();
     this.cameraRig = new CameraRig(this.sceneMgr.scene, canvas);
     this.clock = new Clock();
     this.input = new Input();
@@ -63,18 +72,31 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       this.diseases, this.talents, this.crafting
     );
 
-    // HUD
+    // HUD, menús y creador de personaje
     this.hud = new HUD();
+    this.menu = new Menu();
+    this.creator = createCreator({ audio: null });
+    window.addEventListener('open-recycler', () => openRecycler(this));
+    window.addEventListener('open-shop', (e) => openShop(this, e.detail?.target));
+    window.addEventListener('open-cambuche', () => openCambuche(this));
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyP' && !this.menu.isOpen && !this.creator.isOpen && this.look) this.editLook();
+      if (e.code === 'KeyM' && !this.paused) this._toggleModel();
+    });
 
     // Entidades
     this.pickups = [];
     this.sellPoint = null;
-    this.bed = null;
+    this.cambuche = null;
+    this.shop = null;
     this.cars = [];
     this.dealer = null;
     this.craftingStation = null;
 
     // Estado
+    this.look = null;       // apariencia + nombre + origen (creador)
+    this.built = {};        // piezas del cambuche
+    this.costal = false;    // costal grande comprado
     this.isSleeping = false;
     this.deathCount = 0;
     this._wasNight = null;
@@ -87,7 +109,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
   start() {
     this._running = true;
-    this.world.loadDistrict('ZonaCero', this.collisions);
+    this.world.loadDistrict('Bogota', this.collisions);
     this._spawnEntities();
 
     const district = this.world.active;
@@ -101,6 +123,48 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this._loadIfSave();
     this.audio.startAmbient();
     this._loop();
+    if (!this.look) this._createCharacter();
+    let modelo = null;
+    try { modelo = localStorage.getItem('bazuko.modelo'); } catch { /* sin almacenamiento */ }
+    // El realista es el principal; el procedural queda como modo liviano (tecla M)
+    if (modelo !== 'procedural') this.player.setModel('realista');
+  }
+
+  /** Primera vez: abre el creador antes de jugar */
+  async _createCharacter() {
+    const look = await this.creator.open(DEFAULT_LOOK, { doneLabel: 'Empezar' });
+    this._applyLook(look ?? { ...DEFAULT_LOOK, nombre: 'Parcero' });
+    this._save();
+  }
+
+  /** Tecla P: cambiar apariencia en cualquier momento */
+  async editLook() {
+    const look = await this.creator.open(this.look, { doneLabel: 'Guardar' });
+    if (look) {
+      this._applyLook(look);
+      this._save();
+    }
+  }
+
+  _applyLook(look) {
+    this.look = normalizeLook({ ...look, v: 2 });
+    this.player.setLook(this.look);
+    this.interaction.originId = this.look.origen;
+  }
+
+  /** Tecla M: alterna personaje realista / procedural (liviano) y lo recuerda */
+  async _toggleModel() {
+    const next = this.player.modelKind === 'realista' ? 'procedural' : 'realista';
+    try { localStorage.setItem('bazuko.modelo', next); } catch { /* sin almacenamiento */ }
+    window.dispatchEvent(new CustomEvent('toast', {
+      detail: { text: next === 'realista' ? '🧍 Personaje realista' : '🧸 Personaje liviano (para equipos lentos)', type: 'info' }
+    }));
+    await this.player.setModel(next);
+  }
+
+  /** El mundo se congela mientras hay un menú o el creador abierto */
+  get paused() {
+    return this.menu.isOpen || this.creator.isOpen;
   }
 
   _spawnEntities() {
@@ -118,23 +182,14 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     const findValidSpawn = (exclude = null, minDist = 4) => {
       const TILE_SIZE = 2;
-      const mapSize = 32;
+      const mapSize = district.size ?? 32;
       for (let attempt = 0; attempt < 200; attempt++) {
         const tx = 3 + Math.floor(Math.random() * (mapSize - 6));
         const tz = 3 + Math.floor(Math.random() * (mapSize - 6));
         const x = tx * TILE_SIZE;
         const z = tz * TILE_SIZE;
         if (!district.isWalkableAt(x, z)) continue;
-        if (district.reserved) {
-          const r = district.reserved;
-          const nearReserved =
-            Math.hypot(x - r.sell.x, z - r.sell.z) < 6 ||
-            Math.hypot(x - r.bed.x, z - r.bed.z) < 6 ||
-            Math.hypot(x - r.spawn.x, z - r.spawn.z) < 6 ||
-            Math.hypot(x - r.dealer.x, z - r.dealer.z) < 6 ||
-            Math.hypot(x - r.craft.x, z - r.craft.z) < 6;
-          if (nearReserved) continue;
-        }
+        if (district.isNearReserved?.(x, z)) continue;
         let tooClose = false;
         for (const other of [...this.pickups, ...this.cars]) {
           if (other === exclude) continue;
@@ -145,7 +200,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
         if (tooClose) continue;
         return new THREE.Vector3(x, 0, z);
       }
-      return new THREE.Vector3(32, 0, 32);
+      return new THREE.Vector3(district.reserved?.spawn.x ?? 32, 0, district.reserved?.spawn.z ?? 32);
     };
 
     // ===== Basura =====
@@ -172,9 +227,18 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     // ===== Autos (robar retrovisores) =====
     const carCount = 5;
+    // parqueados junto al andén y alineados con la calle si el distrito lo sabe; si no, donde se pueda
+    const parking = district.getParkingSpots?.() ?? [];
+    for (let i = parking.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [parking[i], parking[j]] = [parking[j], parking[i]];
+    }
+    const placed = [];
     for (let i = 0; i < carCount; i++) {
-      const pos = findValidSpawn(null, 6);
-      const rot = Math.random() * Math.PI * 2;
+      let spot = parking.find((p) => placed.every((q) => Math.hypot(p.x - q.x, p.z - q.z) > 8));
+      if (spot) placed.push(spot);
+      const pos = spot ? new THREE.Vector3(spot.x, 0, spot.z) : findValidSpawn(null, 6);
+      const rot = spot ? spot.rot : Math.random() * Math.PI * 2;
       const car = new Car(this.sceneMgr.scene, pos, rot);
       this.cars.push(car);
       this.interaction.register(car);
@@ -210,20 +274,33 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     );
     this.interaction.register(this.craftingStation);
 
-    // ===== Cama / refugio =====
-    this.bed = new Bed(
+    // ===== Cambuche (refugio por piezas) =====
+    this.cambuche = new Cambuche(
       this.sceneMgr.scene,
       new THREE.Vector3(
         district.reserved?.bed.x ?? 16, 0,
         district.reserved?.bed.z ?? 44
       )
     );
-    this.interaction.register(this.bed);
+    this.cambuche.setBuilt(this.built);
+    this.interaction.register(this.cambuche);
 
+    // ===== Tienda La Esquinita =====
+    this.shop = new Shop(
+      this.sceneMgr.scene,
+      new THREE.Vector3(
+        district.reserved?.shop?.x ?? 24, 0,
+        district.reserved?.shop?.z ?? 28
+      )
+    );
+    this.interaction.register(this.shop);
+
+    // ===== Vendedores ambulantes del distrito (chazas, fritanga) =====
+    for (const v of district.vendors ?? []) this.interaction.register(v);
     this.collisions.add(
-      this.bed.group,
-      new THREE.Vector3(1.2, 0.5, 2),
-      new THREE.Vector3(0, 0.25, 0)
+      this.shop.group,
+      new THREE.Vector3(2.4, 2, 1.5),
+      new THREE.Vector3(0, 1, -0.7)
     );
   }
 
@@ -235,7 +312,16 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       this.inventory.deserialize(data.inventory ?? {});
       this.talents.deserialize(data.talents ?? {});
       this.diseases.deserialize(data.diseases ?? {});
-      if (data.player) this.player.position.set(...data.player.pos);
+      if (data.player) {
+        // partidas de otro mapa: si la posición guardada no es transitable, vuelve al inicio
+        const [px, , pz] = data.player.pos;
+        const district = this.world.active;
+        if (!district?.isWalkableAt || district.isWalkableAt(px, pz)) this.player.position.set(...data.player.pos);
+      }
+      this.built = data.built ?? {};
+      this.costal = !!data.costal;
+      this.cambuche?.setBuilt(this.built);
+      if (data.look) this._applyLook(data.look);
     }
   }
 
@@ -246,34 +332,64 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       inventory: this.inventory.serialize(),
       talents: this.talents.serialize(),
       diseases: this.diseases.serialize(),
-      player: { pos: this.player.position.toArray() }
+      player: { pos: this.player.position.toArray() },
+      look: this.look,
+      built: this.built,
+      costal: this.costal
     });
   }
 
-  _sleep() {
+  /** Dormir en el cambuche (requiere la base). De noche hasta las 6:00; de día, siesta de 3 h. */
+  sleep() {
     if (this.isSleeping) return;
-    if (!this.clock.isNight) {
-      window.dispatchEvent(new CustomEvent('sleep-fail', {
-        detail: { reason: 'day' }
-      }));
+    if (!this.built.base) {
+      window.dispatchEvent(new CustomEvent('sleep-fail', { detail: { reason: 'nobase' } }));
       return;
     }
 
     this.isSleeping = true;
     window.dispatchEvent(new CustomEvent('sleep-start'));
+    this.player.playAction('dormir', 1.6);
 
-    this.clock.hour = 6;
-    this.clock.day += 1;
+    const night = this.clock.isNight;
+    const hours = night
+      ? (this.clock.hour >= 6 ? 24 - this.clock.hour + 6 : 6 - this.clock.hour)
+      : 3;
+    const factor = Math.min(1, hours / 8); // una siesta rinde menos
+    this.clock.hour += hours;
+    while (this.clock.hour >= 24) { this.clock.hour -= 24; this.clock.day += 1; }
 
-    this.stats.energia = Math.min(100, this.stats.energia + 60);
-    this.stats.salud = Math.min(100, this.stats.salud + 20);
-    this.stats.saludMental = Math.min(100, this.stats.saludMental + MENTAL_RESTORE_SLEEP);
+    const b = this.built;
+    const st = this.stats;
+    st.energia = Math.min(100, st.energia + (SLEEP.energia + (b.cama ? SLEEP.energiaCama : 0)) * factor);
+    st.salud = Math.min(100, st.salud + (SLEEP.salud + (b.techo ? SLEEP.saludTecho : 0)) * factor);
+    st.saludMental = Math.min(100, st.saludMental + (MENTAL_RESTORE_SLEEP + (b.fogon ? SLEEP.animoFogon : 0)) * factor);
+    st.vicio = b.vela
+      ? Math.min(100, st.vicio + SLEEP.vicioVela)
+      : Math.max(0, st.vicio - WITHDRAWAL.vicioDormir * factor);
+    if (!b.fogon) st.hambre = Math.max(0, st.hambre - SLEEP.hambreFogon * factor);
+
+    // Sin paredes te pueden robar si duermes de noche
+    let robbed = null;
+    if (night && !b.paredes && Math.random() < SLEEP.roboProb) {
+      const lost = Math.floor(st.dinero * SLEEP.roboDinero);
+      st.dinero -= lost;
+      for (const it of [...this.inventory.items]) {
+        if (isRecyclable(ITEMS[it.id] ?? it)) this.inventory.remove(it.id, Math.ceil(it.qty * SLEEP.roboMaterial));
+      }
+      robbed = lost;
+    }
 
     this._save();
 
     setTimeout(() => {
       this.isSleeping = false;
-      window.dispatchEvent(new CustomEvent('sleep-end'));
+      window.dispatchEvent(new CustomEvent('sleep-end', { detail: { hours: Math.round(hours) } }));
+      if (robbed !== null) {
+        window.dispatchEvent(new CustomEvent('toast', {
+          detail: { text: `🚨 Te robaron mientras dormías (${cop(robbed)} y material). Unas paredes ayudarían.`, type: 'death' }
+        }));
+      }
     }, 1200);
   }
 
@@ -304,11 +420,12 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.stats.salud = 30;
     this.stats.hambre = Math.max(20, this.stats.hambre);
     this.stats.sed = Math.max(20, this.stats.sed);
+    this.stats.vicio = Math.max(30, this.stats.vicio);
     this.diseases.cureAll();
 
     const district = this.world.active;
     if (district?.reserved) {
-      this.player.position.set(district.reserved.bed.x, 0, district.reserved.bed.z);
+      this.player.position.set(district.reserved.bed.x, 0, district.reserved.bed.z + 2);
     }
   }
 
@@ -320,7 +437,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     const dt = Math.min((now - this._lastTime) / 1000, 0.1);
     this._lastTime = now;
 
-    if (this.isSleeping) {
+    if (this.isSleeping || this.paused) {
+      this.audio.updateSteps(false, false);
       this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera);
       this.input.endFrame();
       return;
@@ -330,7 +448,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.clock.update(dt);
     this.time.update(dt, this.clock);
 
-    // 2. Día/noche
+    // 2. Día/noche: cielo nublado de Bogotá y sol que sigue al jugador (sombras nítidas)
+    this.sceneMgr.setTimeOfDay(this.clock.hour);
+    this.sceneMgr.followTarget(this.player.position);
     const isNight = this.clock.isNight;
     if (this._wasNight !== isNight) {
       this._wasNight = isNight;
@@ -346,7 +466,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     // 4b. Aplicar bono de peso por talentos
     const maxWeightBonus = this.talents.getEffect('maxWeightBonus', 0);
-    this.inventory.maxWeight = INVENTORY_MAX_WEIGHT + maxWeightBonus;
+    this.inventory.maxWeight = INVENTORY_MAX_WEIGHT + maxWeightBonus + (this.costal ? COSTAL_BONUS : 0);
+    this.player.load = this.inventory.totalWeight / this.inventory.maxWeight;
 
     // 5. Salud mental
     this._updateMentalHealth(dt);
@@ -361,21 +482,16 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     // 6. Enfermedades
     this.diseases.update(dt);
 
-    // 7. Dormir (cerca de la cama)
-    const nearBed = this.bed && this.bed.position.distanceTo(this.player.position) < 2.5;
-    if (nearBed && this.input.consumePress('KeyE')) {
-      this._sleep();
-    } else {
-      this.interaction.update(dt, this.input, this.clock);
-    }
+    // 7. Interacción (basura, autos, recicladora, tienda, cambuche, dealer)
+    this.interaction.update(dt, this.input, this.clock);
 
     // 8. Mundo
-    this.world.update(dt, this.player.position);
+    this.world.update(dt, this.player.position, this.cameraRig.camera);
 
     // 9. Entidades
     for (const p of this.pickups) p.update(dt);
     for (const c of this.cars) c.update(dt);
-    this.bed?.update(dt);
+    this.cambuche?.update(dt);
     this.dealer?.update(dt);
 
     // 10. Audio

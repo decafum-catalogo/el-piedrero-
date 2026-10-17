@@ -1,8 +1,10 @@
 // src/world/World.js
 import { ZonaCero } from './districts/ZonaCero.js';
+import { Bogota } from './districts/Bogota.js';
 
 const DISTRICT_CLASSES = {
-  ZonaCero: ZonaCero
+  ZonaCero: ZonaCero,
+  Bogota: Bogota
   // Industrial, Centro, Norte → fase 2
 };
 
@@ -28,7 +30,7 @@ export class World {
     this.activeName = name;
   }
 
-  update(dt, playerPos) {
-    this.active?.update(dt, playerPos);
+  update(dt, playerPos, camera) {
+    this.active?.update(dt, playerPos, camera);
   }
 }

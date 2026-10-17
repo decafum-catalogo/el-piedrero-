@@ -1,5 +1,8 @@
 // src/systems/StatsSystem.js
-import { DECAY, STAT_THRESHOLDS, XP_PER_LEVEL } from '../utils/constants.js';
+import { DECAY, STAT_THRESHOLDS, WITHDRAWAL, XP_PER_LEVEL } from '../utils/constants.js';
+
+/** Necesidades del jugador (0-100, 100 = satisfecha) */
+export const NEEDS = ['hambre', 'sed', 'energia', 'salud', 'higiene', 'animo', 'vicio'];
 
 export class StatsSystem {
   constructor() {
@@ -9,7 +12,8 @@ export class StatsSystem {
     this.salud   = 100;
     this.higiene = 100;   // NUEVA
     this.animo   = 100;   // NUEVA
-    this.dinero  = 0;
+    this.vicio   = 80;    // ansiedad por consumir: si se vacía, abstinencia
+    this.dinero  = 0;     // pesos colombianos
     this.xp      = 0;
     this.level   = 1;
 
@@ -22,6 +26,11 @@ export class StatsSystem {
 
   set saludMental(v) {
     this.animo = v;
+  }
+
+  /** Abstinencia: el vicio está por debajo del umbral */
+  get inWithdrawal() {
+    return this.vicio < STAT_THRESHOLDS.vicioAbstinencia;
   }
 
   setDiseaseSystem(ds) {
@@ -52,11 +61,21 @@ export class StatsSystem {
     // Higiene: baja más rápido si estás en la calle (siempre) + efecto de enfermedad
     this.higiene = Math.max(0, this.higiene - (DECAY.higiene + fx.hygieneDrain) * dt);
 
+    // Vicio: la ansiedad crece con el tiempo
+    const wasWithdrawal = this.inWithdrawal;
+    this.vicio = Math.max(0, this.vicio - DECAY.vicio * dt);
+    if (this.inWithdrawal !== wasWithdrawal) {
+      window.dispatchEvent(new CustomEvent('withdrawal', {
+        detail: { active: this.inWithdrawal }
+      }));
+    }
+
     // Ánimo: baja más rápido si estás enfermo o con hambre/sed
     let animoDecay = DECAY.animo + fx.mentalDrain;
     if (this.hambre < 30) animoDecay *= 1.5;
     if (this.sed < 30)    animoDecay *= 1.5;
     if (this.energia < 30) animoDecay *= 1.3;
+    if (this.inWithdrawal) animoDecay *= WITHDRAWAL.animoMult;
     this.animo = Math.max(0, this.animo - animoDecay * dt);
 
     // ===== Daño por stats críticos =====
@@ -66,6 +85,7 @@ export class StatsSystem {
     if (this.energia === 0) damage += 1;
     if (this.higiene === 0) damage += 0.5;   // NUEVO
     if (this.animo === 0)   damage += 0.5;   // NUEVO
+    if (this.inWithdrawal)  damage += WITHDRAWAL.saludPorSeg;
     damage += fx.healthDrain;
 
     if (damage > 0) {
@@ -79,6 +99,7 @@ export class StatsSystem {
       this.energia > 50 &&
       this.higiene > 40 &&
       this.animo > 40 &&
+      !this.inWithdrawal &&
       this.salud < 100 &&
       fx.healthDrain === 0
     ) {
@@ -119,6 +140,7 @@ export class StatsSystem {
     if (this.animo < STAT_THRESHOLDS.animoVelocidad) mult *= 0.8;
     if (this.animo === 0) mult *= 0.7; // crítico
     if (this.energia === 0) mult *= 0.5;
+    if (this.inWithdrawal) mult *= WITHDRAWAL.velocidad;
     return mult;
   }
 
@@ -149,6 +171,7 @@ export class StatsSystem {
       salud: this.salud,
       higiene: this.higiene,
       animo: this.animo,
+      vicio: this.vicio,
       dinero: this.dinero,
       xp: this.xp,
       level: this.level
@@ -164,6 +187,7 @@ export class StatsSystem {
     if (d.higiene !== undefined) this.higiene = d.higiene;
     if (d.animo !== undefined)   this.animo   = d.animo;
     else if (d.saludMental !== undefined) this.animo = d.saludMental;
+    if (d.vicio !== undefined)   this.vicio   = d.vicio;
     if (d.dinero !== undefined)  this.dinero  = d.dinero;
     if (d.xp !== undefined)      this.xp      = d.xp;
     if (d.level !== undefined)   this.level   = d.level;

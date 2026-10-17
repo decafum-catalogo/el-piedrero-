@@ -1,0 +1,50 @@
+{
+  "_comentario": "Catálogo del personaje realista. exportar_variantes.py lo usa para generar los modelos y el juego para armar el creador. Todos los assets son CC0 (MakeHuman).",
+  "raza": { "asian": 0.35, "caucasian": 0.45, "african": 0.2 },
+  "cuerpos": [
+    { "id": "hombre-joven",  "sexo": "hombre", "edad": "joven",  "age": 0.5,  "skin": "young_caucasian_male/young_caucasian_male.mhmat" },
+    { "id": "hombre-adulto", "sexo": "hombre", "edad": "adulto", "age": 0.7,  "skin": "middleage_caucasian_male/middleage_caucasian_male.mhmat" },
+    { "id": "hombre-mayor",  "sexo": "hombre", "edad": "mayor",  "age": 0.9,  "skin": "old_caucasian_male/old_caucasian_male.mhmat" },
+    { "id": "mujer-joven",   "sexo": "mujer",  "edad": "joven",  "age": 0.5,  "skin": "young_caucasian_female/young_caucasian_female.mhmat" },
+    { "id": "mujer-adulta",  "sexo": "mujer",  "edad": "adulto", "age": 0.7,  "skin": "middleage_caucasian_female/middleage_caucasian_female.mhmat" },
+    { "id": "mujer-mayor",   "sexo": "mujer",  "edad": "mayor",  "age": 0.9,  "skin": "old_caucasian_female/old_caucasian_female.mhmat" }
+  ],
+  "piezas": {
+    "pelo": [
+      { "id": "calvo",       "label": "Calvo",        "assets": [] },
+      { "id": "rapado",      "label": "Rapado",       "assets": ["hair:short01/short01.mhclo"] },
+      { "id": "corto",       "label": "Corto",        "assets": ["hair:short02/short02.mhclo"] },
+      { "id": "desordenado", "label": "Desordenado",  "assets": ["hair:culturalibre_hair_02/culturalibre_hair_02.mhclo"] },
+      { "id": "crespo",      "label": "Crespo",       "assets": ["hair:afro01/afro01.mhclo"] },
+      { "id": "largo",       "label": "Largo",        "assets": ["hair:long01/long01.mhclo"] },
+      { "id": "cola",        "label": "Cola",         "assets": ["hair:ponytail01/ponytail01.mhclo"] },
+      { "id": "melena",      "label": "Melena",       "assets": ["hair:bob02/bob02.mhclo"] }
+    ],
+    "barba": [
+      { "id": "ninguna",     "label": "Ninguna",      "assets": [] },
+      { "id": "bigote",      "label": "Bigote",       "sexo": "hombre", "assets": ["clothes:rehmanpolanski_moustache_viking/rehmanpolanski_moustache_viking.mhclo"] },
+      { "id": "candado",     "label": "Candado",      "sexo": "hombre", "assets": ["clothes:grinsegold_beard_sigmund_wip/grinsegold_beard_sigmund_wip.mhclo"] },
+      { "id": "descuidada",  "label": "Descuidada",   "sexo": "hombre", "assets": ["clothes:wdg_scruffy_beard/wdg_scruffy_beard.mhclo"] },
+      { "id": "larga",       "label": "Larga",        "sexo": "hombre", "assets": ["clothes:rehmanpolanski_beard_viking/rehmanpolanski_beard_viking.mhclo"] }
+    ],
+    "ropa": [
+      { "id": "chaqueta",    "label": "Chaqueta y jean",      "sexo": "hombre", "assets": ["clothes:male_casualsuit05/male_casualsuit05.mhclo"] },
+      { "id": "rayas",       "label": "Camisa a rayas",       "sexo": "hombre", "assets": ["clothes:male_casualsuit03/male_casualsuit03.mhclo"] },
+      { "id": "camisa",      "label": "Camisa de jean",       "sexo": "hombre", "assets": ["clothes:male_casualsuit01/male_casualsuit01.mhclo"] },
+      { "id": "buzo",        "label": "Buzo y jean",          "sexo": "hombre", "assets": ["clothes:male_casualsuit02/male_casualsuit02.mhclo"] },
+      { "id": "camiseta",    "label": "Camiseta y jean",      "sexo": "hombre", "assets": ["clothes:male_casualsuit06/male_casualsuit06.mhclo"] },
+      { "id": "overol",      "label": "Overol",               "sexo": "hombre", "assets": ["clothes:male_worksuit01/male_worksuit01.mhclo"] },
+      { "id": "blusa",       "label": "Camiseta y jean",      "sexo": "mujer",  "assets": ["clothes:female_casualsuit01/female_casualsuit01.mhclo"] },
+      { "id": "short",       "label": "Camiseta y short",     "sexo": "mujer",  "assets": ["clothes:female_casualsuit02/female_casualsuit02.mhclo"] },
+      { "id": "sudadera",    "label": "Sudadera",             "sexo": "mujer",  "assets": ["clothes:female_sportsuit01/female_sportsuit01.mhclo"] },
+      { "id": "rota",        "label": "Camiseta rota y cargo", "assets": ["clothes:elvs_crude_t-shirt_male/elvs_crude_t-shirt_male.mhclo", "clothes:cortu_cargo_pants/cortu_cargo_pants.mhclo"] },
+      { "id": "saco",        "label": "Saco de lana y cargo", "assets": ["clothes:toigo_fisherman_sweater/toigo_fisherman_sweater.mhclo", "clothes:cortu_cargo_pants/cortu_cargo_pants.mhclo"] }
+    ],
+    "calzado": [
+      { "id": "tenis",       "label": "Tenis",          "assets": ["clothes:shoes06/shoes06.mhclo"] },
+      { "id": "tenis-rotos", "label": "Tenis viejos",   "assets": ["clothes:shoes02/shoes02.mhclo"] },
+      { "id": "zapatos",     "label": "Zapatos",        "assets": ["clothes:shoes01/shoes01.mhclo"] },
+      { "id": "botas",       "label": "Botas",          "assets": ["clothes:toigo_ankle_boots_male/toigo_ankle_boots_male.mhclo"] }
+    ]
+  }
+}

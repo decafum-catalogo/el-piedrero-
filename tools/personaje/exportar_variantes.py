@@ -3,6 +3,8 @@
 # Por cada cuerpo del catálogo (sexo × edad) genera:
 #   public/models/personaje/<cuerpo>/cuerpo.gltf       cuerpo + ojos + cejas + pestañas + esqueleto Mixamo
 #   public/models/personaje/<cuerpo>/<pieza>.gltf      cada pelo, barba, ropa y calzado ajustado a ese cuerpo
+#   public/models/personaje/<cuerpo>/lod/…             versión liviana para la gente lejana: cuerpo proxy de
+#                                                      MakeHuman (~3k triángulos) y piezas simplificadas (Decimate)
 # y las texturas compartidas en public/models/personaje/texturas/.
 # Además escribe public/models/personaje/catalogo.json con lo exportado y, por pieza,
 # los vértices del cuerpo que tapa (para ocultarlos y que la piel no atraviese la ropa).
@@ -21,6 +23,8 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 OUT = os.path.join(ROOT, "public", "models", "personaje")
 CAT = json.load(open(os.path.join(HERE, "catalogo.json"), encoding="utf-8"))
 MAX_TEX = 1024
+PROXY = {"hombre": "male1591/male1591.proxy", "mujer": "female1605/female1605.proxy"}
+DECIMATE = {"hair": 0.5, "clothes": 0.35}  # proporción de caras que se conservan en el LOD
 ALPHA_PARTS = ("hair", "beard", "moustache", "eyebrow", "eyelash", "short0", "afro", "long0", "ponytail", "bob0")
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
@@ -87,7 +91,7 @@ def to_pbr(obj, alpha):
         slot.material = mat
 
 
-def export(objs, rig, path):
+def export(objs, rig, path, tex_dir="../texturas"):
     bpy.ops.object.select_all(action='DESELECT')
     rig.select_set(True)
     for o in objs:
@@ -96,7 +100,7 @@ def export(objs, rig, path):
     bpy.ops.export_scene.gltf(
         filepath=path,
         export_format='GLTF_SEPARATE',
-        export_texture_dir="../texturas",
+        export_texture_dir=tex_dir,  # relativo al .gltf: las texturas se comparten entre todos los cuerpos
         use_selection=True,
         export_apply=True,
         export_animations=False,
@@ -109,7 +113,7 @@ def export(objs, rig, path):
 
 # ---------- por cuerpo ----------
 
-def build_body(body):
+def build_body(body, lod=False):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     info = {
         "name": "personaje",
@@ -121,9 +125,9 @@ def build_body(body):
         },
         "rig": "mixamo",
         "eyes": "low-poly/low-poly.mhclo",
-        "eyebrows": "eyebrow001/eyebrow001.mhclo",
-        "eyelashes": "eyelashes01/eyelashes01.mhclo",
-        "teeth": "", "tongue": "", "hair": "", "proxy": "",
+        "eyebrows": "" if lod else "eyebrow001/eyebrow001.mhclo",
+        "eyelashes": "" if lod else "eyelashes01/eyelashes01.mhclo",
+        "teeth": "", "tongue": "", "hair": "", "proxy": PROXY[body["sexo"]] if lod else "",
         "targets": [], "clothes": [],
         "skin_mhmat": body["skin"],
         "skin_material_type": "MAKESKIN",
@@ -142,25 +146,35 @@ def build_body(body):
         attr.data[i].value = float(i)
 
     meshes = [o for o in bpy.data.objects if o.type == 'MESH']
+    if lod:
+        # el cuerpo liviano es el proxy (se renombra para que el juego lo reconozca como "body")
+        proxy = next(o for o in meshes if o is not basemesh and any(k in o.name for k in ("1591", "1605")))
+        proxy.name = "personaje.body_lod"
+        meshes = [o for o in meshes if o is not basemesh]
     for o in meshes:
         to_pbr(o, alpha=any(k in o.name.lower() for k in ALPHA_PARTS))
     return basemesh, rig, meshes
 
 
-def export_body(body, manifest):
-    basemesh, rig, meshes = build_body(body)
-    folder = os.path.join(OUT, body["id"])
+def export_body(body, manifest, lod=False):
+    basemesh, rig, meshes = build_body(body, lod)
+    folder = os.path.join(OUT, body["id"], "lod" if lod else "")
     os.makedirs(folder, exist_ok=True)
-    export(meshes, rig, os.path.join(folder, "cuerpo.gltf"))
-    print("CUERPO", body["id"])
+    tex_dir = "../../texturas" if lod else "../texturas"
+    export(meshes, rig, os.path.join(folder, "cuerpo.gltf"), tex_dir)
+    print("CUERPO", body["id"], "LOD" if lod else "")
 
-    entry = {"id": body["id"], "sexo": body["sexo"], "edad": body["edad"], "piezas": {}}
+    if lod:
+        entry = next(c for c in manifest["cuerpos"] if c["id"] == body["id"])
+    else:
+        entry = {"id": body["id"], "sexo": body["sexo"], "edad": body["edad"], "piezas": {}}
     for cat, items in CAT["piezas"].items():
         for item in items:
             if item.get("sexo") and item["sexo"] != body["sexo"]:
                 continue
             if not item["assets"]:
-                entry["piezas"][item["id"]] = {"file": None, "oculta": []}
+                if not lod:
+                    entry["piezas"][item["id"]] = {"file": None, "oculta": []}
                 continue
             added = []
             for spec in item["assets"]:
@@ -169,6 +183,9 @@ def export_body(body, manifest):
                 asset_type = "hair" if subdir == "hair" else "clothes"
                 obj = HumanService.add_mhclo_asset(path, basemesh, asset_type=asset_type, subdiv_levels=0, material_type="MAKESKIN")
                 to_pbr(obj, alpha=(subdir == "hair" or any(k in obj.name.lower() for k in ALPHA_PARTS)))
+                if lod:
+                    dec = obj.modifiers.new("LOD", 'DECIMATE')
+                    dec.ratio = DECIMATE["hair" if subdir == "hair" else "clothes"]
                 added.append(obj)
             # vértices del cuerpo tapados por esta pieza (grupos "Delete.<asset>")
             hidden = set()
@@ -178,8 +195,11 @@ def export_body(body, manifest):
                     for v in basemesh.data.vertices:
                         if any(e.group == gi and e.weight > 0.5 for e in v.groups):
                             hidden.add(v.index)
-            export(added, rig, os.path.join(folder, f"{item['id']}.gltf"))
-            entry["piezas"][item["id"]] = {"file": f"{item['id']}.gltf", "oculta": sorted(hidden)}
+            export(added, rig, os.path.join(folder, f"{item['id']}.gltf"), tex_dir)
+            if lod:
+                entry["piezas"][item["id"]]["lod"] = f"lod/{item['id']}.gltf"
+            else:
+                entry["piezas"][item["id"]] = {"file": f"{item['id']}.gltf", "oculta": sorted(hidden)}
             names = [o.name for o in added]
             for obj in added:
                 HumanService.unload_mhclo_asset(basemesh, obj)  # también borra el objeto
@@ -190,7 +210,8 @@ def export_body(body, manifest):
                 if g.name.startswith("Delete."):
                     basemesh.vertex_groups.remove(g)
             print("  PIEZA", item["id"], len(hidden), "vértices ocultos")
-    manifest["cuerpos"].append(entry)
+    if not lod:
+        manifest["cuerpos"].append(entry)
 
 
 os.makedirs(os.path.join(OUT, "texturas"), exist_ok=True)
@@ -204,6 +225,7 @@ for body in CAT["cuerpos"]:
     if ONLY and body["id"] != ONLY:
         continue
     export_body(body, manifest)
+    export_body(body, manifest, lod=True)
 
 # Etiquetas para el creador (sin rutas de assets)
 manifest["piezas"] = {cat: [{k: v for k, v in it.items() if k != "assets"} for it in items]

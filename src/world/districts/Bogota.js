@@ -19,6 +19,7 @@ import { signTexture } from '../../utils/signs.js';
 import * as TX from '../bogota/textures.js';
 import * as P from '../bogota/props.js';
 import { Npc } from '../../entities/Npc.js';
+import { applyCutaway, updateCutaway } from '../bogota/cutaway.js';
 
 const S = 48;
 const T = TILE_SIZE;
@@ -39,6 +40,26 @@ const SHOP_NAMES = [
 ];
 
 const rand = (a, b) => a + Math.random() * (b - a);
+const _frustum = new THREE.Frustum();
+const _projView = new THREE.Matrix4();
+
+/**
+ * Ajusta los UV de cada cara de una BoxGeometry a metros reales: la textura de esa cara cubre
+ * units[cara] = [ancho, alto] metros y se repite. Caras sin unidad (p. ej. la fachada) quedan 0..1.
+ * Orden de caras de BoxGeometry: +x, −x, +y, −y, +z, −z.
+ */
+function worldUVs(geo, sx, sy, sz, units) {
+  const uv = geo.attributes.uv;
+  const dims = [[sz, sy], [sz, sy], [sx, sz], [sx, sz], [sx, sy], [sx, sy]];
+  for (let f = 0; f < 6; f++) {
+    const u = units[f];
+    if (!u) continue;
+    const [w, h] = dims[f];
+    for (let i = f * 4; i < f * 4 + 4; i++) uv.setXY(i, uv.getX(i) * w / u[0], uv.getY(i) * h / u[1]);
+  }
+  return geo;
+}
+const repeatAll = (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 1); t.anisotropy = 8; t.needsUpdate = true; return t; };
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const W = (t) => t * T; // tile → metros (centro del tile)
 
@@ -115,6 +136,7 @@ export class Bogota {
     cer.rotation.y = Math.PI / 2;
     this.group.add(cer);
     this._mergeStatic();
+    applyCutaway(this.group);
     scene.add(this.group);
 
     this.isWalkableAt = (wx, wz) => {
@@ -150,6 +172,29 @@ export class Bogota {
     };
 
     this._spawnPeople();
+  }
+
+  /**
+   * Puestos de parqueo: calzada pegada al andén, lejos de cruces y de la troncal.
+   * El carro mira a lo largo de la calle (su frente es +x local).
+   */
+  getParkingSpots() {
+    const m = this.map;
+    const spots = [];
+    const nearCross = (x, z) => CALLES.some(([a, b]) => z >= a - 2 && z <= b + 2) && [...CARRERAS, ...CARACAS.lanes.map(([a, b]) => [a, b])].some(([a, b]) => x >= a - 2 && x <= b + 2);
+    for (let z = 2; z < S - 2; z++) {
+      for (let x = 2; x < S - 2; x++) {
+        if (m[z][x] !== 'road' || nearCross(x, z)) continue;
+        if (x >= CARACAS.lanes[0][0] && x <= CARACAS.lanes[1][1]) continue; // la Caracas no se parquea
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          if (m[z + dz][x + dx] !== 'sidewalk') continue;
+          // andén a los lados en x → la calle corre a lo largo de z
+          const alongZ = dx !== 0;
+          spots.push({ x: W(x) + dx * 0.4, z: W(z) + dz * 0.4, rot: alongZ ? Math.PI / 2 : 0 });
+        }
+      }
+    }
+    return spots;
   }
 
   /** Suelo: una malla por material, con UV en metros para que la textura no se repita por tile */
@@ -250,10 +295,10 @@ export class Bogota {
     const isB = (x, z) => map[z]?.[x] === 'building' || map[z]?.[x] === 'ruin';
     const walk = (x, z) => WALKABLE.has(map[z]?.[x]);
     const brick = TX.brick(3);
-    brick.map.repeat.set(2, 2);
-    const sideMat = new THREE.MeshStandardMaterial({ map: brick.map, roughness: 0.9, color: '#b9a090' });
-    const roofMat = new THREE.MeshStandardMaterial({ color: '#4a4440', roughness: 0.95 });
-    const tileRoof = new THREE.MeshStandardMaterial({ color: '#8a4a32', roughness: 0.9 });
+    const sideMat = new THREE.MeshStandardMaterial({ map: repeatAll(brick.map), bumpMap: repeatAll(brick.bumpMap), bumpScale: 0.3, roughness: 0.9, color: '#c8b2a2' });
+    const roofMat = new THREE.MeshStandardMaterial({ map: repeatAll(TX.slab(13).map), roughness: 0.95 });
+    const tileRoof = new THREE.MeshStandardMaterial({ map: repeatAll(TX.roofTiles(9).map), roughness: 0.85 });
+    this._uvUnits = { brick: [TX.BRICK_TILE.w, TX.BRICK_TILE.h], slab: [4, 4], tiles: [2, 2] };
     const covered = new Set();
 
     // direcciones: [dx, dz, índice de cara de BoxGeometry]
@@ -290,7 +335,7 @@ export class Bogota {
       for (let x = 1; x < S - 1; x++) {
         if (!isB(x, z) || covered.has(`${x},${z}`)) continue;
         const h = map[z][x] === 'ruin' ? 4.5 : 6.5;
-        const g = new THREE.BoxGeometry(T, h, T);
+        const g = worldUVs(new THREE.BoxGeometry(T, h, T), T, h, T, Array(6).fill(this._uvUnits.slab));
         g.translate(W(x), h / 2, W(z));
         fill.push(g);
       }
@@ -324,7 +369,9 @@ export class Bogota {
     const floors = ruin ? 2 + (Math.random() < 0.3 ? 1 : 0) : 2 + Math.floor(Math.random() * 3);
     const h = floors * 3;
     const style = ruin ? 'ruina' : Math.random() < 0.55 ? 'ladrillo' : 'pintada';
-    const tex = TX.facade({ seed: Math.floor(Math.random() * 1e6), width: widthM, floors, pxPerM: 22, shopFront: true, style });
+    // el ladrillo necesita más resolución para que cada ladrillo (36 × 12 cm) se distinga
+    const tex = TX.facade({ seed: Math.floor(Math.random() * 1e6), width: widthM, floors, pxPerM: style === 'pintada' ? 28 : 40, shopFront: true, style });
+    for (const t of [tex.map, tex.emissiveMap, tex.bumpMap]) { t.anisotropy = 8; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; }
     const facadeMat = new THREE.MeshStandardMaterial({
       map: tex.map, emissiveMap: tex.emissiveMap, emissive: '#ffffff', emissiveIntensity: 0,
       bumpMap: tex.bumpMap, bumpScale: 0.4, roughness: 0.85
@@ -336,9 +383,13 @@ export class Bogota {
     const cz = (W(z0) + W(z1)) / 2 - dz * (depth - 1) * T / 2;
     const sx = alongX ? widthM : depth * T;
     const sz = alongX ? depth * T : widthM;
-    const mats = [sideMat, sideMat, Math.random() < 0.4 || ruin ? tileRoof : roofMat, roofMat, sideMat, sideMat];
+    const clay = Math.random() < 0.4 || ruin;
+    const mats = [sideMat, sideMat, clay ? tileRoof : roofMat, roofMat, sideMat, sideMat];
     mats[face] = facadeMat;
-    const box = new THREE.Mesh(new THREE.BoxGeometry(sx, h, sz), mats);
+    const U = this._uvUnits;
+    const units = [U.brick, U.brick, clay ? U.tiles : U.slab, U.slab, U.brick, U.brick];
+    units[face] = null; // la fachada usa su textura completa
+    const box = new THREE.Mesh(worldUVs(new THREE.BoxGeometry(sx, h, sz), sx, h, sz, units), mats);
     box.position.set(cx, h / 2, cz);
     box.castShadow = box.receiveShadow = true;
     this.group.add(box);
@@ -561,10 +612,19 @@ export class Bogota {
 
   // ---------- ciclo ----------
 
-  update(dt) {
+  update(dt, playerPos, camera) {
     this.t += dt;
     for (const o of this.animated) o.userData.update(dt, this.t);
-    for (const n of this.npcs) n.update(dt);
+    // vista de la cámara una vez por cuadro: los NPC fuera de ella no se dibujan ni se animan
+    let frustum = null;
+    if (camera) {
+      camera.updateMatrixWorld();
+      if (playerPos) updateCutaway(playerPos, camera);
+      _projView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      frustum = _frustum.setFromProjectionMatrix(_projView);
+    }
+    const ctx = { player: playerPos, frustum };
+    for (const n of this.npcs) n.update(dt, ctx);
   }
 
   setNightMode(isNight) {

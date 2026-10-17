@@ -138,6 +138,9 @@ export function sidewalk(seed = 11) {
 }
 
 /** Ladrillo a la vista, como las culatas de las casas de barrio. */
+/** Ladrillo para muros laterales. La textura cubre BRICK_TILE metros (8 × 21,3 ladrillos). */
+export const BRICK_TILE = { w: 8 * 0.36, h: (512 / 24) * 0.12 };
+
 export function brick(seed = 3) {
   const r = rng(seed);
   const w = 512, h = 512;
@@ -170,11 +173,14 @@ const TAGS = ['KLAN', 'LUZ', 'ZONA 7', 'RBQ', 'LA 33', 'PARCE', 'ÑERO', 'CALLE'
  * Fachada de casa o edificio de barrio, dibujada a la medida.
  * Devuelve color y emisivo (ventanas encendidas).
  */
-/** Dibuja ladrillo tolete a la vista en un rectángulo del canvas. */
-function brickWall(x, r, x0, y0, w, h, scale = 1) {
+// Medidas reales del ladrillo tolete con pega: 36 × 12 cm (mismas en fachadas y muros laterales)
+export const BRICK_M = { w: 0.36, h: 0.12 };
+
+/** Dibuja ladrillo tolete a la vista en un rectángulo del canvas (pxPerM = píxeles por metro). */
+function brickWall(x, r, x0, y0, w, h, pxPerM = 36) {
   x.fillStyle = '#5a4436';
   x.fillRect(x0, y0, w, h);
-  const bw = 22 * scale, bh = 8 * scale;
+  const bw = BRICK_M.w * pxPerM, bh = BRICK_M.h * pxPerM;
   for (let row = 0, y = y0; y < y0 + h; row++, y += bh) {
     const off = row % 2 ? bw / 2 : 0;
     for (let bx = x0 - bw; bx < x0 + w + bw; bx += bw) {
@@ -197,7 +203,7 @@ export function facade({ seed, width, floors, pxPerM = 28, shopFront = true, sty
   const wall = pick(r, WALLS);
   const ruin = style === 'ruina';
   if (style === 'ladrillo') {
-    brickWall(x, r, 0, 0, w, h, pxPerM / 28);
+    brickWall(x, r, 0, 0, w, h, pxPerM);
   } else {
     x.fillStyle = ruin ? pick(r, ['#8c8070', '#7a6e62', '#9a8a6a', '#6f6a60']) : wall;
     x.fillRect(0, 0, w, h);
@@ -206,7 +212,7 @@ export function facade({ seed, width, floors, pxPerM = 28, shopFront = true, sty
       for (let i = 0; i < 4 + r() * 6; i++) {
         const pw = w * (0.08 + r() * 0.25), ph = h * (0.06 + r() * 0.2);
         const px = r() * (w - pw), py = r() * (h - ph);
-        brickWall(x, r, px, py, pw, ph, pxPerM / 28);
+        brickWall(x, r, px, py, pw, ph, pxPerM);
       }
     }
   }
@@ -356,6 +362,50 @@ export function facade({ seed, width, floors, pxPerM = 28, shopFront = true, sty
   }
 
   return { map: toTexture(c), emissiveMap: toTexture(ce), bumpMap: toTexture(c, { srgb: false }) };
+}
+
+/** Teja de barro (casas viejas del centro): filas de tejas curvas con musgo y hollín. Cubre 2 × 2 m. */
+export function roofTiles(seed = 9) {
+  const r = rng(seed);
+  const s = 256;
+  const [c, x] = canvas(s, s);
+  x.fillStyle = '#5b2a1a';
+  x.fillRect(0, 0, s, s);
+  const tw = 16, th = 24; // 12,5 cm × 18 cm por teja
+  for (let row = 0, y = 0; y < s; row++, y += th) {
+    const off = row % 2 ? tw / 2 : 0;
+    for (let tx = -tw; tx < s + tw; tx += tw) {
+      const g = x.createLinearGradient(tx + off, 0, tx + off + tw, 0);
+      const base = pick(r, ['#9a4a2c', '#8a3f26', '#a85a36', '#7d3a22', '#93502f']);
+      g.addColorStop(0, 'rgba(40,15,8,0.9)');
+      g.addColorStop(0.3, base);
+      g.addColorStop(0.7, base);
+      g.addColorStop(1, 'rgba(40,15,8,0.9)');
+      x.fillStyle = g;
+      x.fillRect(tx + off, y, tw - 1, th - 2);
+    }
+  }
+  speckle(x, s, s, r, 2500, ['rgba(60,80,40,0.35)', 'rgba(0,0,0,0.3)', 'rgba(255,220,180,0.08)'], 2.5);
+  return { map: toTexture(c) };
+}
+
+/** Placa de concreto de terraza con manchas de agua. Cubre 4 × 4 m. */
+export function slab(seed = 13) {
+  const r = rng(seed);
+  const s = 256;
+  const [c, x] = canvas(s, s);
+  x.fillStyle = '#6e6a64';
+  x.fillRect(0, 0, s, s);
+  speckle(x, s, s, r, 9000, ['#7a766f', '#5f5b55', '#837e76', '#55524d'], 2);
+  for (let i = 0; i < 7; i++) {
+    const px = r() * s, py = r() * s, pr = 20 + r() * 60;
+    const g = x.createRadialGradient(px, py, 0, px, py, pr);
+    g.addColorStop(0, 'rgba(30,28,25,0.45)');
+    g.addColorStop(1, 'rgba(30,28,25,0)');
+    x.fillStyle = g;
+    x.fillRect(px - pr, py - pr, pr * 2, pr * 2);
+  }
+  return { map: toTexture(c) };
 }
 
 /** Cartón corrugado húmedo. */

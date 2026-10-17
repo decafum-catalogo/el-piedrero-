@@ -1,11 +1,25 @@
 // src/entities/Npc.js
 // Persona de la calle (ambiente): personaje realista con apariencia al azar que se queda
 // quieto o deambula despacio dentro de un radio, solo por donde se puede caminar.
+//
+// Rendimiento: de lejos usa la versión liviana (cuerpo proxy de MakeHuman y piezas simplificadas);
+// la completa se carga al acercarse. Fuera de cámara no se dibuja ni se anima, y la animación
+// se actualiza menos seguido a media distancia.
 import * as THREE from 'three';
 import { createRealisticCharacter, loadCatalog, normalizeReal, optionsFor } from '../character/RealisticCharacter.js';
 import { randomLook, DEFAULT_LOOK } from '../character/look.js';
 
 const any = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+// Distancias (m) al jugador
+export const NPC_LOD = {
+  fullIn: 7,       // cerca: pasa al modelo completo
+  fullOut: 10,     // se aleja: vuelve al liviano (histéresis para que no parpadee)
+  animEvery: 20,   // más allá: animación cada 3 cuadros
+  animStop: 40     // más allá: animación congelada
+};
+
+const _sphere = new THREE.Sphere(new THREE.Vector3(), 1.4);
 
 /** Apariencia al azar; `gastada` prefiere ropa vieja (El Cartucho). */
 export async function randomStreetLook({ gastada = false } = {}) {
@@ -44,15 +58,41 @@ export class Npc {
     scene.add(this.root);
     this.target = null;
     this.wait = Math.random() * 6;
-    this.speed = 0;
-    this.character = null;
+    this.moving = false;
+    this.animAcc = 0;
+    this.frame = Math.floor(Math.random() * 3); // reparte los cuadros de animación entre NPC
+    this.lodChar = null;   // liviano (siempre)
+    this.fullChar = null;  // completo (al acercarse)
+    this._fullLoading = null;
+    this.character = null; // el que se ve ahora
     this.ready = (async () => {
-      const look = opts.look ?? await randomStreetLook({ gastada: opts.gastada });
-      this.character = await createRealisticCharacter(look);
-      this.root.add(this.character.group);
+      this.look = opts.look ?? await randomStreetLook({ gastada: opts.gastada });
+      this.lodChar = await createRealisticCharacter(this.look, { lod: true });
+      this._show(this.lodChar);
       // arranca cada uno en otro punto de la animación para que no se muevan al unísono
       this.character.update(Math.random() * 3, { speed: 0 });
     })().catch((e) => console.warn('[Npc] no se pudo crear', e));
+  }
+
+  _show(char) {
+    if (this.character === char) return;
+    if (this.character) this.root.remove(this.character.group);
+    this.character = char;
+    this.root.add(char.group);
+  }
+
+  /** Cambia de nivel de detalle según la distancia (carga el completo la primera vez). */
+  _updateDetail(dist) {
+    if (dist < NPC_LOD.fullIn) {
+      if (this.fullChar) this._show(this.fullChar);
+      else if (!this._fullLoading) {
+        this._fullLoading = createRealisticCharacter(this.look, { lod: false })
+          .then((c) => { this.fullChar = c; })
+          .catch((e) => console.warn('[Npc] sin modelo completo', e));
+      }
+    } else if (dist > NPC_LOD.fullOut && this.lodChar) {
+      this._show(this.lodChar);
+    }
   }
 
   _pickTarget() {
@@ -66,39 +106,56 @@ export class Npc {
     return null;
   }
 
-  update(dt) {
-    if (!this.character) return;
-    let moving = false;
-    if (this.wander > 0) {
-      if (this.target) {
-        const d = this.target.clone().sub(this.position);
-        d.y = 0;
-        const dist = d.length();
-        if (dist < 0.15) {
-          this.target = null;
-          this.wait = 3 + Math.random() * 8;
-        } else {
-          const step = Math.min(dist, 0.9 * dt);
-          const next = this.position.clone().addScaledVector(d.normalize(), step);
-          if (this.isWalkable(next.x, next.z)) {
-            this.position.copy(next);
-            moving = true;
-            const ang = Math.atan2(d.x, d.z);
-            let diff = ang - this.root.rotation.y;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            this.root.rotation.y += diff * Math.min(1, dt * 5);
-          } else {
-            this.target = null;
-          }
-        }
-      } else if ((this.wait -= dt) <= 0) {
-        this.target = this._pickTarget();
-        if (!this.target) this.wait = 4;
+  _walk(dt) {
+    this.moving = false;
+    if (this.wander <= 0) return;
+    if (this.target) {
+      const d = this.target.clone().sub(this.position);
+      d.y = 0;
+      const dist = d.length();
+      if (dist < 0.15) {
+        this.target = null;
+        this.wait = 3 + Math.random() * 8;
+        return;
       }
+      const next = this.position.clone().addScaledVector(d.normalize(), Math.min(dist, 0.9 * dt));
+      if (!this.isWalkable(next.x, next.z)) { this.target = null; return; }
+      this.position.copy(next);
+      this.moving = true;
+      let diff = Math.atan2(d.x, d.z) - this.root.rotation.y;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      this.root.rotation.y += diff * Math.min(1, dt * 5);
+    } else if ((this.wait -= dt) <= 0) {
+      this.target = this._pickTarget();
+      if (!this.target) this.wait = 4;
     }
+  }
+
+  /**
+   * @param {number} dt
+   * @param {{ player?: THREE.Vector3, frustum?: THREE.Frustum }} ctx
+   */
+  update(dt, ctx = {}) {
+    this._walk(dt);
     this.root.position.copy(this.position);
-    this.character.update(dt, { speed: moving ? 0.9 / 1.08 : 0 });
+    if (!this.character) return;
+
+    const dist = ctx.player ? Math.hypot(this.position.x - ctx.player.x, this.position.z - ctx.player.z) : 0;
+    // fuera de cámara: ni se dibuja ni se anima
+    _sphere.center.set(this.position.x, this.position.y + 0.9, this.position.z);
+    const onScreen = !ctx.frustum || ctx.frustum.intersectsSphere(_sphere);
+    this.root.visible = onScreen;
+    if (!onScreen) { this.animAcc += dt; return; }
+
+    this._updateDetail(dist);
+
+    this.animAcc += dt;
+    this.frame++;
+    if (dist > NPC_LOD.animStop && !this.moving) return; // lejos y quieto: pose congelada
+    if (dist > NPC_LOD.animEvery && this.frame % 3 !== 0) return;
+    this.character.update(Math.min(this.animAcc, 0.2), { speed: this.moving ? 0.9 / 1.08 : 0 });
+    this.animAcc = 0;
   }
 
   dispose() {

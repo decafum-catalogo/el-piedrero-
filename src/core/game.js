@@ -227,9 +227,18 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     // ===== Autos (robar retrovisores) =====
     const carCount = 5;
+    // parqueados junto al andén y alineados con la calle si el distrito lo sabe; si no, donde se pueda
+    const parking = district.getParkingSpots?.() ?? [];
+    for (let i = parking.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [parking[i], parking[j]] = [parking[j], parking[i]];
+    }
+    const placed = [];
     for (let i = 0; i < carCount; i++) {
-      const pos = findValidSpawn(null, 6);
-      const rot = Math.random() * Math.PI * 2;
+      let spot = parking.find((p) => placed.every((q) => Math.hypot(p.x - q.x, p.z - q.z) > 8));
+      if (spot) placed.push(spot);
+      const pos = spot ? new THREE.Vector3(spot.x, 0, spot.z) : findValidSpawn(null, 6);
+      const rot = spot ? spot.rot : Math.random() * Math.PI * 2;
       const car = new Car(this.sceneMgr.scene, pos, rot);
       this.cars.push(car);
       this.interaction.register(car);
@@ -477,7 +486,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.interaction.update(dt, this.input, this.clock);
 
     // 8. Mundo
-    this.world.update(dt, this.player.position);
+    this.world.update(dt, this.player.position, this.cameraRig.camera);
 
     // 9. Entidades
     for (const p of this.pickups) p.update(dt);

@@ -79,7 +79,7 @@ function loadAnimations() {
 }
 
 const clipCache = new Map();
-async function clipsForBody(bodyId, bodyGltf) {
+async function clipsForBody(bodyId, bodyGltf) { // bodyId incluye el nivel de detalle
   if (!clipCache.has(bodyId)) {
     clipCache.set(bodyId, (async () => {
       const anims = await loadAnimations();
@@ -166,17 +166,19 @@ function hideCovered(bodyMesh, baseIndex, hidden) {
 
 // ---------- instancia ----------
 
-async function buildInstance(catalog, look) {
+async function buildInstance(catalog, look, lod = false) {
   const real = normalizeReal(catalog, look.real);
   const body = catalog.cuerpos.find((c) => c.sexo === real.sexo && c.edad === real.edad) ?? catalog.cuerpos[0];
   const folder = `${BASE}${body.id}/`;
-  const bodyGltf = await load(folder + 'cuerpo.gltf');
+  // LOD: cuerpo proxy y piezas simplificadas (si el catálogo las trae)
+  const useLod = lod && body.piezas[real.ropa]?.lod;
+  const bodyGltf = await load(folder + (useLod ? 'lod/cuerpo.gltf' : 'cuerpo.gltf'));
   const parts = ['pelo', 'barba', 'ropa', 'calzado']
     .map((cat) => ({ cat, info: body.piezas[real[cat]] }))
     .filter((p) => p.info?.file);
   const [clips, ...partGltfs] = await Promise.all([
-    clipsForBody(body.id, bodyGltf),
-    ...parts.map((p) => load(folder + p.info.file))
+    clipsForBody(body.id + (useLod ? ':lod' : ''), bodyGltf),
+    ...parts.map((p) => load(folder + (useLod && p.info.lod ? p.info.lod : p.info.file)))
   ]);
 
   const root = cloneSkinned(bodyGltf.scene);
@@ -196,7 +198,7 @@ async function buildInstance(catalog, look) {
 
   const hidden = new Set();
   parts.forEach((p, i) => {
-    for (const v of p.info.oculta) hidden.add(v);
+    if (!useLod) for (const v of p.info.oculta) hidden.add(v);
     partGltfs[i].scene.traverse((o) => {
       if (!o.isSkinnedMesh) return;
       const mesh = attachPart(o, bones, bodyMesh?.parent ?? root, p.cat);
@@ -214,6 +216,7 @@ async function buildInstance(catalog, look) {
     actions[name].play();
     actions[name].setEffectiveWeight(name === 'idle' ? 1 : 0);
   }
+  if (useLod) root.traverse((o) => { if (o.isMesh) o.castShadow = false; }); // lejos: sin sombra propia
   return { root, mixer, actions, real };
 }
 
@@ -221,7 +224,7 @@ async function buildInstance(catalog, look) {
  * Crea el personaje. `look` es la apariencia compartida con el procedural (nombre, piel, peloColor…)
  * más `look.real` con las piezas realistas.
  */
-export async function createRealisticCharacter(look = {}) {
+export async function createRealisticCharacter(look = {}, { lod = false } = {}) {
   const catalog = await loadCatalog();
   const group = new THREE.Group();
   group.scale.setScalar(REALISTIC_SCALE);
@@ -231,7 +234,7 @@ export async function createRealisticCharacter(look = {}) {
 
   async function setLook(l) {
     const my = ++token;
-    const next = await buildInstance(catalog, l);
+    const next = await buildInstance(catalog, l, lod);
     if (my !== token) return; // llegó otra apariencia mientras cargaba
     if (inst) group.remove(inst.root);
     inst = next;

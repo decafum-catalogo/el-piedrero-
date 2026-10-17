@@ -1,6 +1,7 @@
 // src/entities/Car.js
 import * as THREE from 'three';
 import { COLORS, CAR_COOLDOWN } from '../utils/constants.js';
+import { makeVehicle } from '../world/bogota/vehicles.js';
 
 export class Car {
   constructor(scene, position, rotation = 0) {
@@ -13,61 +14,24 @@ export class Car {
     this.group.rotation.y = rotation;
     scene.add(this.group);
 
-    // Cuerpo del auto
-    const bodyMat = new THREE.MeshLambertMaterial({
-      color: COLORS.CAR, flatShading: true
-    });
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(2, 0.8, 4), bodyMat
-    );
-    body.position.y = 0.6;
-    body.castShadow = true;
-    body.receiveShadow = true;
-    this.group.add(body);
+    // Carro realista (portado de rebusque): particular o taxi amarillo, frente hacia +X local
+    const kind = Math.random() < 0.3 ? 'taxi' : 'carro';
+    const v = makeVehicle(kind, Math.floor(Math.random() * 8), { beams: false });
+    v.group.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    this.group.add(v.group);
 
-    // Cabina
-    const cabin = new THREE.Mesh(
-      new THREE.BoxGeometry(1.7, 0.7, 2), bodyMat
-    );
-    cabin.position.y = 1.35;
-    cabin.castShadow = true;
-    this.group.add(cabin);
-
-    // Ventanas
-    const windowMat = new THREE.MeshLambertMaterial({
-      color: 0x1a1a2a, flatShading: true
-    });
-    const windshield = new THREE.Mesh(
-      new THREE.BoxGeometry(1.6, 0.6, 0.1), windowMat
-    );
-    windshield.position.set(0, 1.35, 1);
-    this.group.add(windshield);
-
-    // Ruedas
-    const wheelMat = new THREE.MeshLambertMaterial({ color: 0x111111, flatShading: true });
-    const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 8);
-    const wheelPositions = [
-      [-1.05, 0.4, 1.2], [1.05, 0.4, 1.2],
-      [-1.05, 0.4, -1.2], [1.05, 0.4, -1.2]
-    ];
-    for (const [x, y, z] of wheelPositions) {
-      const w = new THREE.Mesh(wheelGeo, wheelMat);
-      w.position.set(x, y, z);
-      w.rotation.z = Math.PI / 2;
-      w.castShadow = true;
-      this.group.add(w);
-    }
-
-    // Retrovisores (robables)
-    const mirrorMat = new THREE.MeshLambertMaterial({
-      color: 0x888888, flatShading: true
-    });
+    // Retrovisores (lo que se roba): a los lados, en la base del parabrisas
+    const mirrorMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4, metalness: 0.4 });
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x9fb4c4, roughness: 0.05, metalness: 0.8 });
     this.mirrors = [];
-    const mirrorGeo = new THREE.BoxGeometry(0.3, 0.2, 0.15);
-    for (const x of [-1.15, 1.15]) {
-      const m = new THREE.Mesh(mirrorGeo, mirrorMat);
-      m.position.set(x, 1.5, 0.9);
-      m.castShadow = true;
+    for (const side of [-1, 1]) {
+      const m = new THREE.Group();
+      const shell = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.13, 0.2), mirrorMat);
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.1), glassMat);
+      glass.rotation.y = -Math.PI / 2;
+      glass.position.x = -0.065;
+      m.add(shell, glass);
+      m.position.set(0.82, 1.02, side * (v.width / 2 + 0.1));
       this.group.add(m);
       this.mirrors.push(m);
     }

@@ -30,7 +30,7 @@ export class World {
     this.activeName = name;
   }
 
-  update(dt, playerPos) {
-    this.active?.update(dt, playerPos);
+  update(dt, playerPos, camera) {
+    this.active?.update(dt, playerPos, camera);
   }
 }

@@ -7,6 +7,7 @@ import {
   CHARACTER_SCALE
 } from '../utils/constants.js';
 import { createCharacter } from '../character/character.js';
+import { createRealisticCharacter, REALISTIC_SCALE } from '../character/RealisticCharacter.js';
 
 export class Player {
   constructor(scene, input, stats=null) {
@@ -30,6 +31,9 @@ export class Player {
       if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
     });
     this.root.add(this.character.group);
+    this.procedural = this.character;
+    this.modelScale = CHARACTER_SCALE;
+    this.modelKind = 'procedural';
 
     this.time = 0;
     this.speed = 0;
@@ -41,10 +45,28 @@ export class Player {
   }
 
   setLook(look) {
-    this.character.setLook(look);
-    this.character.group.traverse((o) => {
+    this.procedural.setLook(look);
+    this.procedural.group.traverse((o) => {
       if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
     });
+  }
+
+  /** Cambia entre el personaje procedural y el realista (prueba de MakeHuman) */
+  async setModel(kind) {
+    if (kind === this.modelKind) return;
+    this.modelKind = kind;
+    if (kind === 'realista') {
+      this._realistic ??= await createRealisticCharacter();
+      if (this.modelKind !== 'realista') return; // se cambió mientras cargaba
+      this.root.remove(this.character.group);
+      this.character = this._realistic;
+      this.modelScale = REALISTIC_SCALE;
+    } else {
+      this.root.remove(this.character.group);
+      this.character = this.procedural;
+      this.modelScale = CHARACTER_SCALE;
+    }
+    this.root.add(this.character.group);
   }
 
   /** Anima una acción breve (segundos) */
@@ -101,7 +123,7 @@ export class Player {
 
     // Animación del personaje (velocidad en metros del modelo, no del mundo)
     this.character.update(dt, {
-      speed: this.speed / CHARACTER_SCALE,
+      speed: this.speed / this.modelScale,
       running,
       action: this.sorting ? 'buscar' : this.action,
       t: this.time,

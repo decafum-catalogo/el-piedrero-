@@ -80,6 +80,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     window.addEventListener('open-cambuche', () => openCambuche(this));
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyP' && !this.menu.isOpen && !this.creator.isOpen && this.look) this.editLook();
+      if (e.code === 'KeyM' && !this.paused) this._toggleModel();
     });
 
     // Entidades
@@ -122,6 +123,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.audio.startAmbient();
     this._loop();
     if (!this.look) this._createCharacter();
+    let modelo = null;
+    try { modelo = localStorage.getItem('bazuko.modelo'); } catch { /* sin almacenamiento */ }
+    if (modelo === 'realista') this.player.setModel('realista');
   }
 
   /** Primera vez: abre el creador antes de jugar */
@@ -144,6 +148,16 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.look = normalizeLook({ ...look, v: 2 });
     this.player.setLook(this.look);
     this.interaction.originId = this.look.origen;
+  }
+
+  /** Tecla M: alterna personaje procedural / realista (prueba) y lo recuerda */
+  async _toggleModel() {
+    const next = this.player.modelKind === 'realista' ? 'procedural' : 'realista';
+    try { localStorage.setItem('bazuko.modelo', next); } catch { /* sin almacenamiento */ }
+    window.dispatchEvent(new CustomEvent('toast', {
+      detail: { text: next === 'realista' ? '🧍 Personaje realista (prueba MakeHuman)' : '🧸 Personaje procedural', type: 'info' }
+    }));
+    await this.player.setModel(next);
   }
 
   /** El mundo se congela mientras hay un menú o el creador abierto */

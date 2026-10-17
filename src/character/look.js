@@ -84,6 +84,8 @@ export function normalizeLook(raw = {}) {
     return l;
   }
   l.nombre = cleanName(raw.nombre);
+  // piezas del personaje realista (las valida RealisticCharacter con el catálogo)
+  if (raw.real && typeof raw.real === 'object') l.real = { ...raw.real };
   l.origen = typeof raw.origen === 'string' ? raw.origen : l.origen;
   for (const k of ['cuerpo', 'contextura', 'pelo', 'cejas', 'barba', 'arriba', 'abajo', 'zapatos', 'cabeza']) l[k] = pickId(raw[k], k, l[k]);
   l.estatura = typeof raw.estatura === 'number' ? Math.min(1.08, Math.max(0.92, raw.estatura)) : 1;

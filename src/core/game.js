@@ -125,7 +125,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     if (!this.look) this._createCharacter();
     let modelo = null;
     try { modelo = localStorage.getItem('bazuko.modelo'); } catch { /* sin almacenamiento */ }
-    if (modelo === 'realista') this.player.setModel('realista');
+    // El realista es el principal; el procedural queda como modo liviano (tecla M)
+    if (modelo !== 'procedural') this.player.setModel('realista');
   }
 
   /** Primera vez: abre el creador antes de jugar */
@@ -150,12 +151,12 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.interaction.originId = this.look.origen;
   }
 
-  /** Tecla M: alterna personaje procedural / realista (prueba) y lo recuerda */
+  /** Tecla M: alterna personaje realista / procedural (liviano) y lo recuerda */
   async _toggleModel() {
     const next = this.player.modelKind === 'realista' ? 'procedural' : 'realista';
     try { localStorage.setItem('bazuko.modelo', next); } catch { /* sin almacenamiento */ }
     window.dispatchEvent(new CustomEvent('toast', {
-      detail: { text: next === 'realista' ? '🧍 Personaje realista (prueba MakeHuman)' : '🧸 Personaje procedural', type: 'info' }
+      detail: { text: next === 'realista' ? '🧍 Personaje realista' : '🧸 Personaje liviano (para equipos lentos)', type: 'info' }
     }));
     await this.player.setModel(next);
   }

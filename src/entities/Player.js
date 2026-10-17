@@ -45,18 +45,22 @@ export class Player {
   }
 
   setLook(look) {
+    this.look = look;
     this.procedural.setLook(look);
     this.procedural.group.traverse((o) => {
       if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
     });
+    this._realistic?.setLook(look);
   }
 
-  /** Cambia entre el personaje procedural y el realista (prueba de MakeHuman) */
+  /** Cambia entre el personaje realista (MakeHuman, por defecto) y el procedural (liviano) */
   async setModel(kind) {
     if (kind === this.modelKind) return;
     this.modelKind = kind;
     if (kind === 'realista') {
-      this._realistic ??= await createRealisticCharacter();
+      this._realisticPromise ??= createRealisticCharacter(this.look ?? {});
+      this._realistic = await this._realisticPromise;
+      if (this._realistic.look !== this.look && this.look) await this._realistic.setLook(this.look);
       if (this.modelKind !== 'realista') return; // se cambió mientras cargaba
       this.root.remove(this.character.group);
       this.character = this._realistic;

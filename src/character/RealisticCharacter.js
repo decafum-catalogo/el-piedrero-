@@ -1,200 +1,266 @@
 // src/character/RealisticCharacter.js
-// Personaje realista (prueba): malla de MakeHuman/MPFB2 con esqueleto Mixamo + animaciones Mixamo.
+// Personaje realista armado por piezas: cuerpo de MakeHuman/MPFB2 (esqueleto Mixamo) + pelo, barba,
+// ropa y calzado exportados por tools/personaje/exportar_variantes.py, con animaciones Mixamo.
 // Expone la misma interfaz que createCharacter(): { group, setLook, update }.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { createRetargeter } from './retarget.js';
+import { PALETTES } from './look.js';
 
-const MODEL_URL = '/models/habitante.glb';
-const ANIM_URL = '/models/animaciones-prueba.glb'; // solo para comparar; las finales se bajan de Mixamo
+const BASE = '/models/personaje/';
+// Animaciones descargadas de Mixamo (tools/personaje/mixamo_a_glb.py); si no están, las de prueba
+const ANIM_URLS = ['/models/animaciones.glb', '/models/animaciones-prueba.glb'];
 
-// Altura del modelo (m) → misma escala que el personaje procedural
+// El modelo mide ~1,7 m; el mundo usa la escala del personaje procedural (~1,85 m)
 export const REALISTIC_SCALE = 1.08;
 
-// Piezas con transparencia (pelo, barba, cejas, pestañas)
-const ALPHA_PARTS = ['hair', 'beard', 'eyebrow', 'eyelash'];
+// Clips que busca el personaje (en minúsculas); los que no existan caen en idle/walk/run
+const CLIPS = ['idle', 'walk', 'run', 'buscar', 'pedir', 'comer', 'dormir', 'saludo'];
 
-const _q = new THREE.Quaternion();
+export const REAL_DEFAULT = {
+  sexo: 'hombre', edad: 'adulto', pelo: 'desordenado', barba: 'descuidada', ropa: 'chaqueta', calzado: 'tenis-rotos'
+};
 
-/**
- * Retarget por rotaciones en espacio mundo:
- *   mundoDestino(t) = mundoOrigen(t) · reposoOrigen⁻¹ · reposoDestino
- *   localDestino(t) = mundoPadreDestino(t)⁻¹ · mundoDestino(t)
- * Funciona aunque los huesos tengan otros ejes (roll), siempre que ambas poses de reposo
- * sean parecidas (T/A). Devuelve un clip solo con rotaciones (animación en el sitio).
- */
-function retargetClip(srcRoot, srcClip, tgtRoot, fps = 30) {
-  const bonesOf = (root) => {
-    const map = new Map();
-    root.traverse((o) => { if (o.isBone) map.set(o.name, o); });
-    return map;
-  };
-  const src = bonesOf(srcRoot);
-  const tgt = bonesOf(tgtRoot);
+const loader = new GLTFLoader();
+const cache = new Map();
+const load = (url) => {
+  if (!cache.has(url)) cache.set(url, loader.loadAsync(url));
+  return cache.get(url);
+};
 
-  // Poses de reposo (las de la escena tal como se cargó); el origen se restaura al final
-  const srcLocalRest = new Map([...src].map(([n, b]) => [n, [b.position.clone(), b.quaternion.clone(), b.scale.clone()]]));
-  srcRoot.updateMatrixWorld(true);
-  tgtRoot.updateMatrixWorld(true);
+let catalogPromise = null;
+/** Catálogo exportado: cuerpos (sexo × edad) y piezas con sus etiquetas. */
+export function loadCatalog() {
+  catalogPromise ??= fetch(BASE + 'catalogo.json').then((r) => r.json());
+  return catalogPromise;
+}
 
-  // El esqueleto de Mixamo mira hacia −Z y el de MakeHuman hacia +Z: giro de 180° en Y
-  const C = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-  const Cinv = C.clone().invert();
+/** Piezas válidas para un sexo */
+export function optionsFor(catalog, cat, sexo) {
+  return catalog.piezas[cat].filter((p) => !p.sexo || p.sexo === sexo);
+}
 
-  // Pone el destino en la misma pose de reposo que el origen (T-pose): alinea cada hueso
-  // con su primer hijo para que apunten igual que en el origen (MakeHuman viene en A-pose)
-  toTPose(src, tgt, tgtRoot, C);
-  const restSrc = new Map([...src].map(([n, b]) => [n, b.getWorldQuaternion(new THREE.Quaternion())]));
-  const restTgt = new Map([...tgt].map(([n, b]) => [n, b.getWorldQuaternion(new THREE.Quaternion())]));
-  const restLocal = new Map([...tgt].map(([n, b]) => [n, b.quaternion.clone()]));
-  // Rotación mundo del padre del hueso raíz del destino (fija)
-  const rootParentWorld = new Map();
-  for (const [n, b] of tgt) {
-    if (!b.parent?.isBone) rootParentWorld.set(n, b.parent.getWorldQuaternion(new THREE.Quaternion()));
+/** Corrige una apariencia realista para que todas sus piezas existan en ese cuerpo. */
+export function normalizeReal(catalog, raw = {}) {
+  const r = { ...REAL_DEFAULT, ...(raw || {}) };
+  if (!['hombre', 'mujer'].includes(r.sexo)) r.sexo = REAL_DEFAULT.sexo;
+  if (!['joven', 'adulto', 'mayor'].includes(r.edad)) r.edad = REAL_DEFAULT.edad;
+  for (const cat of ['pelo', 'barba', 'ropa', 'calzado']) {
+    const opts = optionsFor(catalog, cat, r.sexo);
+    if (!opts.some((o) => o.id === r[cat])) r[cat] = opts[0].id;
   }
+  if (r.sexo === 'mujer') r.barba = 'ninguna';
+  return r;
+}
 
-  const mixer = new THREE.AnimationMixer(srcRoot);
-  mixer.clipAction(srcClip).play();
+/** Combinación al azar de piezas realistas */
+export function randomReal(catalog, base = {}) {
+  const any = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const sexo = base.sexo ?? any(['hombre', 'mujer']);
+  const pick = (cat) => any(optionsFor(catalog, cat, sexo)).id;
+  return normalizeReal(catalog, {
+    sexo, edad: any(['joven', 'adulto', 'mayor']),
+    pelo: pick('pelo'), barba: Math.random() < 0.3 ? 'ninguna' : pick('barba'), ropa: pick('ropa'), calzado: pick('calzado')
+  });
+}
 
-  const frames = Math.max(2, Math.round(srcClip.duration * fps) + 1);
-  const times = new Float32Array(frames);
-  const values = new Map([...tgt.keys()].map((n) => [n, new Float32Array(frames * 4)]));
-  const world = new Map();
+// ---------- animaciones (retargeteadas una vez por cuerpo) ----------
 
-  for (let f = 0; f < frames; f++) {
-    const t = Math.min(srcClip.duration, f / fps);
-    times[f] = t;
-    mixer.setTime(t);
-    srcRoot.updateMatrixWorld(true);
-    world.clear();
-    // Recorre el destino de padres a hijos
-    tgtRoot.traverse((b) => {
-      if (!b.isBone) return;
-      const parentW = b.parent?.isBone ? world.get(b.parent.name) : rootParentWorld.get(b.name);
-      let w;
-      const s = src.get(b.name);
-      if (s) {
-        // delta del origen, llevado al marco del destino (C·delta·C⁻¹), sobre el reposo del destino
-        const delta = s.getWorldQuaternion(new THREE.Quaternion())
-          .multiply(_q.copy(restSrc.get(b.name)).invert());
-        w = C.clone().multiply(delta).multiply(Cinv).multiply(restTgt.get(b.name));
-      } else {
-        w = parentW.clone().multiply(restLocal.get(b.name));
+let animsPromise = null;
+function loadAnimations() {
+  animsPromise ??= (async () => {
+    for (const url of ANIM_URLS) {
+      try { return await loader.loadAsync(url); } catch { /* probar la siguiente */ }
+    }
+    throw new Error('No hay animaciones del personaje');
+  })();
+  return animsPromise;
+}
+
+const clipCache = new Map();
+async function clipsForBody(bodyId, bodyGltf) {
+  if (!clipCache.has(bodyId)) {
+    clipCache.set(bodyId, (async () => {
+      const anims = await loadAnimations();
+      const retarget = createRetargeter(anims.scene, bodyGltf.scene);
+      const out = {};
+      for (const name of CLIPS) {
+        const src = anims.animations.find((c) => c.name.toLowerCase() === name);
+        if (src) out[name] = retarget(src);
       }
-      world.set(b.name, w);
-      const local = parentW.clone().invert().multiply(w);
-      local.toArray(values.get(b.name), f * 4);
-    });
+      return out;
+    })());
   }
-  mixer.stopAllAction();
-  mixer.uncacheRoot(srcRoot);
-  for (const [n, [p, q, s]] of srcLocalRest) {
-    const b = src.get(n);
-    b.position.copy(p); b.quaternion.copy(q); b.scale.copy(s);
-  }
-  srcRoot.updateMatrixWorld(true);
-
-  const tracks = [...values].map(([n, v]) => new THREE.QuaternionKeyframeTrack(`${n}.quaternion`, times, v));
-  return new THREE.AnimationClip(srcClip.name, srcClip.duration, tracks);
+  return clipCache.get(bodyId);
 }
 
-/** Rota los huesos del destino para que cada uno apunte a su hijo igual que en el origen. */
-function toTPose(src, tgt, tgtRoot, C) {
-  const a = new THREE.Vector3(), b = new THREE.Vector3();
-  const r = new THREE.Quaternion(), w = new THREE.Quaternion(), pw = new THREE.Quaternion();
-  const order = [];
-  tgtRoot.traverse((o) => { if (o.isBone) order.push(o); });
-  for (const bone of order) {
-    const s = src.get(bone.name);
-    const child = bone.children.find((c) => c.isBone && src.has(c.name));
-    if (!s || !child) continue;
-    tgtRoot.updateMatrixWorld(true);
-    const sc = src.get(child.name);
-    // dirección actual del destino y dirección deseada (la del origen, girada al marco del destino)
-    a.copy(child.getWorldPosition(new THREE.Vector3())).sub(bone.getWorldPosition(new THREE.Vector3())).normalize();
-    b.copy(sc.getWorldPosition(new THREE.Vector3())).sub(s.getWorldPosition(new THREE.Vector3())).applyQuaternion(C).normalize();
-    if (a.lengthSq() < 1e-8 || b.lengthSq() < 1e-8) continue;
-    r.setFromUnitVectors(a, b);
-    bone.getWorldQuaternion(w);
-    bone.parent.getWorldQuaternion(pw);
-    bone.quaternion.copy(pw.invert().multiply(r.multiply(w)));
+// ---------- materiales ----------
+
+const HAIR_LIKE = /hair|short0|afro|long0|ponytail|bob0/;
+const SOFT_ALPHA = /beard|moustache|eyebrow|eyelash/;
+
+function setupMaterial(mesh, kind) {
+  const m = mesh.material = mesh.material.clone();
+  const name = mesh.name.toLowerCase();
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = false; // las mallas con skin se recortan mal al animar
+  if (kind === 'pelo' || HAIR_LIKE.test(name)) {
+    m.transparent = false;
+    m.alphaTest = 0.08;
+    m.side = THREE.DoubleSide;
+  } else if (SOFT_ALPHA.test(name)) {
+    m.transparent = true;
+    m.depthWrite = false;
+    m.alphaTest = 0.02;
+    m.side = THREE.DoubleSide;
+    mesh.renderOrder = 2;
+  } else {
+    m.transparent = false;
+    m.alphaTest = 0;
+    m.depthWrite = true;
+    if (kind === 'ropa' || kind === 'calzado') {
+      // la ropa gana a la piel cuando quedan muy pegadas
+      m.polygonOffset = true;
+      m.polygonOffsetFactor = -1;
+      m.polygonOffsetUnits = -2;
+    }
   }
-  tgtRoot.updateMatrixWorld(true);
+  return m;
 }
 
-export async function createRealisticCharacter() {
-  const loader = new GLTFLoader();
-  const [model, anims] = await Promise.all([
-    loader.loadAsync(MODEL_URL),
-    loader.loadAsync(ANIM_URL)
+/** Copia una malla con skin de un archivo de pieza y la ata al esqueleto del cuerpo. */
+function attachPart(srcMesh, bones, parent, kind) {
+  const mesh = new THREE.SkinnedMesh(srcMesh.geometry, srcMesh.material);
+  mesh.name = srcMesh.name;
+  const skel = srcMesh.skeleton;
+  mesh.bind(new THREE.Skeleton(skel.bones.map((b) => bones.get(b.name)), skel.boneInverses), srcMesh.bindMatrix);
+  setupMaterial(mesh, kind);
+  parent.add(mesh);
+  return mesh;
+}
+
+/** Oculta los triángulos del cuerpo tapados por la ropa (vértices originales en `hidden`). */
+function hideCovered(bodyMesh, baseIndex, hidden) {
+  const src = bodyMesh.geometry;
+  const geo = new THREE.BufferGeometry();
+  for (const [k, v] of Object.entries(src.attributes)) geo.setAttribute(k, v);
+  geo.morphAttributes = src.morphAttributes;
+  geo.boundingSphere = src.boundingSphere;
+  const vid = src.attributes._vid;
+  if (!hidden.size || !vid) {
+    geo.setIndex(baseIndex);
+  } else {
+    const out = [];
+    const idx = baseIndex.array;
+    for (let i = 0; i < idx.length; i += 3) {
+      const a = idx[i], b = idx[i + 1], c = idx[i + 2];
+      if (hidden.has(Math.round(vid.getX(a))) || hidden.has(Math.round(vid.getX(b))) || hidden.has(Math.round(vid.getX(c)))) continue;
+      out.push(a, b, c);
+    }
+    geo.setIndex(out);
+  }
+  bodyMesh.geometry = geo;
+}
+
+// ---------- instancia ----------
+
+async function buildInstance(catalog, look) {
+  const real = normalizeReal(catalog, look.real);
+  const body = catalog.cuerpos.find((c) => c.sexo === real.sexo && c.edad === real.edad) ?? catalog.cuerpos[0];
+  const folder = `${BASE}${body.id}/`;
+  const bodyGltf = await load(folder + 'cuerpo.gltf');
+  const parts = ['pelo', 'barba', 'ropa', 'calzado']
+    .map((cat) => ({ cat, info: body.piezas[real[cat]] }))
+    .filter((p) => p.info?.file);
+  const [clips, ...partGltfs] = await Promise.all([
+    clipsForBody(body.id, bodyGltf),
+    ...parts.map((p) => load(folder + p.info.file))
   ]);
 
-  const group = new THREE.Group();
-  const root = model.scene;
-  root.scale.setScalar(REALISTIC_SCALE);
-  group.add(root);
-
+  const root = cloneSkinned(bodyGltf.scene);
+  const bones = new Map();
+  let bodyMesh = null;
   root.traverse((o) => {
-    if (!o.isMesh) return;
-    o.castShadow = true;
-    o.receiveShadow = true;
-    o.frustumCulled = false; // las mallas con skin se recortan mal al animar
-    const name = o.name.toLowerCase();
-    const m = o.material;
-    if (name.includes('hair')) {
-      // pelo: recorte nítido, escribe profundidad (se ordena bien consigo mismo)
-      m.transparent = false;
-      m.alphaTest = 0.08;
-      m.side = THREE.DoubleSide;
-    } else if (ALPHA_PARTS.some((p) => name.includes(p))) {
-      // barba, cejas, pestañas: textura suave → mezcla, sin escribir profundidad
-      m.transparent = true;
-      m.depthWrite = false;
-      m.alphaTest = 0.02;
-      m.side = THREE.DoubleSide;
-      o.renderOrder = 2;
-    } else {
-      m.transparent = false;
-      m.alphaTest = 0;
-      m.depthWrite = true;
+    if (o.isBone) bones.set(o.name, o);
+    if (o.isSkinnedMesh) {
+      if (o.name.toLowerCase().includes('body')) bodyMesh = o;
+      setupMaterial(o, 'cuerpo');
     }
   });
 
-  // Los esqueletos tienen los mismos nombres de hueso pero distinta pose de reposo y ejes,
-  // así que cada clip se "retargetea" en espacio mundo y se hornea para nuestro esqueleto.
-  const clip = (name) => retargetClip(anims.scene, anims.animations.find((c) => c.name === name), root);
+  const skinTone = new THREE.Color(PALETTES.piel[look.piel] ?? PALETTES.piel[2]).lerp(new THREE.Color(1, 1, 1), 0.25);
+  const hairTone = new THREE.Color(PALETTES.pelo[look.peloColor] ?? PALETTES.pelo[0]).lerp(new THREE.Color(1, 1, 1), 0.15);
+  if (bodyMesh) bodyMesh.material.color.copy(skinTone);
+
+  const hidden = new Set();
+  parts.forEach((p, i) => {
+    for (const v of p.info.oculta) hidden.add(v);
+    partGltfs[i].scene.traverse((o) => {
+      if (!o.isSkinnedMesh) return;
+      const mesh = attachPart(o, bones, bodyMesh?.parent ?? root, p.cat);
+      if (p.cat === 'pelo' || p.cat === 'barba') mesh.material.color.copy(hairTone);
+    });
+  });
+  // cejas del color del pelo
+  root.traverse((o) => { if (o.isSkinnedMesh && /eyebrow/.test(o.name.toLowerCase())) o.material.color.copy(hairTone); });
+  if (bodyMesh) hideCovered(bodyMesh, bodyGltf.scene.getObjectByName(bodyMesh.name)?.geometry.index ?? bodyMesh.geometry.index, hidden);
 
   const mixer = new THREE.AnimationMixer(root);
-  const actions = {
-    idle: mixer.clipAction(clip('Idle')),
-    walk: mixer.clipAction(clip('Walk')),
-    run: mixer.clipAction(clip('Run'))
-  };
-  for (const a of Object.values(actions)) {
-    a.play();
-    a.setEffectiveWeight(0);
+  const actions = {};
+  for (const [name, clip] of Object.entries(clips)) {
+    actions[name] = mixer.clipAction(clip);
+    actions[name].play();
+    actions[name].setEffectiveWeight(name === 'idle' ? 1 : 0);
   }
-  actions.idle.setEffectiveWeight(1);
+  return { root, mixer, actions, real };
+}
 
-  const weights = { idle: 1, walk: 0, run: 0 };
+/**
+ * Crea el personaje. `look` es la apariencia compartida con el procedural (nombre, piel, peloColor…)
+ * más `look.real` con las piezas realistas.
+ */
+export async function createRealisticCharacter(look = {}) {
+  const catalog = await loadCatalog();
+  const group = new THREE.Group();
+  group.scale.setScalar(REALISTIC_SCALE);
+  let inst = null;
+  let token = 0;
+  const weights = {};
+
+  async function setLook(l) {
+    const my = ++token;
+    const next = await buildInstance(catalog, l);
+    if (my !== token) return; // llegó otra apariencia mientras cargaba
+    if (inst) group.remove(inst.root);
+    inst = next;
+    group.add(inst.root);
+    for (const k of Object.keys(weights)) delete weights[k];
+    for (const k of Object.keys(inst.actions)) weights[k] = k === 'idle' ? 1 : 0;
+  }
+
+  await setLook(look);
 
   return {
     group,
-    look: null,
-    setLook() { /* la apariencia de prueba es fija */ },
-    update(dt, { speed = 0, running = false } = {}) {
-      // Mezcla suave idle / caminar / correr según la velocidad
-      const target = speed < 0.15
-        ? { idle: 1, walk: 0, run: 0 }
-        : running ? { idle: 0, walk: 0, run: 1 } : { idle: 0, walk: 1, run: 0 };
+    get look() { return look; },
+    setLook(l) { look = l; return setLook(l); },
+    update(dt, { speed = 0, running = false, action = null } = {}) {
+      if (!inst) return;
+      const a = inst.actions;
+      // destino: acción especial si existe el clip; si no, idle / caminar / correr según la velocidad
+      let target = speed < 0.15 ? 'idle' : running && a.run ? 'run' : 'walk';
+      if (action && a[action] && speed < 0.15) target = action;
+      if (!a[target]) target = 'idle';
       const k = Math.min(1, dt * 8);
-      for (const key of Object.keys(weights)) {
-        weights[key] += (target[key] - weights[key]) * k;
-        actions[key].setEffectiveWeight(weights[key]);
+      for (const key of Object.keys(a)) {
+        weights[key] += ((key === target ? 1 : 0) - weights[key]) * k;
+        a[key].setEffectiveWeight(weights[key]);
       }
-      // El paso de las animaciones sigue la velocidad real (sin patinar)
-      actions.walk.timeScale = THREE.MathUtils.clamp(speed / 1.4, 0.6, 1.6);
-      actions.run.timeScale = THREE.MathUtils.clamp(speed / 3.5, 0.7, 1.4);
-      mixer.update(dt);
+      if (a.walk) a.walk.timeScale = THREE.MathUtils.clamp(speed / 1.4, 0.6, 1.6);
+      if (a.run) a.run.timeScale = THREE.MathUtils.clamp(speed / 3.5, 0.7, 1.4);
+      inst.mixer.update(dt);
     }
   };
 }

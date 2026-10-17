@@ -1,7 +1,7 @@
+// src/ui/Creator.js — portado de rebusque; la vista previa y las opciones son del personaje realista
 import * as THREE from 'three';
-// src/ui/Creator.js — portado de rebusque
-import { createCharacter } from '../character/character.js';
-import { PALETTES, STYLES, COLOR_NAMES, NAME_IDEAS, normalizeLook, randomLook, cleanName } from '../character/look.js';
+import { PALETTES, COLOR_NAMES, NAME_IDEAS, normalizeLook, randomLook, cleanName } from '../character/look.js';
+import { createRealisticCharacter, loadCatalog, optionsFor, normalizeReal, randomReal } from '../character/RealisticCharacter.js';
 import { ORIGINS } from '../data/origins.js';
 import { el } from './dom.js';
 import { icon, setIcon } from './icons.js';
@@ -11,11 +11,13 @@ const $ = (id) => document.getElementById(id);
 const TABS = [
   { id: 'identidad', label: 'Nombre', ic: 'idcard', focus: 'body' },
   { id: 'cuerpo', label: 'Cuerpo', ic: 'body', focus: 'body' },
-  { id: 'cara', label: 'Cara', ic: 'eye', focus: 'face' },
   { id: 'pelo', label: 'Pelo', ic: 'scissors', focus: 'face' },
+  { id: 'cara', label: 'Barba', ic: 'eye', focus: 'face' },
   { id: 'ropa', label: 'Ropa', ic: 'shirt', focus: 'body' },
-  { id: 'accesorios', label: 'Extras', ic: 'crown', focus: 'face' },
 ];
+
+const SEXOS = [{ id: 'hombre', label: 'Hombre' }, { id: 'mujer', label: 'Mujer' }];
+const EDADES = [{ id: 'joven', label: 'Joven' }, { id: 'adulto', label: 'Adulto' }, { id: 'mayor', label: 'Mayor' }];
 
 /**
  * Editor "Crea tu personaje": vista 3D propia (se gira arrastrando, la cámara
@@ -27,7 +29,8 @@ export function createCreator({ audio }) {
   const panel = $('creator-panel');
   const tabsEl = $('creator-tabs');
   let renderer = null;
-  let scene, camera, char, raf = 0;
+  let scene, camera, char = null, raf = 0;
+  let catalog = null;
   let look = null;
   let initial = null;
   let tab = 'identidad';
@@ -37,8 +40,8 @@ export function createCreator({ audio }) {
   const camPos = new THREE.Vector3(0, 1.2, 4.2);
   const camLook = new THREE.Vector3(0, 0.8, 0);
   const FOCUS = {
-    body: { pos: new THREE.Vector3(0, 1.25, 4.4), look: new THREE.Vector3(0, 0.9, 0) },
-    face: { pos: new THREE.Vector3(0, 1.38, 1.9), look: new THREE.Vector3(0, 1.22, 0) },
+    body: { pos: new THREE.Vector3(0, 1.2, 5.2), look: new THREE.Vector3(0, 0.95, 0) },
+    face: { pos: new THREE.Vector3(0, 1.6, 1.5), look: new THREE.Vector3(0, 1.52, 0) },
   };
 
   function setupScene() {
@@ -69,8 +72,11 @@ export function createCreator({ audio }) {
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.92, 0.02, 6, 48), new THREE.MeshBasicMaterial({ color: '#f6c400' }));
     ring.rotation.x = Math.PI / 2;
     scene.add(ring);
-    char = createCharacter(look);
-    scene.add(char.group);
+    createRealisticCharacter(look).then((c) => {
+      char = c;
+      char.group.scale.setScalar(1);
+      scene.add(char.group);
+    });
   }
 
   function resize() {
@@ -90,14 +96,14 @@ export function createCreator({ audio }) {
     resize();
     yaw += yawVel * dt;
     yawVel *= Math.exp(-dt * 4);
-    char.group.rotation.y = yaw;
+    if (char) char.group.rotation.y = yaw;
     const f = FOCUS[TABS.find((t) => t.id === tab)?.focus ?? 'body'];
     camPos.lerp(f.pos, 1 - Math.exp(-dt * 6));
     camLook.lerp(f.look, 1 - Math.exp(-dt * 6));
     camera.position.copy(camPos);
     camera.lookAt(camLook);
     wave = Math.max(0, wave - dt);
-    char.update(dt, { speed: 0, t: now / 1000, action: wave > 0 ? 'saludo' : null, load: 0.35 });
+    char?.update(dt, { speed: 0, t: now / 1000, action: wave > 0 ? 'saludo' : null });
     renderer.render(scene, camera);
   }
 
@@ -124,14 +130,28 @@ export function createCreator({ audio }) {
   // ---------- controles ----------
   function apply(patch) {
     look = normalizeLook({ ...look, ...patch, v: 2 });
-    char.setLook(look);
+    look.real = normalizeReal(catalog, look.real);
+    char?.setLook(look);
     audio?.ui?.();
     renderPanel();
   }
 
+  /** Cambia una pieza realista (sexo, edad, pelo, barba, ropa, calzado) */
+  const applyReal = (patch) => apply({ real: normalizeReal(catalog, { ...look.real, ...patch }) });
+
+  function realChips(field, opts) {
+    return el('div', { class: 'cr-chips', role: 'group', 'aria-label': field },
+      opts.map((o) => el('button', {
+        type: 'button',
+        class: 'cr-chip',
+        'aria-pressed': String(look.real[field] === o.id),
+        onclick: () => applyReal({ [field]: o.id }),
+      }, o.label)));
+  }
+
   const section = (title, ...children) => el('section', { class: 'cr-section' }, el('h3', { class: 'cr-section__title', text: title }), ...children);
 
-  function chips(field, opts = STYLES[field]) {
+  function chips(field, opts) {
     return el('div', { class: 'cr-chips', role: 'group', 'aria-label': field },
       opts.map((o) => el('button', {
         type: 'button',
@@ -192,44 +212,29 @@ export function createCreator({ audio }) {
         ];
         break;
       }
-      case 'cuerpo': {
-        const range = el('input', { type: 'range', class: 'cr-range', min: '0.92', max: '1.08', step: '0.01', value: String(L.estatura), 'aria-label': 'Estatura' });
-        range.addEventListener('input', () => {
-          look.estatura = Number(range.value);
-          char.setLook(look);
-        });
+      case 'cuerpo':
         body = [
-          section('Tipo de cuerpo', chips('cuerpo')),
-          section('Contextura', chips('contextura')),
-          section('Estatura', el('div', { class: 'cr-range-row' }, el('span', { text: 'Bajito' }), range, el('span', { text: 'Alto' }))),
+          section('Sexo', realChips('sexo', SEXOS)),
+          section('Edad', realChips('edad', EDADES)),
           section('Piel', swatches('piel', PALETTES.piel, 'Tono de piel', COLOR_NAMES.piel)),
-        ];
-        break;
-      }
-      case 'cara':
-        body = [
-          section('Color de ojos', swatches('ojos', PALETTES.ojos, 'Color de ojos', COLOR_NAMES.ojos)),
-          section('Cejas', chips('cejas')),
-          section('Barba', chips('barba'), el('p', { class: 'cr-help', text: 'La barba toma el color del pelo.' })),
         ];
         break;
       case 'pelo':
         body = [
-          section('Corte', chips('pelo')),
-          section('Color', swatches('peloColor', PALETTES.pelo, 'Color de pelo', COLOR_NAMES.pelo)),
+          section('Corte', realChips('pelo', optionsFor(catalog, 'pelo', L.real.sexo))),
+          section('Color', swatches('peloColor', PALETTES.pelo, 'Color de pelo', COLOR_NAMES.pelo),
+            el('p', { class: 'cr-help', text: 'Las cejas y la barba toman el color del pelo.' })),
         ];
+        break;
+      case 'cara':
+        body = L.real.sexo === 'hombre'
+          ? [section('Barba', realChips('barba', optionsFor(catalog, 'barba', 'hombre')))]
+          : [section('Barba', el('p', { class: 'cr-help', text: 'No aplica para este personaje.' }))];
         break;
       case 'ropa':
         body = [
-          section('Arriba', chips('arriba'), swatches('arribaColor', PALETTES.ropa, 'Color de arriba', COLOR_NAMES.ropa)),
-          section('Abajo', chips('abajo'), swatches('abajoColor', PALETTES.ropa, 'Color de abajo', COLOR_NAMES.ropa)),
-          section('Calzado', chips('zapatos'), swatches('zapatoColor', PALETTES.zapato, 'Color del calzado', COLOR_NAMES.zapato)),
-        ];
-        break;
-      case 'accesorios':
-        body = [
-          section('Cabeza', chips('cabeza')),
-          L.cabeza !== 'nada' ? section('Color', swatches('cabezaColor', PALETTES.ropa, 'Color del accesorio', COLOR_NAMES.ropa)) : null,
+          section('Ropa', realChips('ropa', optionsFor(catalog, 'ropa', L.real.sexo))),
+          section('Calzado', realChips('calzado', optionsFor(catalog, 'calzado', L.real.sexo))),
         ];
         break;
       default:
@@ -269,7 +274,8 @@ export function createCreator({ audio }) {
   $('creator-random').prepend(icon('dice', { size: 18 }));
   $('creator-random').addEventListener('click', () => {
     look = randomLook({ ...look, nombre: look.nombre, origen: look.origen });
-    char.setLook(look);
+    look.real = randomReal(catalog);
+    char?.setLook(look);
     wave = 1.2;
     audio?.ui?.();
     renderPanel();
@@ -301,13 +307,15 @@ export function createCreator({ audio }) {
 
   return {
     /** Abre el editor. Devuelve una promesa con la apariencia elegida (o null si se cancela). */
-    open(current, { doneLabel = 'Listo' } = {}) {
+    async open(current, { doneLabel = 'Listo' } = {}) {
+      catalog ??= await loadCatalog();
       look = normalizeLook(current);
+      look.real = normalizeReal(catalog, look.real);
       initial = { ...look };
       void initial;
       tab = look.nombre ? 'cuerpo' : 'identidad';
       if (!renderer) setupScene();
-      else char.setLook(look);
+      else char?.setLook(look);
       yaw = 0.35;
       yawVel = 0;
       wave = 1.4;
@@ -318,7 +326,7 @@ export function createCreator({ audio }) {
       last = performance.now();
       raf = requestAnimationFrame(loop);
       tabsEl.querySelector(`[data-tab="${tab}"]`)?.focus({ preventScroll: true });
-      return new Promise((r) => { resolver = r; });
+      return await new Promise((r) => { resolver = r; });
     },
     get isOpen() { return !root.hidden; },
   };

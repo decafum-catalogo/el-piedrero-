@@ -47,6 +47,7 @@ export class Game {
     this.canvas = canvas;
     this.renderer = new Renderer(canvas);
     this.sceneMgr = new SceneManager();
+    this.sceneMgr.scene.environment = this.renderer.createEnvironment();
     this.cameraRig = new CameraRig(this.sceneMgr.scene, canvas);
     this.clock = new Clock();
     this.input = new Input();
@@ -76,7 +77,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.menu = new Menu();
     this.creator = createCreator({ audio: null });
     window.addEventListener('open-recycler', () => openRecycler(this));
-    window.addEventListener('open-shop', () => openShop(this));
+    window.addEventListener('open-shop', (e) => openShop(this, e.detail?.target));
     window.addEventListener('open-cambuche', () => openCambuche(this));
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyP' && !this.menu.isOpen && !this.creator.isOpen && this.look) this.editLook();
@@ -108,7 +109,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
   start() {
     this._running = true;
-    this.world.loadDistrict('ZonaCero', this.collisions);
+    this.world.loadDistrict('Bogota', this.collisions);
     this._spawnEntities();
 
     const district = this.world.active;
@@ -181,7 +182,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     const findValidSpawn = (exclude = null, minDist = 4) => {
       const TILE_SIZE = 2;
-      const mapSize = 32;
+      const mapSize = district.size ?? 32;
       for (let attempt = 0; attempt < 200; attempt++) {
         const tx = 3 + Math.floor(Math.random() * (mapSize - 6));
         const tz = 3 + Math.floor(Math.random() * (mapSize - 6));
@@ -199,7 +200,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
         if (tooClose) continue;
         return new THREE.Vector3(x, 0, z);
       }
-      return new THREE.Vector3(32, 0, 32);
+      return new THREE.Vector3(district.reserved?.spawn.x ?? 32, 0, district.reserved?.spawn.z ?? 32);
     };
 
     // ===== Basura =====
@@ -284,6 +285,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       )
     );
     this.interaction.register(this.shop);
+
+    // ===== Vendedores ambulantes del distrito (chazas, fritanga) =====
+    for (const v of district.vendors ?? []) this.interaction.register(v);
     this.collisions.add(
       this.shop.group,
       new THREE.Vector3(2.4, 2, 1.5),
@@ -299,7 +303,12 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       this.inventory.deserialize(data.inventory ?? {});
       this.talents.deserialize(data.talents ?? {});
       this.diseases.deserialize(data.diseases ?? {});
-      if (data.player) this.player.position.set(...data.player.pos);
+      if (data.player) {
+        // partidas de otro mapa: si la posición guardada no es transitable, vuelve al inicio
+        const [px, , pz] = data.player.pos;
+        const district = this.world.active;
+        if (!district?.isWalkableAt || district.isWalkableAt(px, pz)) this.player.position.set(...data.player.pos);
+      }
       this.built = data.built ?? {};
       this.costal = !!data.costal;
       this.cambuche?.setBuilt(this.built);
@@ -430,7 +439,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.clock.update(dt);
     this.time.update(dt, this.clock);
 
-    // 2. Día/noche
+    // 2. Día/noche: cielo nublado de Bogotá y sol que sigue al jugador (sombras nítidas)
+    this.sceneMgr.setTimeOfDay(this.clock.hour);
+    this.sceneMgr.followTarget(this.player.position);
     const isNight = this.clock.isNight;
     if (this._wasNight !== isNight) {
       this._wasNight = isNight;

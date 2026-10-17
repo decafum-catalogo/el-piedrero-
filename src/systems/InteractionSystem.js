@@ -141,7 +141,7 @@ export class InteractionSystem {
           window.dispatchEvent(new CustomEvent('open-recycler'));
           break;
         case 'shop':
-          window.dispatchEvent(new CustomEvent('open-shop'));
+          window.dispatchEvent(new CustomEvent('open-shop', { detail: { target: nearest } }));
           break;
         case 'cambuche':
           window.dispatchEvent(new CustomEvent('open-cambuche'));

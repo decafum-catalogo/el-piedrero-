@@ -50,10 +50,12 @@ export function openRecycler(game) {
   game.menu.open({ title: 'Recicladora El Progreso', sub: 'Pagan de contado. Comida, remedios y sustancias no se reciben.', ic: 'recycle', render });
 }
 
-export function openShop(game) {
+/** Tienda La Esquinita, o un vendedor ambulante si `target` trae { title, items } */
+export function openShop(game, target = null) {
   const { inventory, stats } = game;
+  const list = target?.items ? SHOP_ITEMS.filter((s) => target.items.includes(s.item)) : SHOP_ITEMS;
   const render = () => {
-    const body = el('ul', { class: 'rows' }, SHOP_ITEMS.map((s) => {
+    const body = el('ul', { class: 'rows' }, list.map((s) => {
       const it = s.upgrade ? null : ITEMS[s.item];
       const qty = s.qty ?? 1;
       const owned = s.upgrade && game.costal;
@@ -79,7 +81,9 @@ export function openShop(game) {
     }));
     return { body, foot: [moneyFoot(game), el('span', { class: 'menu__money', text: `Carga ${inventory.totalWeight.toFixed(1)} / ${inventory.maxWeight} kg` })] };
   };
-  game.menu.open({ title: 'Tienda La Esquinita', sub: 'Doña Rosa fía, pero solo a los conocidos.', ic: 'store', render });
+  game.menu.open(target?.items
+    ? { title: target.title, sub: 'Venta ambulante: lo justo para el día.', ic: 'bag', render }
+    : { title: 'Tienda La Esquinita', sub: 'Doña Rosa fía, pero solo a los conocidos.', ic: 'store', render });
 }
 
 /** Texto corto con los efectos de un objeto consumible */

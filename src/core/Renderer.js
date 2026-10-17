@@ -1,22 +1,32 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 export class Renderer {
   constructor(canvas) {
     this.instance = new THREE.WebGLRenderer({
       canvas,
-      antialias: false,           // PSX look: sin AA
+      antialias: true,
       powerPreference: 'high-performance'
     });
-    this.instance.setPixelRatio(Math.min(window.devicePixelRatio, 1)); // pixelado
+    this.instance.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     this.instance.setSize(window.innerWidth, window.innerHeight);
     this.instance.shadowMap.enabled = true;
-    this.instance.shadowMap.type = THREE.PCFShadowMap;
+    this.instance.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    // Postproceso barato: sin tone mapping moderno
-    this.instance.toneMapping = THREE.NoToneMapping;
+    // Look realista: tone mapping fílmico
+    this.instance.toneMapping = THREE.ACESFilmicToneMapping;
+    this.instance.toneMappingExposure = 1.05;
     this.instance.outputColorSpace = THREE.SRGBColorSpace;
 
     window.addEventListener('resize', () => this._onResize());
+  }
+
+  /** Mapa de entorno neutro: da reflejos (charcos, vidrios) y luz rebotada a los materiales PBR */
+  createEnvironment() {
+    const pmrem = new THREE.PMREMGenerator(this.instance);
+    const tex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+    return tex;
   }
 
   _onResize() {

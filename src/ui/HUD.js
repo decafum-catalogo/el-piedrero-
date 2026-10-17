@@ -21,6 +21,7 @@ export class HUD {
     this.xpFillEl = document.getElementById('xp-fill');
     this.levelEl = document.getElementById('level-display');
     this.talentPointsEl = document.getElementById('talent-points');
+    this.nameEl = document.getElementById('player-name');
 
     // Paneles
     this.talentPanel = document.getElementById('talent-panel');
@@ -38,6 +39,8 @@ export class HUD {
 
     // Controles de paneles
     window.addEventListener('keydown', (e) => {
+      // No abrir paneles mientras se escribe (nombre) o hay un menú/creador abierto
+      if (e.target instanceof HTMLInputElement || window.__game?.paused) return;
       if (e.code === 'KeyT') this.toggleTalentPanel();
       if (e.code === 'KeyC') this.toggleCraftPanel();
       if (e.code === 'Escape') {
@@ -62,6 +65,7 @@ export class HUD {
   }
 
   _bindEvents() {
+    window.addEventListener('toast', (e) => this._toast(e.detail.text, e.detail.type));
     window.addEventListener('pickup', (e) => this._onPickup(e.detail));
     window.addEventListener('sell', (e) => this._onSell(e.detail));
     window.addEventListener('disease', (e) => this._toast(`☠️ Enfermedad: ${e.detail.name}`, 'death'));
@@ -108,9 +112,9 @@ export class HUD {
     });
 
     window.addEventListener('sleep-start', () => this._toast('💤 Durmiendo...', 'info'));
-    window.addEventListener('sleep-end', () => this._toast('🌅 Nuevo día', 'info'));
+    window.addEventListener('sleep-end', (e) => this._toast(`🌅 Dormiste ${e.detail?.hours ?? ''} h · Partida guardada`, 'info'));
     window.addEventListener('sleep-fail', (e) => this._toast(
-      e.detail.reason === 'day' ? '☀️ No puedes dormir de día' : 'No puedes dormir aquí',
+      e.detail.reason === 'nobase' ? '📦 Primero arma la base del cambuche (8 cartones)' : 'No puedes dormir aquí',
       'warn'
     ));
   }
@@ -150,6 +154,7 @@ export class HUD {
 
     // Nivel y XP
     if (this.levelEl) this.levelEl.textContent = `Nv ${stats.level}`;
+    if (this.nameEl) this.nameEl.textContent = window.__game?.look?.nombre ?? '';
     const xpNeeded = XP_PER_LEVEL * stats.level;
     if (this.xpFillEl) {
       this.xpFillEl.style.width = `${Math.min(100, (stats.xp / xpNeeded) * 100)}%`;
@@ -166,16 +171,16 @@ export class HUD {
 
     // Prompt dinámico de interacción
     if (this.promptEl) {
-      const nearBed = window.__game?.bed && window.__game.bed.position.distanceTo(window.__game.player.position) < 2.5;
-      if (nearBed) {
-        this.promptEl.textContent = '[E] Dormir (Solo de noche)';
-        this.promptEl.classList.add('visible');
+      if (window.__game?.paused) {
+        this.promptEl.classList.remove('visible');
       } else if (interaction?.currentTarget) {
         const type = interaction.currentTargetType;
         let text = '';
         if (type === 'pickup') text = '[E] Recoger basura · [Mantener Q] Seleccionar';
         else if (type === 'car') text = '[E] Robar retrovisor de auto';
-        else if (type === 'sell') text = '[E] Vender objetos reciclables';
+        else if (type === 'sell') text = '[E] Recicladora El Progreso · Vender material';
+        else if (type === 'shop') text = '[E] Tienda La Esquinita · Comprar';
+        else if (type === 'cambuche') text = '[E] Tu cambuche · Armar / Dormir';
         else if (type === 'dealer') text = '[Q / E] Tienda del Dealer · Comprar / Vender';
 
         if (text) {
@@ -241,6 +246,7 @@ export class HUD {
       }
       inv.remove(itemId, 1);
       game.audio?.play('pickup');
+      game.player?.playAction?.('comer', 1.2);
       this._toast(`🍴 Consumiste: ${item.name}`, 'info');
       this._renderInventory(inv);
     } else if (item.cure) {

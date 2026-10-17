@@ -97,8 +97,28 @@ export const ITEMS = {
   cigarrillo: {
     id: 'cigarrillo', name: 'Cigarrillo suelto', weight: 0.01, value: 300,
     consumable: 'vicio', amount: 35, salud: -1
-  }
+  },
+
+  // ===== MATERIALES DEL CAMBUCHE =====
+  lona:    { id: 'lona',    name: 'Lona azul',     weight: 2,    value: 4000, build: true },
+  madera:  { id: 'madera',  name: 'Tablas',        weight: 2,    value: 1500, build: true },
+  colchon: { id: 'colchon', name: 'Colchón viejo', weight: 6,    value: 5000, build: true },
+  vela:    { id: 'vela',    name: 'Vela',          weight: 0.05, value: 500,  build: true }
 };
+
+/** La recicladora compra todo lo que no se come, no cura, no es sustancia ni sirve para construir */
+export const isRecyclable = (item) =>
+  !!item && !item.consumable && !item.cure && !item.substance && !item.build;
+
+// Icono (lucide) para mostrar cada objeto en los menús
+const ICONS = {
+  lata: 'recycle', botella: 'recycle', carton: 'package', chatarra: 'wrench', cable: 'flame',
+  reloj: 'watch', moneda: 'coins', anillo: 'sparkles', retrovisor: 'eye', radio: 'phone',
+  pan: 'bread', lataComida: 'food', agua: 'water', refresco: 'water', cafe: 'coffee',
+  vendaje: 'bandage', jabon: 'bath', cepillo: 'bath', cigarrillo: 'flame',
+  lona: 'tent', madera: 'layers', colchon: 'bed', vela: 'flame'
+};
+export const itemIcon = (id) => ICONS[id] ?? (ITEMS[id]?.cure ? 'pill' : 'box');
 
 // ===== LOOT TABLES =====
 
@@ -112,7 +132,10 @@ export const LOOT_COMMON = [
   { item: 'agua',       weight: 3 },
   { item: 'lataComida', weight: 2 },
   { item: 'vendaje',    weight: 1 },
-  { item: 'cigarrillo', weight: 2 }
+  { item: 'cigarrillo', weight: 2 },
+  { item: 'madera',     weight: 3 },
+  { item: 'lona',       weight: 0.6 },
+  { item: 'colchon',    weight: 0.4 }
 ];
 
 export const LOOT_RARE = [
@@ -127,32 +150,28 @@ export const LOOT_SUBSTANCE = [
   { item: 'pastilla', weight: 20 }
 ];
 
-// ===== TIENDA =====
+// ===== TIENDA LA ESQUINITA (precios en COP) =====
 
 export const SHOP_ITEMS = [
-  // Consumibles
-  { item: 'pan',        buyPrice: 1500 },
-  { item: 'agua',       buyPrice: 2000 },
-  { item: 'lataComida', buyPrice: 6000 },
-  { item: 'refresco',   buyPrice: 3500 },
-  { item: 'cafe',       buyPrice: 2000 },
-  { item: 'vendaje',    buyPrice: 4500 },
-
-  // Higiene
-  { item: 'jabon',   buyPrice: 3500 },
-  { item: 'cepillo', buyPrice: 3000 },
-
-  // Curas
-  { item: 'vacuna',          buyPrice: 20000 },
-  { item: 'carbon',          buyPrice: 9000 },
-  { item: 'jarabe',          buyPrice: 11000 },
-  { item: 'pomada',          buyPrice: 9500 },
-  { item: 'antibiotico',     buyPrice: 25000 },
-  { item: 'antiparasitario', buyPrice: 13000 },
-
-  // Sustancias
-  { item: 'tintico',  buyPrice: 1000 },
-  { item: 'pegante',  buyPrice: 3000 },
-  { item: 'pastilla', buyPrice: 8000 },
-  { item: 'cigarrillo', buyPrice: 500 }
+  { item: 'pan',        price: 1500 },
+  { item: 'lataComida', price: 6000 },
+  { item: 'agua',       price: 2000 },
+  { item: 'refresco',   price: 3500 },
+  { item: 'cafe',       price: 2000, desc: 'Un tinto caliente: quita el sueño.' },
+  { item: 'cigarrillo', price: 500,  desc: 'Calma el vicio. Le quita un poquito a la salud.' },
+  { item: 'vendaje',    price: 4500 },
+  { item: 'jabon',      price: 3500 },
+  { item: 'cepillo',    price: 3000 },
+  { item: 'jarabe',     price: 11000 },
+  { item: 'pomada',     price: 9500 },
+  { item: 'carbon',     price: 9000 },
+  { item: 'antiparasitario', price: 13000 },
+  { item: 'vacuna',     price: 20000 },
+  { item: 'antibiotico', price: 25000 },
+  { item: 'vela',       price: 1000, desc: 'Ilumina el cambuche: duermes más tranquilo.' },
+  { item: 'lona',       price: 9000, desc: 'Para el techo del cambuche.' },
+  { item: 'madera',     price: 6000, qty: 3, label: 'Tablas ×3', desc: 'Para las paredes del cambuche.' },
+  { upgrade: 'costal',  price: 12000, label: 'Costal grande', icon: 'backpack', desc: 'Cargas 20 kg más.' }
 ];
+
+export const COSTAL_BONUS = 20;

@@ -106,7 +106,7 @@ export class Pickup {
    * Recolectar la basura.
    * @param {boolean} boostActive
    * @param {boolean} sorted - si se completó la selección
-   * @param {object} talentEffects - { rareChanceMult, sortValueMult }
+   * @param {object} talentEffects - { rareChanceMult, sortValueMult, extraRolls }
    * @returns { items, rare, sorted } o null
    */
   harvest(boostActive = false, sorted = false, talentEffects = {}) {
@@ -126,6 +126,7 @@ export class Pickup {
       rolls = boostActive ? 4 : 2;
       rareChance = (boostActive ? 0.15 : 0.05) * rareChanceMult;
     }
+    rolls += talentEffects.extraRolls ?? 0;
 
     for (let i = 0; i < rolls; i++) {
       items.push(this._weightedPick(LOOT_COMMON));

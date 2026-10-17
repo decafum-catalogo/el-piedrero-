@@ -1,0 +1,73 @@
+// src/ui/Menu.js
+// Ventana modal genérica (tienda, recicladora, cambuche). Mientras está abierta el juego se pausa.
+import { el } from './dom.js';
+import { icon, setIcon } from './icons.js';
+
+const $ = (id) => document.getElementById(id);
+
+export class Menu {
+  constructor() {
+    this.root = $('menu');
+    this.iconEl = $('menu-icon');
+    this.titleEl = $('menu-title');
+    this.subEl = $('menu-sub');
+    this.bodyEl = $('menu-body');
+    this.footEl = $('menu-foot');
+    this._render = null;
+    this._onClose = null;
+
+    setIcon($('menu-close'), 'x');
+    $('menu-close').addEventListener('click', () => this.close());
+    this.root.addEventListener('pointerdown', (e) => {
+      if (e.target === this.root) this.close();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (this.isOpen && e.code === 'Escape') this.close();
+    }, true);
+  }
+
+  get isOpen() { return !this.root.hidden; }
+
+  /**
+   * @param {{title: string, sub?: string, ic?: string, render: () => {body: Node, foot: Node[]}, onClose?: Function}} opts
+   * `render` se vuelve a llamar con refresh() después de cada compra/venta.
+   */
+  open({ title, sub = '', ic = 'box', render, onClose = null }) {
+    this._render = render;
+    this._onClose = onClose;
+    this.titleEl.textContent = title;
+    this.subEl.textContent = sub;
+    this.iconEl.replaceChildren(icon(ic, { size: 34 }));
+    this.refresh();
+    this.root.hidden = false;
+    $('menu-close').focus({ preventScroll: true });
+  }
+
+  refresh() {
+    if (!this._render) return;
+    const { body, foot = [] } = this._render();
+    const scroll = this.bodyEl.scrollTop;
+    this.bodyEl.replaceChildren(body);
+    this.footEl.replaceChildren(...foot);
+    this.bodyEl.scrollTop = scroll;
+  }
+
+  close() {
+    if (!this.isOpen) return;
+    this.root.hidden = true;
+    this._render = null;
+    const cb = this._onClose;
+    this._onClose = null;
+    cb?.();
+  }
+}
+
+/** Fila estándar: icono · nombre/descr · cantidad · precio o botón */
+export function rowEl({ ic, name, desc, qty, price, btn, cls = '' }) {
+  return el('li', { class: `row ${cls}` },
+    icon(ic, { size: 24 }),
+    el('span', { class: 'row__name' }, name, desc ? el('span', { class: 'row__desc', text: desc }) : null),
+    qty !== undefined ? el('span', { class: 'row__qty', text: qty }) : el('span'),
+    price !== undefined ? el('span', { class: 'row__price', text: price }) : btn ?? el('span'),
+  );
+}

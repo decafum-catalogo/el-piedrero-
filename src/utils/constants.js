@@ -8,6 +8,7 @@ export const DISTRICT_SIZE = 32; // 20x20 tiles
 export const PLAYER_RADIUS = 0.4;
 export const PLAYER_SPEED_WALK = 3;
 export const PLAYER_SPEED_RUN = 6;
+export const CHARACTER_SCALE = 1.15; // modelo de rebusque (1,6 m) a la escala del mundo
 
 // Interacción
 export const INTERACT_RANGE = 1.8;

@@ -15,6 +15,7 @@ import {
   STEAL_CAUGHT_MONEY
 } from '../utils/constants.js';
 import { cop } from '../utils/money.js';
+import { originEffect } from '../data/origins.js';
 
 export class InteractionSystem {
   constructor(player, inventory, stats, audio, diseaseSystem, talentSystem, craftingSystem) {
@@ -27,6 +28,7 @@ export class InteractionSystem {
     this.crafting = craftingSystem;
 
     this.targets = [];
+    this.originId = null;   // origen del personaje (ver data/origins.js)
     this.currentTarget = null;
     this.currentTargetType = null;
 
@@ -41,6 +43,8 @@ export class InteractionSystem {
     this._lastBegTime = -9999;
     this.begCooldown = 4; // segundos entre pedir limosna
   }
+
+  _origin(key, base = 1) { return originEffect(this.originId, key, base); }
 
   register(target) { this.targets.push(target); }
   unregister(target) {
@@ -82,8 +86,11 @@ export class InteractionSystem {
       if (d < nearestDist) {
         nearestDist = d;
         nearest = t;
-        // Determinar tipo por métodos disponibles
-        if (typeof t.harvest === 'function') nearestType = 'pickup';
+        // Determinar tipo por `kind` o por métodos disponibles
+        if (t.kind === 'shop') nearestType = 'shop';
+        else if (t.kind === 'cambuche') nearestType = 'cambuche';
+        else if (t.kind === 'recycler') nearestType = 'sell';
+        else if (typeof t.harvest === 'function') nearestType = 'pickup';
         else if (typeof t.steal === 'function') nearestType = 'car';
         else if (typeof t.sellSubstances === 'function') nearestType = 'dealer';
         else if (t instanceof Object && typeof t.sell === 'function') nearestType = 'sell';
@@ -108,6 +115,7 @@ export class InteractionSystem {
         if (nearest.startSorting) {
           this.sortingPickup = nearest;
           nearest.startSorting();
+          this.player.sorting = true;
         }
       }
     } else {
@@ -118,6 +126,7 @@ export class InteractionSystem {
           this._harvestTrash(this.sortingPickup, sorted);
           this.sortingPickup.stopSorting();
           this.sortingPickup = null;
+          this.player.sorting = false;
         }
       }
     }
@@ -129,7 +138,13 @@ export class InteractionSystem {
           this._harvestTrash(nearest, false);
           break;
         case 'sell':
-          this._sellItems(nearest);
+          window.dispatchEvent(new CustomEvent('open-recycler'));
+          break;
+        case 'shop':
+          window.dispatchEvent(new CustomEvent('open-shop'));
+          break;
+        case 'cambuche':
+          window.dispatchEvent(new CustomEvent('open-cambuche'));
           break;
         case 'car':
           this._stealCar(nearest);
@@ -169,11 +184,13 @@ export class InteractionSystem {
 
     const talentEffects = {
       rareChanceMult: this.talents.getEffect('rareChanceMult', 1),
-      sortValueMult: this.talents.getEffect('sortValueMult', 1)
+      sortValueMult: this.talents.getEffect('sortValueMult', 1),
+      extraRolls: this._origin('extraLoot', 0)
     };
 
     const result = target.harvest(this.boostActive, sorted, talentEffects);
     if (!result) return;
+    this.player.playAction?.('buscar', 0.8);
 
     const added = [];
     for (const itemId of result.items) {
@@ -189,7 +206,7 @@ export class InteractionSystem {
     if (added.length === 0) this.audio?.play('full');
 
     // Riesgo de enfermedad
-    const diseaseResist = this.talents.getEffect('diseaseResist', 1);
+    const diseaseResist = this.talents.getEffect('diseaseResist', 1) * this._origin('diseaseResist');
     const sortDiseaseMult = this.talents.getEffect('sortDiseaseMult', 1);
     this.disease.tryInfect(result.sorted, diseaseResist * (result.sorted ? sortDiseaseMult : 1));
 
@@ -198,19 +215,6 @@ export class InteractionSystem {
     window.dispatchEvent(new CustomEvent('pickup', {
       detail: { added, rare: result.rare, sorted: result.sorted }
     }));
-  }
-
-  _sellItems(target) {
-    if (typeof target.sell !== 'function') return;
-    const earned = target.sell(this.inventory, this.boostActive ? 1.2 : 1);
-    if (earned > 0) {
-      this.stats.dinero += earned;
-      this.stats.addXP(XP_SELL, this.talents);
-      window.dispatchEvent(new CustomEvent('sell', { detail: { earned } }));
-      this.audio?.play('sell');
-    } else {
-      this.audio?.play('empty');
-    }
   }
 
   _stealCar(target) {
@@ -362,7 +366,7 @@ export class InteractionSystem {
     const isRare = Math.random() < 0.08;
     const amount = isRare
       ? (Math.random() < 0.5 ? 5000 : 10000)
-      : (2 + Math.floor(Math.random() * 14)) * 100;
+      : Math.round((2 + Math.random() * 13) * this._origin('begMult')) * 100;
 
     this.stats.dinero += amount;
     this.stats.animo = Math.min(100, this.stats.animo + (isRare ? 6 : 2));

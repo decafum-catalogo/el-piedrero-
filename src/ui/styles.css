@@ -200,6 +200,8 @@ canvas { display: block; width: 100vw; height: 100vh; }
 .stat-bar[data-stat="higiene"] .fill { background: #4ab5e8; }
 .stat-bar[data-stat="animo"] .fill   { background: #9b59b6; }
 .stat-bar[data-stat="vicio"] .fill   { background: #e67e22; }
+#player-name { font-weight: 800; color: #f6c400; }
+#player-name:empty { display: none; }
 .stat-bar.critical .bar { border-color: #c0392b; animation: stat-critical 0.9s ease-in-out infinite alternate; }
 @keyframes stat-critical { to { box-shadow: 0 0 6px #c0392b; } }
 

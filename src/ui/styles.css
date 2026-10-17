@@ -1,0 +1,199 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+canvas { display: block; width: 100vw; height: 100vh; }
+
+#hud {
+  position: fixed; bottom: 20px; left: 20px;
+  display: flex; flex-direction: column; gap: 6px;
+  font-family: monospace; color: #ddd;
+  pointer-events: none;
+}
+.stat-bar { display: flex; align-items: center; gap: 8px; }
+.stat-bar .label { width: 24px; }
+.stat-bar .bar {
+  width: 160px; height: 10px;
+  background: #222; border: 1px solid #444;
+}
+.stat-bar .fill {
+  height: 100%; width: 100%;
+  background: #c9a227; transition: width 0.15s linear;
+}
+.stat-bar[data-stat="sed"] .fill         { background: #3a7bd5; }
+.stat-bar[data-stat="energia"] .fill     { background: #b06ad6; }
+.stat-bar[data-stat="salud"] .fill       { background: #c0392b; }
+.stat-bar[data-stat="saludMental"] .fill { background: #8e44ad; }
+
+#topbar {
+  position: fixed; top: 12px; left: 12px;
+  display: flex; gap: 24px;
+  font-family: monospace; color: #eee;
+  font-size: 14px; text-shadow: 0 0 6px #000;
+  pointer-events: none;
+}
+#talent-points { color: #ffd166; cursor: pointer; }
+
+/* XP bar */
+#xp-bar {
+  position: fixed; top: 38px; left: 12px;
+  width: 200px; height: 6px;
+  background: #222; border: 1px solid #444;
+}
+#xp-fill {
+  height: 100%; width: 0%;
+  background: #27ae60; transition: width 0.3s ease;
+}
+
+/* === Inventario mini === */
+#inventory-panel {
+  position: fixed; top: 60px; right: 12px;
+  width: 180px; padding: 8px;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid #333;
+  font-family: monospace; font-size: 12px; color: #ccc;
+  pointer-events: none;
+}
+#inventory-panel .inv-row {
+  display: flex; justify-content: space-between;
+  padding: 2px 0; border-bottom: 1px solid #222;
+}
+#inventory-panel .inv-row span { color: #c9a227; }
+#inventory-panel .inv-weight {
+  margin-top: 6px; color: #888; font-size: 11px; text-align: right;
+}
+
+/* === Enfermedades === */
+#disease-panel {
+  position: fixed; top: 60px; left: 12px;
+  display: flex; flex-direction: column; gap: 4px;
+  font-family: monospace; font-size: 12px;
+  pointer-events: none;
+}
+.disease-item {
+  background: rgba(192,57,43,0.2);
+  border: 1px solid #c0392b;
+  padding: 3px 8px; color: #e74c3c;
+  display: flex; justify-content: space-between; gap: 12px;
+}
+.disease-item span { color: #888; }
+
+/* === Boost indicator === */
+#boost-indicator {
+  position: fixed; top: 60px; left: 50%;
+  transform: translateX(-50%);
+  display: none; padding: 6px 16px;
+  background: rgba(0,0,0,0.8);
+  color: #ffd166; font-family: monospace;
+  border: 1px solid #ffd166;
+  box-shadow: 0 0 12px rgba(255,209,102,0.6);
+  font-size: 13px; letter-spacing: 1px;
+  pointer-events: none;
+}
+#boost-indicator.active { display: block; animation: pulse 0.6s infinite alternate; }
+@keyframes pulse { from { opacity: 0.7; } to { opacity: 1; } }
+
+/* === Toasts === */
+.loot-toast {
+  position: fixed; top: 40%; left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  background: rgba(0,0,0,0.85);
+  color: #ddd; font-family: monospace;
+  border-left: 3px solid #666;
+  animation: fadeUp 2.5s forwards;
+  pointer-events: none; z-index: 100;
+}
+.loot-toast.rare {
+  border-left-color: #c9a227; color: #c9a227;
+  text-shadow: 0 0 8px rgba(201,162,39,0.8);
+}
+.loot-toast.sell { border-left-color: #2ab7ca; color: #2ab7ca; }
+.loot-toast.warn { border-left-color: #d0a020; color: #d0a020; }
+.loot-toast.info { border-left-color: #27ae60; color: #27ae60; }
+.loot-toast.death { border-left-color: #c0392b; color: #c0392b; }
+@keyframes fadeUp {
+  0%   { opacity: 0; transform: translate(-50%, 10px); }
+  15%  { opacity: 1; transform: translate(-50%, 0); }
+  85%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+/* === Panel de talentos === */
+#talent-panel {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  width: 700px; max-width: 95vw; max-height: 85vh;
+  background: rgba(15,15,20,0.97);
+  border: 2px solid #c9a227;
+  padding: 16px;
+  font-family: monospace; color: #ddd;
+  display: none; flex-direction: column;
+  overflow-y: auto; z-index: 200;
+}
+#talent-panel.open { display: flex; }
+.talent-header {
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 12px;
+}
+.talent-header h2 { color: #ffd166; font-size: 18px; }
+.talent-points-display { color: #ffd166; font-size: 16px; }
+.talent-branches {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.talent-branch h3 { color: #2ab7ca; margin-bottom: 8px; font-size: 14px; }
+.talent-node {
+  border: 1px solid #333; padding: 8px; margin-bottom: 8px;
+  background: rgba(0,0,0,0.4); cursor: default;
+}
+.talent-node.available {
+  border-color: #27ae60; cursor: pointer;
+  background: rgba(39,174,96,0.1);
+}
+.talent-node.available:hover { background: rgba(39,174,96,0.25); }
+.talent-node.unlocked {
+  border-color: #c9a227; background: rgba(201,162,39,0.15);
+}
+.talent-node .talent-name { font-weight: bold; color: #eee; font-size: 13px; }
+.talent-node .talent-desc { color: #aaa; font-size: 11px; margin: 4px 0; }
+.talent-node .reqs { color: #888; font-size: 10px; }
+.talent-node .talent-cost { color: #ffd166; font-size: 11px; margin-top: 4px; }
+.talent-hint { color: #666; font-size: 11px; margin-top: 12px; text-align: center; }
+
+/* === Panel de crafteo === */
+#craft-panel {
+  position: fixed; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px; max-width: 95vw; max-height: 80vh;
+  background: rgba(15,15,20,0.97);
+  border: 2px solid #27ae60;
+  padding: 16px;
+  font-family: monospace; color: #ddd;
+  display: none; flex-direction: column;
+  overflow-y: auto; z-index: 200;
+}
+#craft-panel.open { display: flex; }
+.craft-header { border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 12px; }
+.craft-header h2 { color: #27ae60; font-size: 18px; }
+.craft-recipes { display: flex; flex-direction: column; gap: 10px; }
+.craft-recipe {
+  border: 1px solid #333; padding: 10px;
+  background: rgba(0,0,0,0.4);
+}
+.craft-recipe.craftable { border-color: #27ae60; }
+.recipe-name { font-weight: bold; color: #eee; margin-bottom: 4px; }
+.recipe-ingredients { font-size: 12px; margin-bottom: 6px; }
+.recipe-ingredients .ing-ok { color: #27ae60; }
+.recipe-ingredients .ing-missing { color: #c0392b; }
+.craft-btn {
+  background: #27ae60; color: #fff; border: none;
+  padding: 4px 12px; cursor: pointer; font-family: monospace;
+}
+.craft-btn:disabled { background: #444; cursor: not-allowed; }
+.craft-hint { color: #666; font-size: 11px; margin-top: 12px; text-align: center; }
+
+/* === Controles help === */
+#controls-help {
+  position: fixed; bottom: 8px; left: 50%;
+  transform: translateX(-50%);
+  font-family: monospace; font-size: 11px; color: #555;
+  pointer-events: none;
+}

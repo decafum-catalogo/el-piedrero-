@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Habitante de Calle</title>
+  <link rel="stylesheet" href="/src/ui/styles.css" />
+</head>
+<body>
+<div id="app">
+  <canvas id="game-canvas"></canvas>
+
+  <!-- HUD: barras de stats -->
+  <div id="hud">
+    <div class="stat-bar" data-stat="hambre">
+      <span class="label">🍞</span>
+      <div class="bar"><div class="fill"></div></div>
+    </div>
+    <div class="stat-bar" data-stat="sed">
+      <span class="label">💧</span>
+      <div class="bar"><div class="fill"></div></div>
+    </div>
+    <div class="stat-bar" data-stat="energia">
+      <span class="label">😴</span>
+      <div class="bar"><div class="fill"></div></div>
+    </div>
+    <div class="stat-bar" data-stat="salud">
+      <span class="label">🩹</span>
+      <div class="bar"><div class="fill"></div></div>
+    </div>
+    <div class="stat-bar" data-stat="saludMental">
+      <span class="label">🧠</span>
+      <div class="bar"><div class="fill"></div></div>
+    </div>
+  </div>
+
+  <!-- Topbar -->
+  <div id="topbar">
+    <span id="clock">Día 1 — 06:00</span>
+    <span id="money">$0</span>
+    <span id="level-display">Nv 1</span>
+    <span id="talent-points">🌟 0</span>
+  </div>
+
+  <!-- XP bar -->
+  <div id="xp-bar">
+    <div id="xp-fill"></div>
+  </div>
+
+  <!-- NUEVOS -->
+  <div id="boost-indicator">⚡ BOOST ACTIVO</div>
+  <div id="inventory-panel"></div>
+  <div id="disease-panel"></div>
+
+  <!-- Panel de talentos -->
+  <div id="talent-panel"></div>
+
+  <!-- Panel de crafteo -->
+  <div id="craft-panel"></div>
+
+  <!-- Controles -->
+  <div id="controls-help">
+    WASD mover · Shift correr · E interactuar · Q seleccionar/comprar · F boost · T talentos · C crafteo
+  </div>
+</div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

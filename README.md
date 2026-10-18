@@ -18,6 +18,10 @@ Este proyecto es un fork de [juanagogo/bazuko](https://github.com/juanagogo/bazu
 
 ## Capturas
 
+### Carros, taxis y bus articulado
+
+![Bus articulado rojo en la troncal junto a la estación, con carros y un taxi circulando por las calles](docs/images/carros-y-bus.jpg)
+
 ### Cámara en tercera persona
 
 ![Personaje en tercera persona frente a un cruce con carros y peatones](docs/images/tercera-persona.jpg)

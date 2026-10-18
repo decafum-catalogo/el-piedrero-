@@ -5,12 +5,14 @@
 import * as THREE from 'three';
 
 export const cutaway = {
+  uCutawayEnabled: { value: 1 },
   uPlayer: { value: new THREE.Vector3() },
   uCam: { value: new THREE.Vector3() },
   uRadius: { value: 2.8 }
 };
 
 const HEAD = /* glsl */`
+uniform float uCutawayEnabled;
 uniform vec3 uPlayer;
 uniform vec3 uCam;
 uniform float uRadius;
@@ -18,6 +20,7 @@ varying vec3 vCutWorld;
 `;
 
 function onBeforeCompile(shader) {
+  shader.uniforms.uCutawayEnabled = cutaway.uCutawayEnabled;
   shader.uniforms.uPlayer = cutaway.uPlayer;
   shader.uniforms.uCam = cutaway.uCam;
   shader.uniforms.uRadius = cutaway.uRadius;
@@ -30,7 +33,7 @@ function onBeforeCompile(shader) {
   {
     vec3 ab = uPlayer - uCam;
     float t = dot(vCutWorld - uCam, ab) / dot(ab, ab);
-    if (t > 0.0 && t < 0.96 && vCutWorld.y > uPlayer.y - 0.3) {
+    if (uCutawayEnabled > 0.5 && t > 0.0 && t < 0.96 && vCutWorld.y > uPlayer.y - 0.3) {
       float d = length(vCutWorld - (uCam + ab * t));
       // borde con tramado para que el corte no sea una línea dura
       float edge = uRadius + 0.6 * fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
@@ -55,6 +58,7 @@ export function applyCutaway(root) {
 
 /** Actualiza la línea de visión (llamar cada cuadro). */
 export function updateCutaway(playerPos, camera) {
+  cutaway.uCutawayEnabled.value = camera.userData.cameraMode === 'third-person' ? 0 : 1;
   cutaway.uPlayer.value.set(playerPos.x, playerPos.y + 1.1, playerPos.z);
   cutaway.uCam.value.setFromMatrixPosition(camera.matrixWorld);
 }

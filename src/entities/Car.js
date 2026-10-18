@@ -4,10 +4,11 @@ import { COLORS, CAR_COOLDOWN } from '../utils/constants.js';
 import { makeVehicle } from '../world/bogota/vehicles.js';
 
 export class Car {
-  constructor(scene, position, rotation = 0) {
+  constructor(scene, position, rotation = 0, { traffic = false } = {}) {
     this.scene = scene;
     this.used = false;
     this.cooldown = 0;
+    this.traffic = traffic;
 
     this.group = new THREE.Group();
     this.group.position.copy(position);
@@ -17,6 +18,9 @@ export class Car {
     // Carro realista (portado de rebusque): particular o taxi amarillo, frente hacia +X local
     const kind = Math.random() < 0.3 ? 'taxi' : 'carro';
     const v = makeVehicle(kind, Math.floor(Math.random() * 8), { beams: false });
+    this.vehicle = v;
+    this.length = v.length;
+    this.width = v.width;
     v.group.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     this.group.add(v.group);
 
@@ -47,6 +51,7 @@ export class Car {
     this.marker = new THREE.Mesh(markerGeo, markerMat);
     this.marker.rotation.x = -Math.PI / 2;
     this.marker.position.y = 0.05;
+    this.marker.visible = !traffic;
     this.group.add(this.marker);
   }
 
@@ -58,7 +63,7 @@ export class Car {
    * @returns { items, caught }
    */
   steal(caughtMult = 1) {
-    if (this.used || this.cooldown > 0) return null;
+    if (this.traffic || this.used || this.cooldown > 0) return null;
 
     const items = [];
     const mirrorCount = Math.random() < 0.5 ? 2 : 1;
@@ -90,11 +95,24 @@ export class Car {
     }
   }
 
+  animateDrive(distance, braking) {
+    for (const wheel of this.vehicle.wheels) wheel.rotation.z -= distance / 0.33;
+    if (braking !== this._braking) {
+      this.vehicle.tailMat.color.set('#ff1a12').multiplyScalar(braking ? 3 : 1.4);
+      this._braking = braking;
+    }
+  }
+
   dispose() {
     this.scene.remove(this.group);
+    this.group.remove(this.vehicle.group);
+    this.vehicle.dispose();
+    const geometries = new Set(), materials = new Set();
     this.group.traverse((o) => {
-      o.geometry?.dispose?.();
-      o.material?.dispose?.();
+      if (o.geometry) geometries.add(o.geometry);
+      if (o.material) materials.add(o.material);
     });
+    for (const geometry of geometries) geometry.dispose();
+    for (const material of materials) material.dispose();
   }
 }

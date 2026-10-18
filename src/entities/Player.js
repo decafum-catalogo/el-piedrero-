@@ -19,6 +19,11 @@ export class Player {
     this.speedWalk = PLAYER_SPEED_WALK;
     this.speedRun = PLAYER_SPEED_RUN;
     this.speedMult = 1; // debuff por salud mental baja
+    this._direction = new THREE.Vector3();
+    this._forward = new THREE.Vector3();
+    this._right = new THREE.Vector3();
+    this._delta = new THREE.Vector3();
+    this._before = new THREE.Vector3();
 
     // Contenedor raíz (posición + rumbo); el personaje va escalado adentro
     this.root = new THREE.Group();
@@ -98,14 +103,21 @@ export class Player {
       speed *= this.stats.getSpeedMultiplier();
     }
     // Movimiento
-    const dir = new THREE.Vector3(x, 0, z);
+    const dir = this._direction.set(x, 0, z);
+    if (camera?.userData.cameraMode === 'third-person') {
+      const forward = camera.getWorldDirection(this._forward);
+      forward.y = 0;
+      forward.normalize();
+      const right = this._right.set(-forward.z, 0, forward.x);
+      dir.copy(right).multiplyScalar(x).addScaledVector(forward, -z);
+    }
     if (moving) dir.normalize();
-    const delta = dir.clone().multiplyScalar(moving ? speed * dt : 0);
+    const delta = this._delta.copy(dir).multiplyScalar(moving ? speed * dt : 0);
 
-    const before = this.position.clone();
+    const before = this._before.copy(this.position);
     if (collisions) {
       this.position.copy(
-        collisions.resolveMove(this.position, delta, this.radius)
+        collisions.resolveMove(this.position, delta, this.radius, this.position)
       );
     } else {
       this.position.add(delta);

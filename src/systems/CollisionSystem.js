@@ -22,33 +22,37 @@ export class CollisionSystem {
    * Resuelve el movimiento del player (radio `radius`).
    * Devuelve nueva posición válida.
    */
-  resolveMove(currentPos, delta, radius = 0.4) {
-    const pos = currentPos.clone();
+  resolveMove(currentPos, delta, radius = 0.4, result = new THREE.Vector3()) {
+    const pos = result.copy(currentPos);
 
-    // Eje X
-    pos.x += delta.x;
-    this._pushOut(pos, radius, 'x', delta.x);
-
-    // Eje Z
-    pos.z += delta.z;
-    this._pushOut(pos, radius, 'z', delta.z);
+    this._moveAxis(pos, radius, 'x', 'z', delta.x);
+    this._moveAxis(pos, radius, 'z', 'x', delta.z);
 
     return pos;
   }
 
-  _pushOut(pos, radius, axis, dir) {
-    for (const c of this.colliders) {
-      if (
-        pos.x + radius > c.box.min.x && pos.x - radius < c.box.max.x &&
-        pos.z + radius > c.box.min.z && pos.z - radius < c.box.max.z
-      ) {
-        // Está dentro → empujar por el eje que se movió
-        if (axis === 'x') {
-          pos.x = dir > 0 ? c.box.min.x - radius : c.box.max.x + radius;
-        } else {
-          pos.z = dir > 0 ? c.box.min.z - radius : c.box.max.z + radius;
-        }
+  _moveAxis(pos, radius, axis, other, delta) {
+    if (delta === 0) return;
+    const epsilon = 1e-7;
+    const start = pos[axis];
+    let end = start + delta;
+    for (const { box } of this.colliders) {
+      // El contacto tangencial no es penetración (incluye error de coma flotante).
+      if (pos[other] <= box.min[other] - radius + epsilon ||
+          pos[other] >= box.max[other] + radius - epsilon) continue;
+      const min = box.min[axis] - radius;
+      const max = box.max[axis] + radius;
+      if (delta > 0 && start <= min + epsilon && end > min) {
+        end = Math.max(start, min);
+      } else if (delta < 0 && start >= max - epsilon && end < max) {
+        end = Math.min(start, max);
+      } else if (start > min + epsilon && start < max - epsilon) {
+        // Una posición ya solapada puede salir por el lado más cercano,
+        // pero nunca se corrige saltando al otro extremo de una manzana.
+        if ((delta > 0 && start < (min + max) / 2) ||
+            (delta < 0 && start > (min + max) / 2)) end = start;
       }
     }
+    pos[axis] = end;
   }
 }

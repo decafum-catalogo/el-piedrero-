@@ -20,6 +20,8 @@ import * as TX from '../bogota/textures.js';
 import * as P from '../bogota/props.js';
 import { Npc } from '../../entities/Npc.js';
 import { applyCutaway, updateCutaway } from '../bogota/cutaway.js';
+import { PedestrianNavigation } from '../bogota/PedestrianNavigation.js';
+import { TrafficRoute } from '../bogota/TrafficRoute.js';
 
 const S = 48;
 const T = TILE_SIZE;
@@ -183,6 +185,8 @@ export class Bogota {
     const spots = [];
     const nearCross = (x, z) => CALLES.some(([a, b]) => z >= a - 2 && z <= b + 2) && [...CARRERAS, ...CARACAS.lanes.map(([a, b]) => [a, b])].some(([a, b]) => x >= a - 2 && x <= b + 2);
     for (let z = 2; z < S - 2; z++) {
+      // Los circuitos centrales quedan libres; se conserva el parqueo en los extremos.
+      if (z >= CALLES[0][0] - 2 && z <= CALLES[1][1] + 2) continue;
       for (let x = 2; x < S - 2; x++) {
         if (m[z][x] !== 'road' || nearCross(x, z)) continue;
         if (x >= CARACAS.lanes[0][0] && x <= CARACAS.lanes[1][1]) continue; // la Caracas no se parquea
@@ -195,6 +199,14 @@ export class Bogota {
       }
     }
     return spots;
+  }
+
+  getTrafficRoutes() {
+    const top = W(CALLES[0][1]), bottom = W(CALLES[1][0]);
+    return [
+      new TrafficRoute(W(CARRERAS[0][1]), W(CARACAS.lanes[0][0]), top, bottom),
+      new TrafficRoute(W(CARACAS.lanes[1][1]), W(CARRERAS[1][0]), top, bottom)
+    ];
   }
 
   /** Suelo: una malla por material, con UV en metros para que la textura no se repita por tile */
@@ -320,10 +332,9 @@ export class Bogota {
         };
         for (let b = 1; b < S - 1; b++) {
           const x = alongX ? b : a, z = alongX ? a : b;
-          const faces = isB(x, z) && walk(x + dx, z + dz);
-          // en tramos este/oeste se saltan las esquinas (ya las cubre el tramo norte/sur)
-          const corner = !alongX && (walk(x, z - 1) || walk(x, z + 1));
-          if (faces && !corner) run.push([x, z]); else flush();
+          // Cada tile pertenece a una sola casa, también al recorrer otra fachada.
+          const faces = isB(x, z) && !covered.has(`${x},${z}`) && walk(x + dx, z + dz);
+          if (faces) run.push([x, z]); else flush();
         }
         flush();
       }
@@ -360,9 +371,12 @@ export class Bogota {
 
   _house(tiles, dx, dz, face, alongX, isB, map, sideMat, roofMat, tileRoof, covered) {
     const ruin = tiles.some(([x, z]) => map[z][x] === 'ruin');
-    // profundidad: hasta 3 tiles hacia adentro
+    // Profundidad: hasta 3 tiles hacia adentro, sin invadir casas ya construidas.
     let depth = 1;
-    while (depth < 3 && tiles.every(([x, z]) => isB(x - dx * depth, z - dz * depth))) depth++;
+    while (depth < 3 && tiles.every(([x, z]) => {
+      const tx = x - dx * depth, tz = z - dz * depth;
+      return isB(tx, tz) && !covered.has(`${tx},${tz}`);
+    })) depth++;
     for (const [x, z] of tiles) for (let d = 0; d < depth; d++) covered.add(`${x - dx * d},${z - dz * d}`);
 
     const widthM = tiles.length * T;
@@ -559,19 +573,34 @@ export class Bogota {
     this._add(sign, W(29), W(33), -0.6);
   }
 
-  /** Gente: el gentío de El Cartucho y algunos en el parque */
+  _createPedestrianNavigation() {
+    const carreras = [...CARRERAS, [CARACAS.lanes[0][0], CARACAS.lanes[1][1]]];
+    return new PedestrianNavigation(this.map, T, {
+      // Prolongación de los andenes en los cruces; no pasean por los carriles ni la estación.
+      isCrossing: (x, z) => CALLES.some(([a, b]) => z === a - 1 || z === b + 1) ||
+        carreras.some(([a, b]) => x === a - 1 || x === b + 1),
+      isBlocked: (x, z) => x === Math.round(this.reserved.shop.x / T) && z === Math.round(this.reserved.shop.z / T),
+      groundHeight: (x, z) => this.map[Math.round(z / T)]?.[Math.round(x / T)] === 'dirt' ? 0.04 : this._groundY(x, z)
+    });
+  }
+
+  /** Peatones que recorren la ciudad; los vendedores conservan su puesto. */
   _spawnPeople() {
-    const walk = (x, z) => this.isWalkableAt(x, z);
+    const navigation = this.pedestrianNavigation = this._createPedestrianNavigation();
+    const walk = (x, z) => navigation.isWalkableAt(x, z);
     const spots = [
-      // olla y callejón: quietos o deambulando poquito
-      [13.5, 20, 0], [15.5, 20.5, 1.5], [13, 23, 0], [16, 23.5, 2], [11, 21.8, 3], [18, 22.4, 2.5],
-      [17, 19, 0], [12.5, 21, 1], [19.8, 21.5, 0],
-      // parque y andenes
-      [33.5, 36, 4], [34, 43, 3], [21, 30, 0]
+      // El Cartucho y parque.
+      [13.5, 20], [15.5, 20.5], [13, 23], [16, 23.5], [11, 21.8], [18, 22.4],
+      [17, 19], [12.5, 21], [19.8, 21.5], [33.5, 36], [34, 43], [21, 30],
+      // Andenes, incluyendo la calle donde empieza el jugador.
+      [18, 11], [21, 11], [21, 16], [28, 19], [39, 20], [8, 27],
+      [5, 18], [30, 29], [37, 32], [8, 37]
     ];
-    for (const [x, z, wander] of spots) {
-      this.npcs.push(new Npc(this.scene, new THREE.Vector3(W(x), this._groundY(W(x), W(z)), W(z)), {
-        wander: wander * T, isWalkable: walk, gastada: true
+    for (const [x, z] of spots) {
+      const position = navigation.nearestPoint(W(x), W(z));
+      if (!position) continue;
+      this.npcs.push(new Npc(this.scene, position, {
+        navigation, groundHeight: navigation.groundHeight, isWalkable: walk, gastada: true
       }));
     }
   }
@@ -583,31 +612,43 @@ export class Bogota {
   _mergeStatic() {
     this.group.updateMatrixWorld(true);
     const buckets = new Map();
-    const victims = [];
+    const replacedGeometries = new Set();
     const visit = (o) => {
       if (o.userData.update || o.userData.noMerge) return; // animados y faroles quedan aparte
       if (o.isMesh && !Array.isArray(o.material) && !o.isSkinnedMesh) {
-        const key = `${o.material.uuid}|${o.castShadow}|${o.receiveShadow}`;
-        const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+        if (!o.geometry.attributes.uv || !o.geometry.attributes.normal) return;
+        // Conserva los índices: expandir cajas y planos duplicaba sus vértices.
+        const key = `${o.material.uuid}|${o.castShadow}|${o.receiveShadow}|${!!o.geometry.index}`;
+        const g = o.geometry.clone();
         for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
-        if (!g.attributes.uv || !g.attributes.normal) return;
         g.applyMatrix4(o.matrixWorld);
-        (buckets.get(key) ?? buckets.set(key, { mat: o.material, cast: o.castShadow, recv: o.receiveShadow, list: [] }).get(key)).list.push(g);
-        victims.push(o);
+        const bucket = buckets.get(key) ?? { mat: o.material, cast: o.castShadow, recv: o.receiveShadow, list: [], sources: [] };
+        buckets.set(key, bucket);
+        bucket.list.push(g);
+        bucket.sources.push(o);
         return;
       }
+      if (o.isMesh && !o.isSkinnedMesh) o.matrixAutoUpdate = false;
       for (const c of o.children) visit(c);
     };
     for (const c of this.group.children) visit(c);
-    for (const v of victims) v.parent.remove(v);
-    for (const { mat, cast, recv, list } of buckets.values()) {
+    for (const { mat, cast, recv, list, sources } of buckets.values()) {
       const merged = mergeGeometries(list);
+      for (const geometry of list) geometry.dispose();
       if (!merged) continue;
+      for (const source of sources) {
+        source.parent.remove(source);
+        replacedGeometries.add(source.geometry);
+      }
       const mesh = new THREE.Mesh(merged, mat);
       mesh.castShadow = cast;
       mesh.receiveShadow = recv;
+      mesh.matrixAutoUpdate = false;
       this.group.add(mesh);
     }
+    // Una geometría compartida por objetos animados sigue en uso.
+    this.group.traverse((o) => replacedGeometries.delete(o.geometry));
+    for (const geometry of replacedGeometries) geometry.dispose();
   }
 
   // ---------- ciclo ----------

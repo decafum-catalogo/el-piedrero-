@@ -16,10 +16,11 @@ import { Car } from '../entities/Car.js';
 import { DrugDealer } from '../entities/DrugDealer.js';
 import { CraftingStation } from '../entities/CraftingStation.js';
 
-import { StatsSystem } from '../systems/StatsSystem.js';
+import { StatsSystem, NEEDS } from '../systems/StatsSystem.js';
 import { TimeSystem } from '../systems/TimeSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { CollisionSystem } from '../systems/CollisionSystem.js';
+import { TrafficSystem } from '../systems/TrafficSystem.js';
 import { InventorySystem } from '../systems/InventorySystem.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { InteractionSystem } from '../systems/InteractionSystem.js';
@@ -28,6 +29,7 @@ import { TalentSystem } from '../systems/TalentSystem.js';
 import { CraftingSystem } from '../systems/CraftingSystem.js';
 
 import { HUD } from '../ui/HUD.js';
+import { el, button } from '../ui/dom.js';
 import { Menu } from '../ui/Menu.js';
 import { createCreator } from '../ui/Creator.js';
 import { openRecycler, openShop, openCambuche } from '../ui/placeMenus.js';
@@ -37,8 +39,7 @@ import { SLEEP } from '../data/cambuche.js';
 import { cop } from '../utils/money.js';
 
 import {
-  MENTAL_DECAY, MENTAL_DECAY_NIGHT, MENTAL_DECAY_SICK,
-  MENTAL_DECAY_HUNGER, MENTAL_RESTORE_SLEEP, MENTAL_LOW_THRESHOLD,
+  MENTAL_RESTORE_SLEEP, MENTAL_LOW_THRESHOLD,
   INVENTORY_MAX_WEIGHT, WITHDRAWAL
 } from '../utils/constants.js';
 
@@ -76,10 +77,16 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.hud = new HUD();
     this.menu = new Menu();
     this.creator = createCreator({ audio: null });
+    this.cameraRig.canControl = () => !this.paused && !this.isSleeping &&
+      !this.hud._talentOpen && !this.hud._craftOpen && !this.hud._dealerOpen;
+    this.hud.setCameraMode(this.cameraRig.mode);
+    window.addEventListener('camera-toggle', () => this._toggleCamera());
     window.addEventListener('open-recycler', () => openRecycler(this));
     window.addEventListener('open-shop', (e) => openShop(this, e.detail?.target));
     window.addEventListener('open-cambuche', () => openCambuche(this));
     window.addEventListener('keydown', (e) => {
+      if (e.repeat || e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      if (e.code === 'KeyV') this._toggleCamera();
       if (e.code === 'KeyP' && !this.menu.isOpen && !this.creator.isOpen && this.look) this.editLook();
       if (e.code === 'KeyM' && !this.paused) this._toggleModel();
     });
@@ -90,6 +97,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.cambuche = null;
     this.shop = null;
     this.cars = [];
+    this.traffic = null;
     this.dealer = null;
     this.craftingStation = null;
 
@@ -99,6 +107,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.costal = false;    // costal grande comprado
     this.isSleeping = false;
     this.deathCount = 0;
+    this._deathPending = false;
     this._wasNight = null;
 
     this._lastTime = performance.now();
@@ -121,6 +130,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }
 
     this._loadIfSave();
+    if (this.cameraRig.mode === 'third-person') this.player.root.rotation.y = this.cameraRig.yaw + Math.PI;
+    this.cameraRig.follow(this.player.position, 0, this.collisions);
     this.audio.startAmbient();
     this._loop();
     if (!this.look) this._createCharacter();
@@ -162,12 +173,21 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     await this.player.setModel(next);
   }
 
+  _toggleCamera() {
+    if (!this.cameraRig.canControl()) return;
+    const mode = this.cameraRig.toggle(this.player.root.rotation.y);
+    this.cameraRig.follow(this.player.position, 0, this.collisions);
+    this.hud.setCameraMode(mode);
+  }
+
   /** El mundo se congela mientras hay un menú o el creador abierto */
   get paused() {
-    return this.menu.isOpen || this.creator.isOpen;
+    return this._deathPending || this.menu.isOpen || this.creator.isOpen;
   }
 
   _spawnEntities() {
+    this.traffic?.dispose();
+    this.traffic = null;
     this.pickups.forEach((p) => p.dispose());
     this.pickups = [];
     this.cars.forEach((c) => c.dispose());
@@ -242,6 +262,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       const car = new Car(this.sceneMgr.scene, pos, rot);
       this.cars.push(car);
       this.interaction.register(car);
+    }
+    if (district.getTrafficRoutes) {
+      this.traffic = new TrafficSystem(this.sceneMgr.scene, district.getTrafficRoutes());
     }
 
     // ===== Puesto de venta =====
@@ -393,40 +416,65 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }, 1200);
   }
 
-  _updateMentalHealth(dt) {
-    const mentalDecayMult = this.talents.getEffect('mentalDecayMult', 1);
-    let decay = MENTAL_DECAY;
+  _handleDeath() {
+    if (this._deathPending) return true;
+    if (this.stats.salud > 0) return false;
 
-    if (this.clock.isNight) decay += MENTAL_DECAY_NIGHT;
-    if (this.diseases.hasAny) decay += MENTAL_DECAY_SICK;
-    if (this.stats.hambre < 20) decay += MENTAL_DECAY_HUNGER;
-
-    decay *= mentalDecayMult;
-    this.stats.saludMental = Math.max(0, this.stats.saludMental - decay * dt);
+    this._deathPending = true;
+    this.deathCount++;
+    this.input.keys = {};
+    this.input.endFrame();
+    this.audio.updateSteps(false, false);
+    if (this.interaction.boostActive) this.interaction._endBoost();
+    const causes = [];
+    for (const [stat, name] of [['sed', 'deshidratación'], ['hambre', 'hambre'],
+      ['energia', 'agotamiento'], ['higiene', 'higiene agotada'], ['animo', 'ánimo agotado']]) {
+      if (this.stats[stat] <= 0) causes.push(name);
+    }
+    if (this.stats.inWithdrawal) causes.push('abstinencia');
+    if (this.diseases.hasAny) causes.push('enfermedad');
+    this.menu.open({
+      title: 'Te quedaste sin salud',
+      sub: 'La partida está en pausa.',
+      ic: 'heart',
+      dismissible: false,
+      render: () => ({
+        body: el('div', {},
+          el('p', { text: causes.length ? `Estado al caer: ${causes.join(', ')}.` : 'Tu salud llegó a cero.' }),
+          el('p', { text: 'Volverás al cambuche con salud y necesidades recuperadas al menos al 60 %. Perderás la mitad de los tipos de objetos del inventario.' }),
+          el('p', { text: 'Come, bebe agua y descansa para mantener tus necesidades. Puedes consumir comida y agua haciendo clic en ellas en el inventario.' })),
+        foot: [button('Volver al cambuche', { primary: true, onClick: () => this._respawn() })]
+      })
+    });
+    window.dispatchEvent(new CustomEvent('death'));
+    return true;
   }
 
-  _handleDeath() {
-    if (this.stats.salud > 0) return;
-
-    this.deathCount++;
-    window.dispatchEvent(new CustomEvent('death'));
-
+  _respawn() {
+    if (!this._deathPending) return;
     const half = Math.floor(this.inventory.items.length / 2);
     for (let i = 0; i < half; i++) {
       const it = this.inventory.items[0];
       if (it) this.inventory.remove(it.id, it.qty);
     }
 
-    this.stats.salud = 30;
-    this.stats.hambre = Math.max(20, this.stats.hambre);
-    this.stats.sed = Math.max(20, this.stats.sed);
-    this.stats.vicio = Math.max(30, this.stats.vicio);
+    // Recuperar todas las necesidades evita seguir recibiendo daño al reaparecer.
+    for (const need of NEEDS) this.stats[need] = Math.max(60, this.stats[need]);
     this.diseases.cureAll();
 
     const district = this.world.active;
     if (district?.reserved) {
       this.player.position.set(district.reserved.bed.x, 0, district.reserved.bed.z + 2);
     }
+    this.player.root.position.copy(this.player.position);
+    this.cameraRig._snap = true;
+    this.cameraRig.follow(this.player.position, 0, this.collisions);
+    this.interaction.currentTarget = null;
+    this.interaction.currentTargetType = null;
+    this.input.keys = {};
+    this.input.endFrame();
+    this._deathPending = false;
+    this.menu.close();
   }
 
   _loop = () => {
@@ -438,11 +486,13 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this._lastTime = now;
 
     if (this.isSleeping || this.paused) {
+      this.cameraRig.cancelDrag();
       this.audio.updateSteps(false, false);
       this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera);
       this.input.endFrame();
       return;
     }
+    if (this._handleDeath()) return;
 
     // 1. Tiempo
     this.clock.update(dt);
@@ -459,20 +509,21 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }
 
     // 3. Jugador
+    this.cameraRig.updateControls(dt, this.input);
+    // Actualiza el rumbo antes de calcular WASD en relación con la cámara.
+    this.cameraRig.prepareMovement();
     this.player.update(dt, this.cameraRig.camera, this.collisions);
 
     // 4. Stats
     this.stats.update(dt, this.player, this.diseases, this.clock, this.talents);
+    if (this._handleDeath()) return;
 
     // 4b. Aplicar bono de peso por talentos
     const maxWeightBonus = this.talents.getEffect('maxWeightBonus', 0);
     this.inventory.maxWeight = INVENTORY_MAX_WEIGHT + maxWeightBonus + (this.costal ? COSTAL_BONUS : 0);
     this.player.load = this.inventory.totalWeight / this.inventory.maxWeight;
 
-    // 5. Salud mental
-    this._updateMentalHealth(dt);
-
-    // 5b. Debuff por salud mental baja
+    // 5. Debuff por salud mental baja (el desgaste se calcula en StatsSystem).
     if (this.stats.saludMental < MENTAL_LOW_THRESHOLD) {
       this.player.speedMult = 0.6;
     } else {
@@ -484,9 +535,13 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     // 7. Interacción (basura, autos, recicladora, tienda, cambuche, dealer)
     this.interaction.update(dt, this.input, this.clock);
+    if (this._handleDeath()) return;
 
     // 8. Mundo
+    // El corte isométrico usa la cámara del mismo cuadro.
+    this.cameraRig.follow(this.player.position, dt, this.collisions);
     this.world.update(dt, this.player.position, this.cameraRig.camera);
+    this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.npcs ?? [] });
 
     // 9. Entidades
     for (const p of this.pickups) p.update(dt);
@@ -499,20 +554,14 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.audio.updateSteps(moving, this.input.isRunning);
     this.audio.updateBoost(this.interaction.boostActive);
 
-    // 11. Cámara
-    this.cameraRig.follow(this.player.position);
-
     // 12. Render
     this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera);
 
     // 13. UI
     this.hud.update(
       this.stats, this.clock, this.interaction, this.inventory,
-      this.diseases, this.talents, this.crafting
+      this.diseases, this.talents, this.crafting, dt
     );
-
-    // 14. Muerte
-    this._handleDeath();
 
     // 15. Fin de frame
     this.input.endFrame();

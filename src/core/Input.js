@@ -6,12 +6,18 @@ export class Input {
     this.pressedThisFrame = new Set();
 
     window.addEventListener('keydown', (e) => {
+      if (e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      if (e.code.startsWith('Arrow')) e.preventDefault();
       if (!this.keys[e.code]) this.pressedThisFrame.add(e.code);
       this.keys[e.code] = true;
     });
 
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
+    });
+    window.addEventListener('blur', () => {
+      this.keys = {};
+      this.pressedThisFrame.clear();
     });
   }
 

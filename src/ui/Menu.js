@@ -17,22 +17,24 @@ export class Menu {
     this._onClose = null;
 
     setIcon($('menu-close'), 'x');
-    $('menu-close').addEventListener('click', () => this.close());
+    $('menu-close').addEventListener('click', () => this.dismiss());
     this.root.addEventListener('pointerdown', (e) => {
-      if (e.target === this.root) this.close();
+      if (e.target === this.root) this.dismiss();
     });
     window.addEventListener('keydown', (e) => {
-      if (this.isOpen && e.code === 'Escape') this.close();
+      if (this.isOpen && e.code === 'Escape') this.dismiss();
     }, true);
   }
 
   get isOpen() { return !this.root.hidden; }
 
   /**
-   * @param {{title: string, sub?: string, ic?: string, render: () => {body: Node, foot: Node[]}, onClose?: Function}} opts
+   * @param {{title: string, sub?: string, ic?: string, render: () => {body: Node, foot: Node[]}, onClose?: Function, dismissible?: boolean}} opts
    * `render` se vuelve a llamar con refresh() después de cada compra/venta.
    */
-  open({ title, sub = '', ic = 'box', render, onClose = null }) {
+  open({ title, sub = '', ic = 'box', render, onClose = null, dismissible = true }) {
+    this._dismissible = dismissible;
+    $('menu-close').hidden = !dismissible;
     this._render = render;
     this._onClose = onClose;
     this.titleEl.textContent = title;
@@ -40,7 +42,11 @@ export class Menu {
     this.iconEl.replaceChildren(icon(ic, { size: 34 }));
     this.refresh();
     this.root.hidden = false;
-    $('menu-close').focus({ preventScroll: true });
+    (dismissible ? $('menu-close') : this.footEl.querySelector('button'))?.focus({ preventScroll: true });
+  }
+
+  dismiss() {
+    if (this._dismissible !== false) this.close();
   }
 
   refresh() {

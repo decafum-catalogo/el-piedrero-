@@ -6,13 +6,32 @@ export class CameraRig {
       55, window.innerWidth / window.innerHeight, 0.1, 500
     );
 
-    // Offset isométrico
+    // Se conserva la vista original como segundo modo.
     this.offset = new THREE.Vector3(12, 16, 12);
     this.lookOffset = new THREE.Vector3(0, 1.5, 0);
     this.lerpSpeed = 6;
+    this.mode = 'third-person';
+    this.yaw = -Math.PI / 2; // Mira a lo largo de la calle al comenzar.
+    this.pitch = 0.22;
+    this.distance = 5.5;
+    this._look = new THREE.Vector3();
+    this._desired = new THREE.Vector3();
+    this._direction = new THREE.Vector3();
+    this._hit = new THREE.Vector3();
+    this._box = new THREE.Box3();
+    this._ray = new THREE.Ray();
+    this._snap = true;
+    this._drag = null;
+
+    try {
+      if (localStorage.getItem('bazuko.camera') === 'isometric') this.mode = 'isometric';
+    } catch { /* sin almacenamiento */ }
+    this.camera.userData.cameraMode = this.mode;
 
     this.camera.position.copy(this.offset);
     this.camera.lookAt(0, 0, 0);
+
+    this._bindControls(canvas);
 
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -20,10 +39,108 @@ export class CameraRig {
     });
   }
 
-  follow(targetPos) {
-    const desired = targetPos.clone().add(this.offset);
-    this.camera.position.lerp(desired, 1 - Math.exp(-this.lerpSpeed * 0.016));
-    const look = targetPos.clone().add(this.lookOffset);
-    this.camera.lookAt(look);
+  toggle(facing = 0) {
+    this.mode = this.mode === 'third-person' ? 'isometric' : 'third-person';
+    // Al entrar, la cámara queda detrás de la dirección del personaje (+Z local).
+    if (this.mode === 'third-person') this.yaw = facing + Math.PI;
+    this.camera.userData.cameraMode = this.mode;
+    this._snap = true;
+    this.cancelDrag();
+    try { localStorage.setItem('bazuko.camera', this.mode); } catch { /* sin almacenamiento */ }
+    return this.mode;
+  }
+
+  orbit(dx, dy) {
+    this.yaw -= dx * 0.005;
+    this.pitch = THREE.MathUtils.clamp(this.pitch + dy * 0.005, 0.05, 0.65);
+  }
+
+  zoom(delta) {
+    this.distance = THREE.MathUtils.clamp(this.distance + delta * 0.005, 2.5, 9);
+  }
+
+  cancelDrag() {
+    if (this._drag && this.canvas.hasPointerCapture?.(this._drag.id)) {
+      this.canvas.releasePointerCapture(this._drag.id);
+    }
+    this._drag = null;
+  }
+
+  _bindControls(canvas) {
+    this.canvas = canvas;
+    const active = () => this.mode === 'third-person' && (this.canControl?.() ?? true);
+    canvas.addEventListener('contextmenu', (e) => { if (active()) e.preventDefault(); });
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.button !== 2 || !active()) return;
+      e.preventDefault();
+      this._drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!this._drag || this._drag.id !== e.pointerId) return;
+      if (!active()) { this.cancelDrag(); return; }
+      this.orbit(e.clientX - this._drag.x, e.clientY - this._drag.y);
+      this._drag.x = e.clientX;
+      this._drag.y = e.clientY;
+    });
+    canvas.addEventListener('pointerup', () => this.cancelDrag());
+    canvas.addEventListener('pointercancel', () => this.cancelDrag());
+    canvas.addEventListener('lostpointercapture', () => { this._drag = null; });
+    window.addEventListener('blur', () => this.cancelDrag());
+    canvas.addEventListener('wheel', (e) => {
+      if (!active()) return;
+      e.preventDefault();
+      this.zoom(e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1));
+    }, { passive: false });
+  }
+
+  updateControls(dt, input) {
+    if (this.mode !== 'third-person' || !(this.canControl?.() ?? true)) return;
+    this.orbit(
+      ((input.isDown('ArrowRight') ? 1 : 0) - (input.isDown('ArrowLeft') ? 1 : 0)) * dt * 250,
+      ((input.isDown('ArrowDown') ? 1 : 0) - (input.isDown('ArrowUp') ? 1 : 0)) * dt * 180
+    );
+  }
+
+  /** Actualiza solo el rumbo para WASD; la colisión se calcula una vez, al seguir al jugador. */
+  prepareMovement() {
+    if (this.mode !== 'third-person') return;
+    this.camera.rotation.set(-this.pitch, this.yaw, 0, 'YXZ');
+    this.camera.updateMatrixWorld();
+  }
+
+  follow(targetPos, dt = 1 / 60, collisions = null) {
+    this._look.copy(targetPos).add(this.lookOffset);
+    if (this.mode === 'isometric') {
+      this._desired.copy(targetPos).add(this.offset);
+      if (this._snap) this.camera.position.copy(this._desired);
+      else this.camera.position.lerp(this._desired, 1 - Math.exp(-this.lerpSpeed * dt));
+    } else {
+      this._direction.set(
+        Math.sin(this.yaw) * Math.cos(this.pitch),
+        Math.sin(this.pitch),
+        Math.cos(this.yaw) * Math.cos(this.pitch)
+      );
+      // Acorta el brazo de cámara antes de una pared; el margen protege el plano cercano.
+      this._ray.set(this._look, this._direction);
+      let distance = this.distance;
+      for (const { box } of collisions?.colliders ?? []) {
+        this._box.copy(box).expandByScalar(0.2);
+        if (this._box.containsPoint(this._look)) { distance = 0; break; }
+        if (this._ray.intersectBox(this._box, this._hit)) {
+          distance = Math.min(distance, Math.max(0, this._look.distanceTo(this._hit) - 0.05));
+        }
+      }
+      // Se acerca de inmediato ante obstáculos y vuelve suavemente al alejarse.
+      if (this._snap || distance < this._armDistance) this._armDistance = distance;
+      else this._armDistance = THREE.MathUtils.lerp(this._armDistance, distance, 1 - Math.exp(-8 * dt));
+      this.camera.position.copy(this._look).addScaledVector(this._direction, this._armDistance);
+    }
+    // Orientación definida incluso si un obstáculo obliga a acercarse hasta el punto de mira.
+    this._desired.copy(this._look);
+    if (this.mode === 'third-person') this._desired.addScaledVector(this._direction, -1);
+    this.camera.lookAt(this._desired);
+    this.camera.updateMatrixWorld();
+    this._snap = false;
   }
 }

@@ -3,7 +3,6 @@ import { beforeEach, test } from 'node:test';
 import * as THREE from 'three';
 import { CameraRig } from '../src/core/Camera.js';
 import { Player } from '../src/entities/Player.js';
-import { cutaway, updateCutaway } from '../src/world/bogota/cutaway.js';
 import { CollisionSystem } from '../src/systems/CollisionSystem.js';
 
 beforeEach(() => {
@@ -48,7 +47,7 @@ test('la cámara se detiene delante de paredes y recupera la distancia al salir'
   near(camera._armDistance, camera.distance); // La pared está ahora al otro lado.
 });
 
-test('giro y zoom mantienen límites válidos y el corte se desactiva en tercera persona', () => {
+test('giro y zoom mantienen límites válidos y recuerdan el modo de cámara', () => {
   const camera = rig();
   camera.orbit(100, 100000);
   near(camera.pitch, 0.65);
@@ -59,11 +58,9 @@ test('giro y zoom mantienen límites válidos y el corte se desactiva en tercera
   camera.zoom(-100000);
   near(camera.distance, 2.5);
   camera.follow(new THREE.Vector3());
-  updateCutaway(new THREE.Vector3(), camera.camera);
-  assert.equal(cutaway.uCutawayEnabled.value, 0);
+  assert.equal(camera.camera.userData.cameraMode, 'third-person');
   camera.toggle();
-  updateCutaway(new THREE.Vector3(), camera.camera);
-  assert.equal(cutaway.uCutawayEnabled.value, 1);
+  assert.equal(camera.camera.userData.cameraMode, 'isometric');
 });
 
 function move(camera, axis) {

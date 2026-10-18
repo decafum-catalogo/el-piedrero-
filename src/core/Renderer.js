@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { PlayerSilhouette } from './PlayerSilhouette.js';
 
 export class Renderer {
   constructor(canvas) {
@@ -17,6 +18,7 @@ export class Renderer {
     this.instance.toneMapping = THREE.ACESFilmicToneMapping;
     this.instance.toneMappingExposure = 1.05;
     this.instance.outputColorSpace = THREE.SRGBColorSpace;
+    this.silhouette = new PlayerSilhouette();
 
     window.addEventListener('resize', () => this._onResize());
   }
@@ -33,7 +35,8 @@ export class Renderer {
     this.instance.setSize(window.innerWidth, window.innerHeight);
   }
 
-  render(scene, camera) {
+  render(scene, camera, playerRoot = null) {
     this.instance.render(scene, camera);
+    if (playerRoot) this.silhouette.render(this.instance, scene, camera, playerRoot);
   }
 }

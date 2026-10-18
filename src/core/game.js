@@ -202,10 +202,11 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     const findValidSpawn = (exclude = null, minDist = 4) => {
       const TILE_SIZE = 2;
-      const mapSize = district.size ?? 32;
+      const mapWidth = district.width ?? district.size ?? 32;
+      const mapHeight = district.height ?? district.size ?? 32;
       for (let attempt = 0; attempt < 200; attempt++) {
-        const tx = 3 + Math.floor(Math.random() * (mapSize - 6));
-        const tz = 3 + Math.floor(Math.random() * (mapSize - 6));
+        const tx = 3 + Math.floor(Math.random() * (mapWidth - 6));
+        const tz = 3 + Math.floor(Math.random() * (mapHeight - 6));
         const x = tx * TILE_SIZE;
         const z = tz * TILE_SIZE;
         if (!district.isWalkableAt(x, z)) continue;
@@ -298,13 +299,14 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.interaction.register(this.craftingStation);
 
     // ===== Cambuche (refugio por piezas) =====
+    const bedX = district.reserved?.bed.x ?? 16;
+    const bedZ = district.reserved?.bed.z ?? 44;
     this.cambuche = new Cambuche(
       this.sceneMgr.scene,
-      new THREE.Vector3(
-        district.reserved?.bed.x ?? 16, 0,
-        district.reserved?.bed.z ?? 44
-      )
+      new THREE.Vector3(bedX, 0, bedZ)
     );
+    this.cambuche.group.position.y = district.getGroundHeightUnder?.(this.cambuche.group)
+      ?? district.getGroundHeight?.(bedX, bedZ) ?? 0;
     this.cambuche.setBuilt(this.built);
     this.interaction.register(this.cambuche);
 
@@ -337,9 +339,10 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       this.diseases.deserialize(data.diseases ?? {});
       if (data.player) {
         // partidas de otro mapa: si la posición guardada no es transitable, vuelve al inicio
-        const [px, , pz] = data.player.pos;
         const district = this.world.active;
-        if (!district?.isWalkableAt || district.isWalkableAt(px, pz)) this.player.position.set(...data.player.pos);
+        const position = district?.migrateSavedPosition?.(data.player.pos, data.worldLayoutVersion) ?? data.player.pos;
+        const [px, , pz] = position;
+        if (!district?.isWalkableAt || district.isWalkableAt(px, pz)) this.player.position.set(...position);
       }
       this.built = data.built ?? {};
       this.costal = !!data.costal;
@@ -356,6 +359,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       talents: this.talents.serialize(),
       diseases: this.diseases.serialize(),
       player: { pos: this.player.position.toArray() },
+      worldLayoutVersion: this.world.active?.layoutVersion ?? 0,
       look: this.look,
       built: this.built,
       costal: this.costal
@@ -488,7 +492,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     if (this.isSleeping || this.paused) {
       this.cameraRig.cancelDrag();
       this.audio.updateSteps(false, false);
-      this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera);
+      this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera, this.player.root);
       this.input.endFrame();
       return;
     }
@@ -538,7 +542,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     if (this._handleDeath()) return;
 
     // 8. Mundo
-    // El corte isométrico usa la cámara del mismo cuadro.
+    // La visibilidad de edificios usa la cámara del mismo cuadro.
     this.cameraRig.follow(this.player.position, dt, this.collisions);
     this.world.update(dt, this.player.position, this.cameraRig.camera);
     this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.npcs ?? [] });
@@ -555,7 +559,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.audio.updateBoost(this.interaction.boostActive);
 
     // 12. Render
-    this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera);
+    this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera, this.player.root);
 
     // 13. UI
     this.hud.update(

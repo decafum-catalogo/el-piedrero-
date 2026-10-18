@@ -272,9 +272,12 @@ export function busStation(length = 16) {
   return shadow(g);
 }
 
-/** Bus articulado rojo detenido */
+export const ARTICULATED_BUS_SIZE = Object.freeze({ length: 18.2, width: 2.52 });
+
+/** Bus articulado rojo; el frente apunta hacia −Z local. */
 export function articulatedBus() {
   const g = new THREE.Group();
+  const wheels = [];
   const red = std('#b3261e', { roughness: 0.5, metalness: 0.3 });
   const glass = std('#1a2430', { roughness: 0.1, metalness: 0.5 });
   for (const [z, len] of [[-4.6, 9], [4.6, 9]]) {
@@ -293,6 +296,7 @@ export function articulatedBus() {
         w.rotation.z = Math.PI / 2;
         w.position.set(sx, 0.5, wz);
         g.add(w);
+        wheels.push(w);
       }
     }
   }
@@ -300,6 +304,7 @@ export function articulatedBus() {
   joint.rotation.x = Math.PI / 2;
   joint.position.y = 1.8;
   g.add(joint);
+  g.userData.wheels = wheels;
   return shadow(g);
 }
 

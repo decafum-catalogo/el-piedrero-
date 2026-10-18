@@ -1,3 +1,4 @@
+import { CALLES } from '../src/world/bogota/StreetLayout.js';
 import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
 import * as THREE from 'three';
@@ -85,7 +86,7 @@ test('el parqueo queda fuera de los circuitos y eliminar un carro conserva recur
   city.map = city._layout();
   const spots = city.getParkingSpots();
   assert.ok(spots.length >= 5);
-  assert.ok(spots.every(spot => spot.z < 20 || spot.z > 66));
+  assert.ok(spots.every(spot => spot.z < (CALLES[0][0] - 2) * 2 || spot.z > (CALLES[1][1] + 2) * 2));
   const scene = new THREE.Scene();
   const first = new Car(scene, new THREE.Vector3());
   const second = new Car(scene, new THREE.Vector3(10, 0, 0));

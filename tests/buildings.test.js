@@ -25,22 +25,10 @@ function checkBuildings(map, seed) {
             z * TILE_SIZE > bounds.min.z && z * TILE_SIZE < bounds.max.z) occupancy[z][x]++;
       }
     };
-    for (const mesh of city.group.children) {
-      if (!mesh.isMesh) continue; // Balcones.
-      if (Array.isArray(mesh.material)) {
-        // Volumen completo de cada casa, con fachada y materiales laterales.
-        claim(new THREE.Box3().setFromObject(mesh));
-      } else if (mesh.geometry.type === 'BufferGeometry' && mesh.material.map) {
-        // Relleno de las manzanas: cajas de 24 vértices unidas en una malla.
-        const positions = mesh.geometry.attributes.position;
-        for (let start = 0; start < positions.count; start += 24) {
-          const bounds = new THREE.Box3();
-          for (let i = start; i < start + 24; i++) {
-            bounds.expandByPoint(new THREE.Vector3().fromBufferAttribute(positions, i));
-          }
-          claim(bounds);
-        }
-      }
+    for (const building of city.buildingVisibility.buildings) {
+      if (building.root.userData.perimeter) continue;
+      // La base física de cada edificio conserva su huella cuando se ocultan las partes altas.
+      claim(new THREE.Box3().setFromObject(building.base));
     }
     for (let z = 0; z < map.length; z++) for (let x = 0; x < map[z].length; x++) {
       const expected = ['building', 'ruin'].includes(map[z][x]) ? 1 : 0;

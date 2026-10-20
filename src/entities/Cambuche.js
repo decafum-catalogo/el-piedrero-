@@ -36,7 +36,8 @@ export class Cambuche {
     const base = new THREE.Group();
     for (let i = 0; i < 3; i++) {
       const m = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 2.1), cardMat);
-      m.position.set(-0.9 + i * 0.88, 0.03, 0);
+      // Las hojas se solapan: cada una queda ligeramente encima de la anterior.
+      m.position.set(-0.9 + i * 0.88, 0.03 + i * 0.008, 0);
       m.rotation.y = (Math.random() - 0.5) * 0.08;
       m.receiveShadow = true;
       base.add(m);

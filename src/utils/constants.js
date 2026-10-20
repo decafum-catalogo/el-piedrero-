@@ -3,6 +3,7 @@
 // Mundo
 export const TILE_SIZE = 2;
 export const DISTRICT_SIZE = 32; // 20x20 tiles
+export const DAY_LENGTH_SECONDS = 60 * 60; // un día de juego = una hora real
 
 // Jugador
 export const PLAYER_RADIUS = 0.4;
@@ -32,15 +33,12 @@ export const SORT_QUALITY_MULT = 1.5;  // mult de valor al seleccionar bien
 // === Enfermedades ===
 export const DISEASE_BASE_CHANCE = 0.12;   // probabilidad base al recoger basura
 export const DISEASE_SORT_MULT = 1.8;      // +probabilidad al seleccionar (más contacto)
-export const DISEASE_HEALTH_DRAIN = 1.2;   // salud/seg por enfermedad activa
-export const DISEASE_MENTAL_DRAIN = 0.8;   // salud mental/seg por enfermedad
+export const DISEASE_HEALTH_DRAIN = 0.12;  // salud/seg: una enfermedad deja margen para tratarse
+export const DISEASE_MENTAL_DRAIN = 0.02;  // salud mental/seg por enfermedad
 export const DISEASE_DURATION = 45;        // segundos que dura una enfermedad
 
 // === Salud mental ===
-export const MENTAL_DECAY = 0.15;          // por segundo
-export const MENTAL_DECAY_NIGHT = 0.35;    // por segundo de noche
-export const MENTAL_DECAY_SICK = 0.25;     // extra por enfermedad
-export const MENTAL_DECAY_HUNGER = 0.2;    // extra si hambre < 20
+export const MENTAL_DECAY_NIGHT = 100 / (6 * DAY_LENGTH_SECONDS);
 export const MENTAL_RESTORE_SLEEP = 40;    // al dormir
 export const MENTAL_RESTORE_SELL = 2;      // por venta
 export const MENTAL_RESTORE_RARE = 8;      // al encontrar tesoro
@@ -83,14 +81,23 @@ export const COLORS = {
 };
 
 
-// ===== Decay de necesidades (unidades por segundo) =====
+// ===== Ritmo tranquilo: tiempos desde una barra llena, sin enfermedades ni talentos =====
+// Agua: 90 min; comida: 120 min; energía: 90 min; higiene: 6 h reales.
+// El ánimo y el vicio acompañan la exploración sin exigir atención cada pocos minutos.
 export const DECAY = {
-  hambre:  0.35,
-  sed:     0.50,
-  energia: 0.20,
-  higiene: 0.10,   // ~10 min reales para vaciarse
-  animo:   0.08,   // ~20 min reales para vaciarse
-  vicio:   0.12    // ~14 min reales para vaciarse
+  hambre:  100 / (2 * DAY_LENGTH_SECONDS),
+  sed:     100 / (1.5 * DAY_LENGTH_SECONDS),
+  energia: 100 / (1.5 * DAY_LENGTH_SECONDS),
+  higiene: 100 / (6 * DAY_LENGTH_SECONDS),
+  animo:   100 / (3 * DAY_LENGTH_SECONDS),
+  vicio:   60 / (2 * DAY_LENGTH_SECONDS) // 2 h desde el valor inicial 80 hasta abstinencia (20)
+};
+
+// Con una necesidad agotada y salud llena todavía hay 20–30 min para atenderla.
+// Cansancio, suciedad, ánimo y abstinencia causan penalizaciones, no daño mortal pasivo.
+export const SURVIVAL_DAMAGE = {
+  hambre: 100 / (30 * 60),
+  sed:    100 / (20 * 60)
 };
 
 // ===== Umbrales de efectos =====
@@ -105,7 +112,7 @@ export const STAT_THRESHOLDS = {
 
 // ===== Abstinencia =====
 export const WITHDRAWAL = {
-  saludPorSeg:  0.4,        // salud perdida por segundo
+  saludPorSeg:  0,          // la abstinencia afecta ánimo y velocidad, sin daño pasivo
   velocidad:    0.85,       // multiplicador de velocidad
   animoMult:    1.5,        // el ánimo baja más rápido
   vicioDormir:  10          // dormir no calma el vicio: baja esto

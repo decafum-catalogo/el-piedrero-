@@ -1,12 +1,12 @@
 // src/entities/Npc.js
 // Persona de la calle (ambiente): personaje realista con apariencia al azar que se queda
-// quieto o deambula despacio dentro de un radio, solo por donde se puede caminar.
+// quieto, deambula cerca o recorre la red peatonal del distrito.
 //
 // Rendimiento: de lejos usa la versión liviana (cuerpo proxy de MakeHuman y piezas simplificadas);
-// la completa se carga al acercarse. Fuera de cámara no se dibuja ni se anima, y la animación
+// la completa se precarga al iniciar y se muestra al acercarse. Fuera de cámara no se dibuja ni se anima, y la animación
 // se actualiza menos seguido a media distancia.
 import * as THREE from 'three';
-import { createRealisticCharacter, loadCatalog, normalizeReal, optionsFor } from '../character/RealisticCharacter.js';
+import { createRealisticCharacter, loadCatalog, normalizeReal, optionsFor, REALISTIC_SCALE } from '../character/RealisticCharacter.js';
 import { randomLook, DEFAULT_LOOK } from '../character/look.js';
 
 const any = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -44,25 +44,32 @@ export class Npc {
   /**
    * @param {THREE.Scene} scene
    * @param {THREE.Vector3} position
-   * @param {{ wander?: number, facing?: number, isWalkable?: (x:number, z:number) => boolean, look?: object, gastada?: boolean }} opts
+   * @param {{ wander?: number, facing?: number, isWalkable?: (x:number, z:number) => boolean, navigation?: object, groundHeight?: (x:number, z:number) => number, speed?: number, look?: object, gastada?: boolean }} opts
    */
   constructor(scene, position, opts = {}) {
     this.scene = scene;
     this.home = position.clone();
     this.position = position.clone();
     this.wander = opts.wander ?? 0;
+    this.navigation = opts.navigation ?? null;
+    this.groundHeight = opts.groundHeight ?? (() => this.home.y);
+    this.walkSpeed = opts.speed ?? (0.85 + Math.random() * 0.45);
+    this.route = [];
+    this.routeIndex = 0;
+    this._direction = new THREE.Vector3();
+    this._nextPosition = new THREE.Vector3();
     this.isWalkable = opts.isWalkable ?? (() => true);
     this.root = new THREE.Group();
     this.root.position.copy(position);
     this.root.rotation.y = opts.facing ?? Math.random() * Math.PI * 2;
     scene.add(this.root);
     this.target = null;
-    this.wait = Math.random() * 6;
+    this.wait = this.navigation ? 0 : Math.random() * 6;
     this.moving = false;
     this.animAcc = 0;
     this.frame = Math.floor(Math.random() * 3); // reparte los cuadros de animación entre NPC
     this.lodChar = null;   // liviano (siempre)
-    this.fullChar = null;  // completo (al acercarse)
+    this.fullChar = null;  // completo (precargado; se muestra al acercarse)
     this._fullLoading = null;
     this.character = null; // el que se ve ahora
     this.ready = (async () => {
@@ -71,7 +78,18 @@ export class Npc {
       this._show(this.lodChar);
       // arranca cada uno en otro punto de la animación para que no se muevan al unísono
       this.character.update(Math.random() * 3, { speed: 0 });
-    })().catch((e) => console.warn('[Npc] no se pudo crear', e));
+    })().catch((e) => { this.loadError = e; console.warn('[Npc] no se pudo crear', e); });
+  }
+
+  async preload() {
+    await this.ready;
+    if (this.loadError) throw this.loadError;
+    await this._loadFull();
+  }
+
+  _loadFull() {
+    return this._fullLoading ??= createRealisticCharacter(this.look, { lod: false })
+      .then(c => { this.fullChar = c; });
   }
 
   _show(char) {
@@ -81,14 +99,12 @@ export class Npc {
     this.root.add(char.group);
   }
 
-  /** Cambia de nivel de detalle según la distancia (carga el completo la primera vez). */
+  /** Cambia de detalle según distancia; permite carga diferida fuera del arranque normal. */
   _updateDetail(dist) {
     if (dist < NPC_LOD.fullIn) {
       if (this.fullChar) this._show(this.fullChar);
       else if (!this._fullLoading) {
-        this._fullLoading = createRealisticCharacter(this.look, { lod: false })
-          .then((c) => { this.fullChar = c; })
-          .catch((e) => console.warn('[Npc] sin modelo completo', e));
+        this._loadFull().catch((e) => console.warn('[Npc] sin modelo completo', e));
       }
     } else if (dist > NPC_LOD.fullOut && this.lodChar) {
       this._show(this.lodChar);
@@ -108,28 +124,48 @@ export class Npc {
 
   _walk(dt) {
     this.moving = false;
-    if (this.wander <= 0) return;
+    if (!this.navigation && this.wander <= 0) return;
+    if (!this.target) {
+      if ((this.wait -= dt) > 0) return;
+      if (this.navigation) {
+        this.route = this.navigation.createRoute(this.position);
+        this.routeIndex = 0;
+        this.target = this.route[0] ?? null;
+      } else {
+        this.target = this._pickTarget();
+      }
+      if (!this.target) { this.wait = 2; return; }
+    }
     if (this.target) {
-      const d = this.target.clone().sub(this.position);
+      const d = this._direction.copy(this.target).sub(this.position);
       d.y = 0;
       const dist = d.length();
-      if (dist < 0.15) {
-        this.target = null;
-        this.wait = 3 + Math.random() * 8;
+      if (dist < 0.001) {
+        this._advanceTarget();
         return;
       }
-      const next = this.position.clone().addScaledVector(d.normalize(), Math.min(dist, 0.9 * dt));
-      if (!this.isWalkable(next.x, next.z)) { this.target = null; return; }
+      const step = Math.min(dist, this.walkSpeed * dt);
+      const next = this._nextPosition.copy(this.position).addScaledVector(d.normalize(), step);
+      if (!this.isWalkable(next.x, next.z)) {
+        this.target = null;
+        this.route = [];
+        this.wait = 0.5;
+        return;
+      }
+      next.y = this.groundHeight(next.x, next.z);
       this.position.copy(next);
-      this.moving = true;
+      this.moving = step > 0;
       let diff = Math.atan2(d.x, d.z) - this.root.rotation.y;
       while (diff > Math.PI) diff -= Math.PI * 2;
       while (diff < -Math.PI) diff += Math.PI * 2;
       this.root.rotation.y += diff * Math.min(1, dt * 5);
-    } else if ((this.wait -= dt) <= 0) {
-      this.target = this._pickTarget();
-      if (!this.target) this.wait = 4;
+      if (step >= dist) this._advanceTarget();
     }
+  }
+
+  _advanceTarget() {
+    this.target = this.navigation ? (this.route[++this.routeIndex] ?? null) : null;
+    if (!this.target) this.wait = this.navigation ? 1 + Math.random() * 3 : 3 + Math.random() * 8;
   }
 
   /**
@@ -154,7 +190,7 @@ export class Npc {
     this.frame++;
     if (dist > NPC_LOD.animStop && !this.moving) return; // lejos y quieto: pose congelada
     if (dist > NPC_LOD.animEvery && this.frame % 3 !== 0) return;
-    this.character.update(Math.min(this.animAcc, 0.2), { speed: this.moving ? 0.9 / 1.08 : 0 });
+    this.character.update(Math.min(this.animAcc, 0.2), { speed: this.moving ? this.walkSpeed / REALISTIC_SCALE : 0 });
     this.animAcc = 0;
   }
 

@@ -1,8 +1,10 @@
+import { DAY_LENGTH_SECONDS } from '../utils/constants.js';
+
 export class Clock {
   constructor() {
     this.day = 1;
     this.hour = 6;          // empieza de madrugada
-    this.minutesPerSecond = 1; // 1 min juego = 1 s real → día = 24 min
+    this.minutesPerSecond = 24 * 60 / DAY_LENGTH_SECONDS;
   }
 
   update(dt) {

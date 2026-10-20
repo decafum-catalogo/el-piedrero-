@@ -135,5 +135,20 @@ export function makeVehicle(kind = 'carro', seedColor = 0, { beams = true } = {}
     g.add(beam);
   }
 
-  return { group: g, length: L, width: W, wheels, tailMat, beam };
+  const dispose = () => {
+    // Ruedas, vidrios y luces del caché siguen siendo usados por otros vehículos.
+    const sharedResources = new Set(Object.values(s));
+    const geometries = new Set(), materials = new Set(), textures = new Set();
+    g.traverse((o) => {
+      if (o.geometry && !sharedResources.has(o.geometry)) geometries.add(o.geometry);
+      if (o.material && !sharedResources.has(o.material)) materials.add(o.material);
+    });
+    for (const material of materials) {
+      if (material.map && !sharedResources.has(material.map)) textures.add(material.map);
+      material.dispose();
+    }
+    for (const geometry of geometries) geometry.dispose();
+    for (const texture of textures) texture.dispose();
+  };
+  return { group: g, length: L, width: W, wheels, tailMat, beam, dispose };
 }

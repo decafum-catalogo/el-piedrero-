@@ -6,6 +6,8 @@ import { cop } from '../utils/money.js';
 
 export class HUD {
   constructor() {
+    this._htmlCache = new WeakMap();
+    this._panelElapsed = 0.1;
     this.bars = {};
     document.querySelectorAll('.stat-bar').forEach((el) => {
       this.bars[el.dataset.stat] = el.querySelector('.fill');
@@ -22,6 +24,12 @@ export class HUD {
     this.levelEl = document.getElementById('level-display');
     this.talentPointsEl = document.getElementById('talent-points');
     this.nameEl = document.getElementById('player-name');
+    this.cameraButton = document.getElementById('camera-toggle');
+    this.cameraHint = document.getElementById('camera-hint');
+    this.cameraButton?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('camera-toggle'));
+      this.cameraButton.blur();
+    });
 
     // Paneles
     this.talentPanel = document.getElementById('talent-panel');
@@ -64,6 +72,18 @@ export class HUD {
     });
   }
 
+  setCameraMode(mode) {
+    const thirdPerson = mode === 'third-person';
+    if (this.cameraButton) {
+      this.cameraButton.textContent = `${thirdPerson ? 'Tercera persona' : 'Isométrica'} · V`;
+      this.cameraButton.setAttribute('aria-pressed', String(thirdPerson));
+      this.cameraButton.setAttribute('aria-label', `Cambiar a vista ${thirdPerson ? 'isométrica' : 'en tercera persona'} (V)`);
+    }
+    if (this.cameraHint) this.cameraHint.textContent = thirdPerson
+      ? 'Botón derecho + arrastrar o flechas: girar · Rueda: distancia'
+      : 'V: cambiar a tercera persona';
+  }
+
   _bindEvents() {
     window.addEventListener('toast', (e) => this._toast(e.detail.text, e.detail.type));
     window.addEventListener('pickup', (e) => this._onPickup(e.detail));
@@ -78,7 +98,7 @@ export class HUD {
       else if (e.detail.added?.length) this._toast(`🪞 Robado: ${e.detail.added.join(', ')}`, 'warn');
     });
     window.addEventListener('withdrawal', (e) => {
-      if (e.detail.active) this._toast('🚬 Abstinencia: caminas más lento y pierdes salud', 'death');
+      if (e.detail.active) this._toast('🚬 Abstinencia: caminas más lento y baja el ánimo', 'warn');
       else this._toast('😮‍💨 Se te calmó la ansiedad', 'info');
     });
     window.addEventListener('substance-sell', (e) => this._toast(`💰 Sustancias vendidas: ${cop(e.detail.earned)}`, 'sell'));
@@ -138,7 +158,7 @@ export class HUD {
     }
   }
 
-  update(stats, clock, interaction, inventory, diseaseSystem, talentSystem, craftingSystem) {
+  update(stats, clock, interaction, inventory, diseaseSystem, talentSystem, craftingSystem, dt = 0.1) {
     // Barras de stats
     for (const k of NEEDS) {
       const el = this.bars[k];
@@ -149,18 +169,18 @@ export class HUD {
     // Reloj
     const h = Math.floor(clock.hour).toString().padStart(2, '0');
     const m = Math.floor((clock.hour % 1) * 60).toString().padStart(2, '0');
-    if (this.clockEl) this.clockEl.textContent = `Día ${clock.day} — ${h}:${m}`;
-    if (this.moneyEl) this.moneyEl.textContent = cop(stats.dinero);
+    this._setText(this.clockEl, `Día ${clock.day} — ${h}:${m}`);
+    this._setText(this.moneyEl, cop(stats.dinero));
 
     // Nivel y XP
-    if (this.levelEl) this.levelEl.textContent = `Nv ${stats.level}`;
-    if (this.nameEl) this.nameEl.textContent = window.__game?.look?.nombre ?? '';
+    this._setText(this.levelEl, `Nv ${stats.level}`);
+    this._setText(this.nameEl, window.__game?.look?.nombre ?? '');
     const xpNeeded = XP_PER_LEVEL * stats.level;
     if (this.xpFillEl) {
       this.xpFillEl.style.width = `${Math.min(100, (stats.xp / xpNeeded) * 100)}%`;
     }
     if (this.talentPointsEl) {
-      this.talentPointsEl.textContent = `🌟 ${talentSystem?.points ?? 0}`;
+      this._setText(this.talentPointsEl, `🌟 ${talentSystem?.points ?? 0}`);
       this.talentPointsEl.style.opacity = (talentSystem?.points ?? 0) > 0 ? 1 : 0.4;
     }
 
@@ -184,7 +204,7 @@ export class HUD {
         else if (type === 'dealer') text = '[Q / E] Tienda del Dealer · Comprar / Vender';
 
         if (text) {
-          this.promptEl.textContent = text;
+          this._setText(this.promptEl, text);
           this.promptEl.classList.add('visible');
         } else {
           this.promptEl.classList.remove('visible');
@@ -192,6 +212,21 @@ export class HUD {
       } else {
         this.promptEl.classList.remove('visible');
       }
+    }
+
+    // Los paneles se revisan a 10 Hz; movimiento, barras y avisos siguen cada cuadro.
+    this._panelElapsed += dt;
+    if (this._panelElapsed < 0.1) return;
+    this._panelElapsed %= 0.1;
+
+    if (this.statusEl) {
+      const warnings = [];
+      if (stats.sed <= 20) warnings.push(stats.sed <= 0 ? 'Sin agua: estás perdiendo salud.' : 'Sed crítica: bebe agua.');
+      if (stats.hambre <= 20) warnings.push(stats.hambre <= 0 ? 'Sin alimento: estás perdiendo salud.' : 'Hambre crítica: come algo.');
+      if (stats.energia <= 20) warnings.push('Energía baja: descansa.');
+      if (stats.salud <= 30) warnings.push('Salud crítica: necesitas recuperarte.');
+      this._setText(this.statusEl, warnings.join(' '));
+      this.statusEl.hidden = warnings.length === 0;
     }
 
     // Inventario mini
@@ -214,6 +249,18 @@ export class HUD {
     }
   }
 
+  _setText(element, text) {
+    if (element && element.textContent !== text) element.textContent = text;
+  }
+
+  /** Mantiene los nodos, el foco y sus listeners mientras el contenido no cambie. */
+  _setHTML(element, html) {
+    if (this._htmlCache.get(element) === html) return false;
+    element.innerHTML = html;
+    this._htmlCache.set(element, html);
+    return true;
+  }
+
   _renderInventory(inv) {
     const rows = inv.items.map((i) => {
       const canUse = !!(i.consumable || i.cure);
@@ -222,7 +269,7 @@ export class HUD {
       </div>`;
     }).join('');
     const weight = `<div class="inv-weight">Peso: ${inv.totalWeight.toFixed(1)}/${inv.maxWeight}</div>`;
-    this.invEl.innerHTML = rows + weight;
+    if (!this._setHTML(this.invEl, rows + weight)) return;
 
     this.invEl.querySelectorAll('.inv-row.usable').forEach((el) => {
       el.addEventListener('click', () => {
@@ -260,12 +307,12 @@ export class HUD {
 
   _renderDiseases(diseaseSystem) {
     if (!diseaseSystem.hasAny) {
-      this.diseaseEl.innerHTML = '';
+      this._setHTML(this.diseaseEl, '');
       return;
     }
-    this.diseaseEl.innerHTML = diseaseSystem.list.map((d) =>
+    this._setHTML(this.diseaseEl, diseaseSystem.list.map((d) =>
       `<div class="disease-item">${d.emoji} ${d.name} <span>${Math.ceil(d.timeLeft)}s</span></div>`
-    ).join('');
+    ).join(''));
   }
 
   renderTalents(talentSystem) {
@@ -300,14 +347,14 @@ export class HUD {
       `;
     }).join('');
 
-    this.talentPanel.innerHTML = `
+    if (!this._setHTML(this.talentPanel, `
       <div class="talent-header">
         <h2>🌳 Árbol de Talentos</h2>
         <span class="talent-points-display">Puntos: ${ts.points}</span>
       </div>
       <div class="talent-branches">${branchesHtml}</div>
       <div class="talent-hint">Haz clic en un talento disponible para desbloquearlo. Pulsa T o ESC para cerrar.</div>
-    `;
+    `)) return;
 
     // Bind clicks
     this.talentPanel.querySelectorAll('.talent-node.available').forEach((node) => {
@@ -343,13 +390,13 @@ export class HUD {
       `;
     }).join('');
 
-    this.craftPanel.innerHTML = `
+    if (!this._setHTML(this.craftPanel, `
       <div class="craft-header">
         <h2>🔨 Mesa de Crafteo</h2>
       </div>
       <div class="craft-recipes">${recipesHtml}</div>
       <div class="craft-hint">Pulsa C o ESC para cerrar.</div>
-    `;
+    `)) return;
 
     this.craftPanel.querySelectorAll('.craft-recipe.craftable .craft-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -398,7 +445,7 @@ export class HUD {
       `;
     }).join('');
 
-    this.dealerPanel.innerHTML = `
+    if (!this._setHTML(this.dealerPanel, `
       <div class="dealer-header">
         <h2>🟣 Rincón del Dealer</h2>
         <span class="dealer-money">Tu dinero: ${cop(stats?.dinero)}</span>
@@ -408,7 +455,7 @@ export class HUD {
         🌙 De noche puedes vender sustancias aquí (1.8x precio base).<br>
         Pulsa Q o ESC para cerrar.
       </div>
-    `;
+    `)) return;
 
     this.dealerPanel.querySelectorAll('.dealer-buy-btn').forEach((btn) => {
       btn.addEventListener('click', (e) => {

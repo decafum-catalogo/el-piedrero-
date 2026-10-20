@@ -16,10 +16,11 @@ import { Car } from '../entities/Car.js';
 import { DrugDealer } from '../entities/DrugDealer.js';
 import { CraftingStation } from '../entities/CraftingStation.js';
 
-import { StatsSystem } from '../systems/StatsSystem.js';
+import { StatsSystem, NEEDS } from '../systems/StatsSystem.js';
 import { TimeSystem } from '../systems/TimeSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { CollisionSystem } from '../systems/CollisionSystem.js';
+import { TrafficSystem } from '../systems/TrafficSystem.js';
 import { InventorySystem } from '../systems/InventorySystem.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { InteractionSystem } from '../systems/InteractionSystem.js';
@@ -28,6 +29,11 @@ import { TalentSystem } from '../systems/TalentSystem.js';
 import { CraftingSystem } from '../systems/CraftingSystem.js';
 
 import { HUD } from '../ui/HUD.js';
+import { PerformanceHUD } from '../ui/PerformanceHUD.js';
+import { LocalLights } from './LocalLights.js';
+import { loadInBatches, withLoadTimeout } from './Startup.js';
+import { paintLoadingFrame } from '../ui/LoadingScreen.js';
+import { el, button } from '../ui/dom.js';
 import { Menu } from '../ui/Menu.js';
 import { createCreator } from '../ui/Creator.js';
 import { openRecycler, openShop, openCambuche } from '../ui/placeMenus.js';
@@ -37,8 +43,7 @@ import { SLEEP } from '../data/cambuche.js';
 import { cop } from '../utils/money.js';
 
 import {
-  MENTAL_DECAY, MENTAL_DECAY_NIGHT, MENTAL_DECAY_SICK,
-  MENTAL_DECAY_HUNGER, MENTAL_RESTORE_SLEEP, MENTAL_LOW_THRESHOLD,
+  MENTAL_RESTORE_SLEEP, MENTAL_LOW_THRESHOLD,
   INVENTORY_MAX_WEIGHT, WITHDRAWAL
 } from '../utils/constants.js';
 
@@ -74,13 +79,21 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     // HUD, menús y creador de personaje
     this.hud = new HUD();
+    this.performanceHUD = new PerformanceHUD();
+    this.localLights = new LocalLights(this.sceneMgr.scene);
     this.menu = new Menu();
     this.creator = createCreator({ audio: null });
+    this.cameraRig.canControl = () => !this.paused && !this.isSleeping &&
+      !this.hud._talentOpen && !this.hud._craftOpen && !this.hud._dealerOpen;
+    this.hud.setCameraMode(this.cameraRig.mode);
+    window.addEventListener('camera-toggle', () => this._toggleCamera());
     window.addEventListener('open-recycler', () => openRecycler(this));
     window.addEventListener('open-shop', (e) => openShop(this, e.detail?.target));
     window.addEventListener('open-cambuche', () => openCambuche(this));
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyP' && !this.menu.isOpen && !this.creator.isOpen && this.look) this.editLook();
+      if (e.repeat || e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      if (e.code === 'KeyV') this._toggleCamera();
+      if (e.code === 'KeyP' && !this.paused && this.look) this.editLook();
       if (e.code === 'KeyM' && !this.paused) this._toggleModel();
     });
 
@@ -90,6 +103,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.cambuche = null;
     this.shop = null;
     this.cars = [];
+    this.traffic = null;
     this.dealer = null;
     this.craftingStation = null;
 
@@ -99,18 +113,25 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.costal = false;    // costal grande comprado
     this.isSleeping = false;
     this.deathCount = 0;
+    this._deathPending = false;
     this._wasNight = null;
 
     this._lastTime = performance.now();
     this._running = false;
+    this._loading = true;
 
     window.__game = this;
   }
 
-  start() {
-    this._running = true;
+  start(loading) {
+    return this._startPromise ??= this._initialize(loading);
+  }
+
+  async _initialize(loading) {
+    await loading.stage('Construyendo la ciudad…', 1);
     this.world.loadDistrict('Bogota', this.collisions);
     this._spawnEntities();
+    this._registerRenderGroups();
 
     const district = this.world.active;
     if (district?.reserved) {
@@ -121,19 +142,59 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }
 
     this._loadIfSave();
-    this.audio.startAmbient();
-    this._loop();
-    if (!this.look) this._createCharacter();
+    if (!this.look) {
+      await this._createCharacter(loading);
+    }
+    await loading.stage('Cargando personajes y sonidos…', 2);
     let modelo = null;
     try { modelo = localStorage.getItem('bazuko.modelo'); } catch { /* sin almacenamiento */ }
-    // El realista es el principal; el procedural queda como modo liviano (tecla M)
-    if (modelo !== 'procedural') this.player.setModel('realista');
+    await withLoadTimeout(Promise.all([
+      modelo !== 'procedural' ? this.player.setModel('realista') : Promise.resolve(),
+      loadInBatches(district?.npcs ?? [], npc => npc.preload(), (done, total) =>
+        loading.stage(`Cargando personajes… ${done}/${total}`, 2 + done / total)),
+      this.audio.ready
+    ]), 'La carga de personajes tardó demasiado.');
+
+    if (this.cameraRig.mode === 'third-person') this.player.root.rotation.y = this.cameraRig.yaw + Math.PI;
+    this.cameraRig.follow(this.player.position, 0, this.collisions);
+    this.sceneMgr.setTimeOfDay(this.clock.hour);
+    this.sceneMgr.followTarget(this.player.position);
+    this._wasNight = this.clock.isNight;
+    district?.setNightMode?.(this._wasNight);
+    this.dealer?.setNight(this._wasNight);
+    this.world.update(0, this.player.position, this.cameraRig.camera);
+    this.localLights.update(0, this.player.position, (x, z) => district?.getGroundHeight?.(x, z) ?? 0, this.cameraRig.camera);
+    await loading.stage('Preparando texturas, luces y shaders…', 4);
+    const extraModels = (district?.npcs ?? []).flatMap(npc => [npc.lodChar?.group, npc.fullChar?.group]).filter(Boolean);
+    await withLoadTimeout(this.renderer.prepare(this.sceneMgr.scene, this.cameraRig.camera, extraModels), 'La preparación gráfica tardó demasiado.');
+    await loading.stage('Preparando el primer fotograma…', 4.8);
+    // Estas pasadas preparan sombras, geometría y silueta sin simular ni medir FPS.
+    for (let frame = 0; frame < 3; frame++) {
+      this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera, this.player.root, [this.sceneMgr.sun]);
+      await paintLoadingFrame();
+    }
+    await this.renderer.waitForGPU();
+    await loading.stage('Todo listo', 5);
+    this.performanceHUD.metrics.reset();
+    this.performanceHUD.nextPaint = 0;
+    this.renderer.resolution.resetWindow();
+    this.input.keys = {};
+    this.input.endFrame();
+    this._lastTime = performance.now();
+    this._lastRenderTime = undefined;
+    this._loading = false;
+    this._running = true;
+    loading.finish();
+    this.audio.startAmbient();
+    requestAnimationFrame(this._loop);
   }
 
   /** Primera vez: abre el creador antes de jugar */
-  async _createCharacter() {
-    const look = await this.creator.open(DEFAULT_LOOK, { doneLabel: 'Empezar' });
-    this._applyLook(look ?? { ...DEFAULT_LOOK, nombre: 'Parcero' });
+  async _createCharacter(loading = null) {
+    const look = await this.creator.open(DEFAULT_LOOK, {
+      doneLabel: 'Empezar', onReady: () => loading?.forCreator()
+    });
+    await this._applyLook(look ?? { ...DEFAULT_LOOK, nombre: 'Parcero' });
     this._save();
   }
 
@@ -141,15 +202,16 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
   async editLook() {
     const look = await this.creator.open(this.look, { doneLabel: 'Guardar' });
     if (look) {
-      this._applyLook(look);
+      await this._applyLook(look);
       this._save();
     }
   }
 
   _applyLook(look) {
     this.look = normalizeLook({ ...look, v: 2 });
-    this.player.setLook(this.look);
+    const ready = this.player.setLook(this.look);
     this.interaction.originId = this.look.origen;
+    return ready;
   }
 
   /** Tecla M: alterna personaje realista / procedural (liviano) y lo recuerda */
@@ -162,12 +224,21 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     await this.player.setModel(next);
   }
 
+  _toggleCamera() {
+    if (!this.cameraRig.canControl()) return;
+    const mode = this.cameraRig.toggle(this.player.root.rotation.y);
+    this.cameraRig.follow(this.player.position, 0, this.collisions);
+    this.hud.setCameraMode(mode);
+  }
+
   /** El mundo se congela mientras hay un menú o el creador abierto */
   get paused() {
-    return this.menu.isOpen || this.creator.isOpen;
+    return this._loading || this._deathPending || this.menu.isOpen || this.creator.isOpen;
   }
 
   _spawnEntities() {
+    this.traffic?.dispose();
+    this.traffic = null;
     this.pickups.forEach((p) => p.dispose());
     this.pickups = [];
     this.cars.forEach((c) => c.dispose());
@@ -182,10 +253,11 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     const findValidSpawn = (exclude = null, minDist = 4) => {
       const TILE_SIZE = 2;
-      const mapSize = district.size ?? 32;
+      const mapWidth = district.width ?? district.size ?? 32;
+      const mapHeight = district.height ?? district.size ?? 32;
       for (let attempt = 0; attempt < 200; attempt++) {
-        const tx = 3 + Math.floor(Math.random() * (mapSize - 6));
-        const tz = 3 + Math.floor(Math.random() * (mapSize - 6));
+        const tx = 3 + Math.floor(Math.random() * (mapWidth - 6));
+        const tz = 3 + Math.floor(Math.random() * (mapHeight - 6));
         const x = tx * TILE_SIZE;
         const z = tz * TILE_SIZE;
         if (!district.isWalkableAt(x, z)) continue;
@@ -209,7 +281,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       const j = Math.floor(Math.random() * (i + 1));
       [grid[i], grid[j]] = [grid[j], grid[i]];
     }
-    const desired = 14;
+    const desired = Math.round(14 * (district.populationScale ?? 1));
     const usedPositions = [];
     for (let i = 0; i < desired; i++) {
       let pos;
@@ -226,7 +298,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }
 
     // ===== Autos (robar retrovisores) =====
-    const carCount = 5;
+    const carCount = Math.round(5 * (district.populationScale ?? 1));
     // parqueados junto al andén y alineados con la calle si el distrito lo sabe; si no, donde se pueda
     const parking = district.getParkingSpots?.() ?? [];
     for (let i = parking.length - 1; i > 0; i--) {
@@ -242,6 +314,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       const car = new Car(this.sceneMgr.scene, pos, rot);
       this.cars.push(car);
       this.interaction.register(car);
+    }
+    if (district.getTrafficRoutes) {
+      this.traffic = new TrafficSystem(this.sceneMgr.scene, district.getTrafficRoutes());
     }
 
     // ===== Puesto de venta =====
@@ -275,13 +350,14 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.interaction.register(this.craftingStation);
 
     // ===== Cambuche (refugio por piezas) =====
+    const bedX = district.reserved?.bed.x ?? 16;
+    const bedZ = district.reserved?.bed.z ?? 44;
     this.cambuche = new Cambuche(
       this.sceneMgr.scene,
-      new THREE.Vector3(
-        district.reserved?.bed.x ?? 16, 0,
-        district.reserved?.bed.z ?? 44
-      )
+      new THREE.Vector3(bedX, 0, bedZ)
     );
+    this.cambuche.group.position.y = district.getGroundHeightUnder?.(this.cambuche.group)
+      ?? district.getGroundHeight?.(bedX, bedZ) ?? 0;
     this.cambuche.setBuilt(this.built);
     this.interaction.register(this.cambuche);
 
@@ -314,9 +390,10 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       this.diseases.deserialize(data.diseases ?? {});
       if (data.player) {
         // partidas de otro mapa: si la posición guardada no es transitable, vuelve al inicio
-        const [px, , pz] = data.player.pos;
         const district = this.world.active;
-        if (!district?.isWalkableAt || district.isWalkableAt(px, pz)) this.player.position.set(...data.player.pos);
+        const position = district?.migrateSavedPosition?.(data.player.pos, data.worldLayoutVersion) ?? data.player.pos;
+        const [px, , pz] = position;
+        if (!district?.isWalkableAt || district.isWalkableAt(px, pz)) this.player.position.set(...position);
       }
       this.built = data.built ?? {};
       this.costal = !!data.costal;
@@ -333,6 +410,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       talents: this.talents.serialize(),
       diseases: this.diseases.serialize(),
       player: { pos: this.player.position.toArray() },
+      worldLayoutVersion: this.world.active?.layoutVersion ?? 0,
       look: this.look,
       built: this.built,
       costal: this.costal
@@ -393,40 +471,65 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }, 1200);
   }
 
-  _updateMentalHealth(dt) {
-    const mentalDecayMult = this.talents.getEffect('mentalDecayMult', 1);
-    let decay = MENTAL_DECAY;
+  _handleDeath() {
+    if (this._deathPending) return true;
+    if (this.stats.salud > 0) return false;
 
-    if (this.clock.isNight) decay += MENTAL_DECAY_NIGHT;
-    if (this.diseases.hasAny) decay += MENTAL_DECAY_SICK;
-    if (this.stats.hambre < 20) decay += MENTAL_DECAY_HUNGER;
-
-    decay *= mentalDecayMult;
-    this.stats.saludMental = Math.max(0, this.stats.saludMental - decay * dt);
+    this._deathPending = true;
+    this.deathCount++;
+    this.input.keys = {};
+    this.input.endFrame();
+    this.audio.updateSteps(false, false);
+    if (this.interaction.boostActive) this.interaction._endBoost();
+    const causes = [];
+    for (const [stat, name] of [['sed', 'deshidratación'], ['hambre', 'hambre'],
+      ['energia', 'agotamiento'], ['higiene', 'higiene agotada'], ['animo', 'ánimo agotado']]) {
+      if (this.stats[stat] <= 0) causes.push(name);
+    }
+    if (this.stats.inWithdrawal) causes.push('abstinencia');
+    if (this.diseases.hasAny) causes.push('enfermedad');
+    this.menu.open({
+      title: 'Te quedaste sin salud',
+      sub: 'La partida está en pausa.',
+      ic: 'heart',
+      dismissible: false,
+      render: () => ({
+        body: el('div', {},
+          el('p', { text: causes.length ? `Estado al caer: ${causes.join(', ')}.` : 'Tu salud llegó a cero.' }),
+          el('p', { text: 'Volverás al cambuche con salud y necesidades recuperadas al menos al 60 %. Perderás la mitad de los tipos de objetos del inventario.' }),
+          el('p', { text: 'Come, bebe agua y descansa para mantener tus necesidades. Puedes consumir comida y agua haciendo clic en ellas en el inventario.' })),
+        foot: [button('Volver al cambuche', { primary: true, onClick: () => this._respawn() })]
+      })
+    });
+    window.dispatchEvent(new CustomEvent('death'));
+    return true;
   }
 
-  _handleDeath() {
-    if (this.stats.salud > 0) return;
-
-    this.deathCount++;
-    window.dispatchEvent(new CustomEvent('death'));
-
+  _respawn() {
+    if (!this._deathPending) return;
     const half = Math.floor(this.inventory.items.length / 2);
     for (let i = 0; i < half; i++) {
       const it = this.inventory.items[0];
       if (it) this.inventory.remove(it.id, it.qty);
     }
 
-    this.stats.salud = 30;
-    this.stats.hambre = Math.max(20, this.stats.hambre);
-    this.stats.sed = Math.max(20, this.stats.sed);
-    this.stats.vicio = Math.max(30, this.stats.vicio);
+    // Recuperar todas las necesidades evita seguir recibiendo daño al reaparecer.
+    for (const need of NEEDS) this.stats[need] = Math.max(60, this.stats[need]);
     this.diseases.cureAll();
 
     const district = this.world.active;
     if (district?.reserved) {
       this.player.position.set(district.reserved.bed.x, 0, district.reserved.bed.z + 2);
     }
+    this.player.root.position.copy(this.player.position);
+    this.cameraRig._snap = true;
+    this.cameraRig.follow(this.player.position, 0, this.collisions);
+    this.interaction.currentTarget = null;
+    this.interaction.currentTargetType = null;
+    this.input.keys = {};
+    this.input.endFrame();
+    this._deathPending = false;
+    this.menu.close();
   }
 
   _loop = () => {
@@ -438,11 +541,13 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this._lastTime = now;
 
     if (this.isSleeping || this.paused) {
+      this.cameraRig.cancelDrag();
       this.audio.updateSteps(false, false);
-      this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera);
+      this._renderFrame(now, false);
       this.input.endFrame();
       return;
     }
+    if (this._handleDeath()) return;
 
     // 1. Tiempo
     this.clock.update(dt);
@@ -459,20 +564,21 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }
 
     // 3. Jugador
+    this.cameraRig.updateControls(dt, this.input);
+    // Actualiza el rumbo antes de calcular WASD en relación con la cámara.
+    this.cameraRig.prepareMovement();
     this.player.update(dt, this.cameraRig.camera, this.collisions);
 
     // 4. Stats
     this.stats.update(dt, this.player, this.diseases, this.clock, this.talents);
+    if (this._handleDeath()) return;
 
     // 4b. Aplicar bono de peso por talentos
     const maxWeightBonus = this.talents.getEffect('maxWeightBonus', 0);
     this.inventory.maxWeight = INVENTORY_MAX_WEIGHT + maxWeightBonus + (this.costal ? COSTAL_BONUS : 0);
     this.player.load = this.inventory.totalWeight / this.inventory.maxWeight;
 
-    // 5. Salud mental
-    this._updateMentalHealth(dt);
-
-    // 5b. Debuff por salud mental baja
+    // 5. Debuff por salud mental baja (el desgaste se calcula en StatsSystem).
     if (this.stats.saludMental < MENTAL_LOW_THRESHOLD) {
       this.player.speedMult = 0.6;
     } else {
@@ -484,9 +590,13 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     // 7. Interacción (basura, autos, recicladora, tienda, cambuche, dealer)
     this.interaction.update(dt, this.input, this.clock);
+    if (this._handleDeath()) return;
 
     // 8. Mundo
+    // La visibilidad de edificios usa la cámara del mismo cuadro.
+    this.cameraRig.follow(this.player.position, dt, this.collisions);
     this.world.update(dt, this.player.position, this.cameraRig.camera);
+    this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.npcs ?? [] });
 
     // 9. Entidades
     for (const p of this.pickups) p.update(dt);
@@ -499,24 +609,38 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.audio.updateSteps(moving, this.input.isRunning);
     this.audio.updateBoost(this.interaction.boostActive);
 
-    // 11. Cámara
-    this.cameraRig.follow(this.player.position);
-
     // 12. Render
-    this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera);
+    this._renderFrame(now, true);
 
     // 13. UI
     this.hud.update(
       this.stats, this.clock, this.interaction, this.inventory,
-      this.diseases, this.talents, this.crafting
+      this.diseases, this.talents, this.crafting, dt
     );
-
-    // 14. Muerte
-    this._handleDeath();
 
     // 15. Fin de frame
     this.input.endFrame();
   };
+
+  _renderFrame(now, active) {
+    const elapsed = this._lastRenderTime === undefined ? 0 : (now - this._lastRenderTime) / 1000;
+    this._lastRenderTime = now;
+    this.localLights.update(elapsed, this.player.position, (x, z) => this.world.active?.getGroundHeight?.(x, z) ?? 0, this.cameraRig.camera);
+    this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera, this.player.root, [this.sceneMgr.sun]);
+    if (this.performanceHUD.update(now, this.player.position, this.renderer, active, this.localLights)) {
+      this.renderer.adaptResolution(this.performanceHUD.metrics.frameMs);
+    } else this.renderer.resolution.resetWindow();
+  }
+
+  _registerRenderGroups() {
+    const culling = this.renderer.culling, district = this.world.active;
+    culling.clear();
+    for (const sector of district?.renderSectors ?? []) culling.register(sector);
+    for (const object of district?.animated ?? []) culling.register(object, { margin: 1 });
+    if (district?.busService) culling.register(district.busService.group, { dynamic: true, margin: .5 });
+    for (const car of this.cars) culling.register(car.group, { dynamic: true, margin: .5 });
+    for (const { car } of this.traffic?.vehicles ?? []) culling.register(car.group, { dynamic: true, margin: .5 });
+  }
 
   stop() { this._running = false; }
 }

@@ -1,5 +1,5 @@
 // src/systems/StatsSystem.js
-import { DECAY, STAT_THRESHOLDS, WITHDRAWAL, XP_PER_LEVEL } from '../utils/constants.js';
+import { DECAY, MENTAL_DECAY_NIGHT, STAT_THRESHOLDS, SURVIVAL_DAMAGE, WITHDRAWAL, XP_PER_LEVEL } from '../utils/constants.js';
 
 /** Necesidades del jugador (0-100, 100 = satisfecha) */
 export const NEEDS = ['hambre', 'sed', 'energia', 'salud', 'higiene', 'animo', 'vicio'];
@@ -70,21 +70,19 @@ export class StatsSystem {
       }));
     }
 
-    // Ánimo: baja más rápido si estás enfermo o con hambre/sed
-    let animoDecay = DECAY.animo + fx.mentalDrain;
+    // Único cálculo de ánimo (saludMental es un alias): incluye noche, enfermedades y talentos.
+    const mentalDecayMult = talentSystem?.getEffect('mentalDecayMult', 1) ?? 1;
+    let animoDecay = DECAY.animo + (clock?.isNight ? MENTAL_DECAY_NIGHT : 0) + fx.mentalDrain;
     if (this.hambre < 30) animoDecay *= 1.5;
     if (this.sed < 30)    animoDecay *= 1.5;
     if (this.energia < 30) animoDecay *= 1.3;
     if (this.inWithdrawal) animoDecay *= WITHDRAWAL.animoMult;
-    this.animo = Math.max(0, this.animo - animoDecay * dt);
+    this.animo = Math.max(0, this.animo - animoDecay * mentalDecayMult * dt);
 
     // ===== Daño por stats críticos =====
     let damage = 0;
-    if (this.hambre === 0)  damage += 2;
-    if (this.sed === 0)     damage += 2;
-    if (this.energia === 0) damage += 1;
-    if (this.higiene === 0) damage += 0.5;   // NUEVO
-    if (this.animo === 0)   damage += 0.5;   // NUEVO
+    if (this.hambre === 0)  damage += SURVIVAL_DAMAGE.hambre;
+    if (this.sed === 0)     damage += SURVIVAL_DAMAGE.sed;
     if (this.inWithdrawal)  damage += WITHDRAWAL.saludPorSeg;
     damage += fx.healthDrain;
 

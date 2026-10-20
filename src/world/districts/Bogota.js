@@ -1,7 +1,8 @@
 // src/world/districts/Bogota.js
 // Centro de Bogotá (inspirado en Santa Inés / El Cartucho y la Av. Caracas).
 //
-// Rejilla de 48 × 48 tiles de 2 m (96 m). Ejes: x = oriente↔occidente (los cerros quedan hacia −x,
+// Ciudad de 120 × 111 tiles de 2 m; conserva el centro de 74 × 60 y añade barrios al oriente y al sur.
+// Ejes: x = oriente↔occidente (los cerros quedan hacia −x,
 // que es donde mira la cámara), z = norte↔sur. Carreras corren a lo largo de z, calles a lo largo de x.
 //
 //   Carrera 15 (x 6-7) · Av. Caracas (x 22-27, troncal en x 24-25) · Carrera 10 (x 40-41)
@@ -19,17 +20,29 @@ import { signTexture } from '../../utils/signs.js';
 import * as TX from '../bogota/textures.js';
 import * as P from '../bogota/props.js';
 import { Npc } from '../../entities/Npc.js';
-import { applyCutaway, updateCutaway } from '../bogota/cutaway.js';
+import { BuildingVisibility, createBuildingShell } from '../bogota/BuildingVisibility.js';
+import { PedestrianNavigation } from '../bogota/PedestrianNavigation.js';
+import { TrafficRoute } from '../bogota/TrafficRoute.js';
+import { BusService } from '../bogota/BusService.js';
+import { geometryChunk, mergeByChunk, freezeStaticTransforms, createRenderSectors } from '../bogota/StaticGeometry.js';
+import { CITY_WIDTH, CITY_HEIGHT, CITY_AREA_MULTIPLIER, CITY_CARRERAS as CARRERAS,
+  CITY_CALLES as CALLES, ORIGINAL_CITY_WIDTH, ORIGINAL_CITY_HEIGHT, EXTENSION_PARKS,
+  expandCity } from '../bogota/CityLayout.js';
 
-const S = 48;
+import { ORIGINAL_SIZE as S, ORIGINAL_CARRERAS, ORIGINAL_CARACAS, ORIGINAL_CALLES,
+  CARACAS, STREET_X, STREET_Z, expandStreets,
+  migrateStreetPosition, WORLD_LAYOUT_VERSION, SIDEWALK_TILES } from '../bogota/StreetLayout.js';
 const T = TILE_SIZE;
 const WALKABLE = new Set(['road', 'busway', 'sidewalk', 'dirt', 'grass', 'plaza', 'floor']);
 const SOLID = new Set(['building', 'ruin', 'wall']);
 const SIDEWALK_Y = 0.12;
+// La colocación de objetos debe usar las mismas cotas que la malla del terreno.
+const GROUND_HEIGHTS = Object.freeze({
+  road: 0, busway: 0.02, sidewalk: SIDEWALK_Y, floor: SIDEWALK_Y,
+  dirt: 0.04, grass: 0.06, plaza: SIDEWALK_Y
+});
 
-const CARRERAS = [[6, 7, 'Carrera 15'], [40, 41, 'Carrera 10']];
-const CARACAS = { lanes: [[22, 23], [26, 27]], busway: [24, 25] };
-const CALLES = [[12, 13, 'Calle 10'], [30, 31, 'Calle 9']];
+const WX = STREET_X.world, WZ = STREET_Z.world;
 
 const CARTUCHO = { x0: 8, x1: 21, z0: 14, z1: 29 };
 const SHOP_NAMES = [
@@ -66,17 +79,24 @@ const W = (t) => t * T; // tile → metros (centro del tile)
 export class Bogota {
   constructor() {
     this.group = new THREE.Group();
-    this.size = S;
+    this.width = CITY_WIDTH;
+    this.height = CITY_HEIGHT;
+    this.populationScale = CITY_AREA_MULTIPLIER;
+    this.size = Math.max(this.width, this.height);
+    this.layoutVersion = WORLD_LAYOUT_VERSION;
     this.props = [];          // { instance } con setNight/update (faroles de bazuko)
     this.animated = [];       // grupos con userData.update
     this.facadeMats = [];
+    this._facadeTextures = new Map();
     this.npcs = [];
+    this.buildingVisibility = new BuildingVisibility();
     this.t = 0;
   }
 
   // ---------- trazado ----------
 
   _layout() {
+    const CARRERAS = ORIGINAL_CARRERAS, CARACAS = ORIGINAL_CARACAS, CALLES = ORIGINAL_CALLES;
     const m = Array.from({ length: S }, () => Array(S).fill('building'));
     const set = (x, z, v) => { if (x >= 0 && z >= 0 && x < S && z < S) m[z][x] = v; };
     for (let i = 0; i < S; i++) { set(i, 0, 'wall'); set(i, S - 1, 'wall'); set(0, i, 'wall'); set(S - 1, i, 'wall'); }
@@ -115,8 +135,10 @@ export class Bogota {
     for (let z = 33; z <= 45; z++) for (let x = 29; x <= 38; x++) m[z][x] = (x === 33 || x === 34 || z === 39) ? 'plaza' : 'grass';
     // lote baldío del cambuche
     for (let z = 33; z <= 45; z++) for (let x = 43; x <= 46; x++) m[z][x] = 'dirt';
-    return m;
+    return expandCity(expandStreets(m));
   }
+
+  migrateSavedPosition(position, version) { return migrateStreetPosition(position, version); }
 
   // ---------- construcción ----------
 
@@ -130,37 +152,44 @@ export class Bogota {
     this._buildStreetProps(map);
     this._buildCartucho();
     this._buildPark();
+    this._buildExtensions();
 
     const cer = P.cerros();
-    cer.position.set(-130, 0, W(S / 2) - 30);
+    cer.position.set(-130, 0, W(this.height / 2) - 30);
     cer.rotation.y = Math.PI / 2;
     this.group.add(cer);
     this._mergeStatic();
-    applyCutaway(this.group);
+    this.group.add(this.buildingVisibility.buildClosedView());
+    const closedView = this.buildingVisibility.closedView;
+    this.renderSectors = [
+      ...createRenderSectors(this.group, new Set([closedView, this.busService?.group])),
+      ...createRenderSectors(closedView)
+    ];
     scene.add(this.group);
+    freezeStaticTransforms(this.group, this.busService?.group);
 
     this.isWalkableAt = (wx, wz) => {
       const tx = Math.round(wx / T), tz = Math.round(wz / T);
-      if (tx < 0 || tz < 0 || tx >= S || tz >= S) return false;
+      if (tx < 0 || tz < 0 || tx >= this.width || tz >= this.height) return false;
       return WALKABLE.has(map[tz][tx]);
     };
 
     // Zonas reservadas (en metros)
     this.reserved = {
-      spawn:  { x: W(20), z: W(11) },
-      sell:   { x: W(14.5), z: W(34) },     // dentro del portón de la bodega
-      bed:    { x: W(44.5), z: W(40) },     // lote baldío
-      dealer: { x: W(14.5), z: W(21.5) },   // la olla de El Cartucho
-      craft:  { x: W(16.5), z: W(24.5) },
-      shop:   { x: W(34), z: W(29) }        // andén de la Calle 9, de espaldas a la manzana
+      spawn:  { x: WX(20), z: WZ(11) },
+      sell:   { x: WX(14.5), z: WZ(34) },     // dentro del portón de la bodega
+      bed:    { x: WX(44.5), z: WZ(40) },     // lote baldío
+      dealer: { x: WX(14.5), z: WZ(21.5) },   // la olla de El Cartucho
+      craft:  { x: WX(16.5), z: WZ(24.5) },
+      shop:   { x: WX(34), z: WZ(29) }        // andén de la Calle 9, de espaldas a la manzana
     };
     this.isNearReserved = (x, z, dist = 6) =>
       Object.values(this.reserved).some((r) => Math.hypot(x - r.x, z - r.z) < dist);
 
     this.getSpawnGrid = () => {
       const grid = [];
-      for (let tz = 2; tz < S - 2; tz += 3) {
-        for (let tx = 2; tx < S - 2; tx += 3) {
+      for (let tz = 2; tz < this.height - 2; tz += 3) {
+        for (let tx = 2; tx < this.width - 2; tx += 3) {
           const t = map[tz][tx];
           if (!['sidewalk', 'dirt', 'grass', 'plaza'].includes(t)) continue;
           const x = W(tx), z = W(tz);
@@ -182,8 +211,10 @@ export class Bogota {
     const m = this.map;
     const spots = [];
     const nearCross = (x, z) => CALLES.some(([a, b]) => z >= a - 2 && z <= b + 2) && [...CARRERAS, ...CARACAS.lanes.map(([a, b]) => [a, b])].some(([a, b]) => x >= a - 2 && x <= b + 2);
-    for (let z = 2; z < S - 2; z++) {
-      for (let x = 2; x < S - 2; x++) {
+    for (let z = 2; z < m.length - 2; z++) {
+      // Los circuitos centrales quedan libres; se conserva el parqueo en los extremos.
+      if (z >= CALLES[0][0] - 2 && z <= CALLES[1][1] + 2) continue;
+      for (let x = 2; x < m[0].length - 2; x++) {
         if (m[z][x] !== 'road' || nearCross(x, z)) continue;
         if (x >= CARACAS.lanes[0][0] && x <= CARACAS.lanes[1][1]) continue; // la Caracas no se parquea
         for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -195,6 +226,29 @@ export class Bogota {
       }
     }
     return spots;
+  }
+
+  getTrafficRoutes() {
+    const lane = ([a, b], side) => W((a + b) / 2 + side * (b - a + 1) / 4);
+    const top = lane(CALLES[0], 1), bottom = lane(CALLES[1], -1);
+    return [
+      new TrafficRoute(lane(CARRERAS[0], 1), lane(CARACAS.lanes[0], -1), top, bottom),
+      new TrafficRoute(lane(CARACAS.lanes[1], 1), lane(CARRERAS[1], -1), top, bottom),
+      new TrafficRoute(lane(CARRERAS[1], 1), lane(CARRERAS[2], -1), top, lane(CALLES.at(-1), -1)),
+      new TrafficRoute(lane(CARRERAS[2], 1), lane(CARRERAS[3], -1), top, lane(CALLES.at(-1), -1)),
+      new TrafficRoute(lane(CARRERAS[0], 1), lane(CARACAS.lanes[0], -1), lane(CALLES[1], 1), lane(CALLES.at(-1), -1)),
+      new TrafficRoute(lane(CARACAS.lanes[1], 1), lane(CARRERAS[1], -1), lane(CALLES[1], 1), lane(CALLES.at(-1), -1))
+    ];
+  }
+
+  getBusRoute() {
+    const centerX = (W(CARACAS.busway[0]) + W(CARACAS.busway[1])) / 2;
+    return {
+      x: centerX + 3.5,
+      startZ: W(this.height - 2) - P.ARTICULATED_BUS_SIZE.length / 2,
+      endZ: W(1) + P.ARTICULATED_BUS_SIZE.length / 2,
+      stationZ: WZ(21.5)
+    };
   }
 
   /** Suelo: una malla por material, con UV en metros para que la textura no se repita por tile */
@@ -215,10 +269,10 @@ export class Bogota {
       plaza: new THREE.MeshStandardMaterial({ map: walk.map, roughness: 0.8, color: '#c9b9a0' })
     };
     const scaleOf = { road: 14, busway: 14, sidewalk: 6, floor: 6, dirt: 8, grass: 8, plaza: 6 };
-    const heightOf = { road: 0, busway: 0.02, sidewalk: SIDEWALK_Y, floor: SIDEWALK_Y, dirt: 0.04, grass: 0.06, plaza: SIDEWALK_Y };
+    const heightOf = GROUND_HEIGHTS;
     const quads = {};
-    for (let z = 0; z < S; z++) {
-      for (let x = 0; x < S; x++) {
+    for (let z = 0; z < map.length; z++) {
+      for (let x = 0; x < map[0].length; x++) {
         const t = map[z][x];
         if (!mats[t]) continue;
         const g = new THREE.PlaneGeometry(T, T);
@@ -242,9 +296,7 @@ export class Bogota {
     }
     mats.curb = new THREE.MeshStandardMaterial({ color: '#d8d4c8', roughness: 0.8 });
     for (const [t, list] of Object.entries(quads)) {
-      const mesh = new THREE.Mesh(mergeGeometries(list), mats[t]);
-      mesh.receiveShadow = true;
-      this.group.add(mesh);
+      this.group.add(mergeByChunk(list, mats[t], { receiveShadow: true }));
     }
     // muro perimetral bajo y oscuro (no se ve el borde del mundo)
   }
@@ -253,28 +305,33 @@ export class Bogota {
   _buildMarkings() {
     const white = [], yellow = [], curbs = [];
     const plane = (w, d, x, z) => { const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2); g.translate(x, 0.015, z); return g; };
-    const carrX = [...CARRERAS.map(([a, b]) => [a, b]), ...CARACAS.lanes];
+    const carrX = [...CARRERAS, [CARACAS.lanes[0][0], CARACAS.lanes[1][1]]];
     // línea amarilla al centro de las calles
     for (const [a, b] of CALLES) {
       const zc = (W(a) + W(b)) / 2;
-      for (let x = 2; x < W(S) - 2; x += 3) yellow.push(plane(1.6, 0.12, x, zc));
+      for (let x = 2; x < W(this.width) - 2; x += 3) yellow.push(plane(1.6, 0.12, x, zc));
     }
     for (const [a, b] of CARRERAS) {
       const xc = (W(a) + W(b)) / 2;
-      for (let z = 2; z < W(S) - 2; z += 3) yellow.push(plane(0.12, 1.6, xc, z));
+      for (let z = 2; z < W(this.height) - 2; z += 3) yellow.push(plane(0.12, 1.6, xc, z));
     }
     // cebras a ambos lados de cada cruce
     for (const [za, zb] of CALLES) {
       for (const [xa, xb] of carrX) {
         const x0 = W(xa) - T / 2, x1 = W(xb) + T / 2;
-        for (const zEdge of [W(za) - T / 2 - 1, W(zb) + T / 2 + 1]) {
-          for (let x = x0 + 0.4; x < x1; x += 0.9) white.push(plane(0.5, 1.6, x, zEdge));
+        for (const zEdge of [W(za) - T / 2 - SIDEWALK_TILES * T / 2, W(zb) + T / 2 + SIDEWALK_TILES * T / 2]) {
+          for (let x = x0 + 0.4; x < x1; x += 0.9) white.push(plane(0.5, SIDEWALK_TILES * T - 0.4, x, zEdge));
+        }
+        for (const xEdge of [W(xa) - T / 2 - SIDEWALK_TILES * T / 2, W(xb) + T / 2 + SIDEWALK_TILES * T / 2]) {
+          for (let z = W(za) - T / 2 + 0.4; z < W(zb) + T / 2; z += 0.9) {
+            white.push(plane(SIDEWALK_TILES * T - 0.4, 0.5, xEdge, z));
+          }
         }
       }
     }
     // separadores de concreto de la troncal
     for (const x of [W(CARACAS.busway[0]) - T / 2, W(CARACAS.busway[1]) + T / 2]) {
-      for (let z = 1; z < S - 1; z++) {
+      for (let z = 1; z < this.height - 1; z++) {
         if (CALLES.some(([a, b]) => z >= a - 0.5 && z <= b + 0.5)) continue;
         const g = new THREE.BoxGeometry(0.3, 0.25, T);
         g.translate(x, 0.125, W(z));
@@ -283,10 +340,10 @@ export class Bogota {
     }
     const markMat = new THREE.MeshStandardMaterial({ color: '#e2e2dc', roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 });
     const yelMat = new THREE.MeshStandardMaterial({ color: '#e0a800', roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 });
-    this.group.add(new THREE.Mesh(mergeGeometries(white), markMat));
-    this.group.add(new THREE.Mesh(mergeGeometries(yellow), yelMat));
-    const sep = new THREE.Mesh(mergeGeometries(curbs), new THREE.MeshStandardMaterial({ color: '#cfcac0', roughness: 0.8 }));
-    sep.receiveShadow = sep.castShadow = true;
+    this.group.add(mergeByChunk(white, markMat));
+    this.group.add(mergeByChunk(yellow, yelMat));
+    const sep = mergeByChunk(curbs, new THREE.MeshStandardMaterial({ color: '#cfcac0', roughness: 0.8 }),
+      { receiveShadow: true, castShadow: true });
     this.group.add(sep);
   }
 
@@ -298,6 +355,7 @@ export class Bogota {
     const sideMat = new THREE.MeshStandardMaterial({ map: repeatAll(brick.map), bumpMap: repeatAll(brick.bumpMap), bumpScale: 0.3, roughness: 0.9, color: '#c8b2a2' });
     const roofMat = new THREE.MeshStandardMaterial({ map: repeatAll(TX.slab(13).map), roughness: 0.95 });
     const tileRoof = new THREE.MeshStandardMaterial({ map: repeatAll(TX.roofTiles(9).map), roughness: 0.85 });
+    this._interiorMat = new THREE.MeshStandardMaterial({ map: roofMat.map, color: '#675e50', roughness: 1 });
     this._uvUnits = { brick: [TX.BRICK_TILE.w, TX.BRICK_TILE.h], slab: [4, 4], tiles: [2, 2] };
     const covered = new Set();
 
@@ -305,7 +363,7 @@ export class Bogota {
     const DIRS = [[0, -1, 5], [0, 1, 4], [-1, 0, 1], [1, 0, 0]];
     for (const [dx, dz, face] of DIRS) {
       const alongX = dz !== 0; // la fachada corre a lo largo de x
-      const outer = alongX ? S : S;
+      const outer = alongX ? map.length : map[0].length;
       for (let a = 1; a < outer - 1; a++) {
         // recorre la línea perpendicular buscando tramos de tiles con fachada hacia (dx, dz)
         let run = [];
@@ -318,51 +376,47 @@ export class Bogota {
           }
           run = [];
         };
-        for (let b = 1; b < S - 1; b++) {
+        for (let b = 1; b < (alongX ? map[0].length : map.length) - 1; b++) {
           const x = alongX ? b : a, z = alongX ? a : b;
-          const faces = isB(x, z) && walk(x + dx, z + dz);
-          // en tramos este/oeste se saltan las esquinas (ya las cubre el tramo norte/sur)
-          const corner = !alongX && (walk(x, z - 1) || walk(x, z + 1));
-          if (faces && !corner) run.push([x, z]); else flush();
+          // Cada tile pertenece a una sola casa, también al recorrer otra fachada.
+          const faces = isB(x, z) && !covered.has(`${x},${z}`) && walk(x + dx, z + dz);
+          if (faces) run.push([x, z]); else flush();
         }
         flush();
       }
     }
 
-    // relleno del interior de las manzanas: techos bajos
-    const fill = [];
-    for (let z = 1; z < S - 1; z++) {
-      for (let x = 1; x < S - 1; x++) {
-        if (!isB(x, z) || covered.has(`${x},${z}`)) continue;
-        const h = map[z][x] === 'ruin' ? 4.5 : 6.5;
-        const g = worldUVs(new THREE.BoxGeometry(T, h, T), T, h, T, Array(6).fill(this._uvUnits.slab));
-        g.translate(W(x), h / 2, W(z));
-        fill.push(g);
-      }
+    // El relleno y el perímetro también se dividen por sectores para poder ocultarlos por separado.
+    const wallMat = new THREE.MeshStandardMaterial({ color: '#3a3532', roughness: 1 });
+    for (let z = 0; z < map.length; z++) for (let x = 0; x < map[0].length; x++) {
+      const type = map[z][x];
+      if ((!isB(x, z) && type !== 'wall') || covered.has(`${x},${z}`)) continue;
+      let width = 1, depth = 1;
+      const available = (tx, tz) => map[tz]?.[tx] === type && !covered.has(`${tx},${tz}`);
+      while (width < 4 && available(x + width, z)) width++;
+      while (depth < 4 && Array.from({ length: width }, (_, i) => available(x + i, z + depth)).every(Boolean)) depth++;
+      for (let dz = 0; dz < depth; dz++) for (let dx = 0; dx < width; dx++) covered.add(`${x + dx},${z + dz}`);
+      const h = type === 'wall' ? 9 : type === 'ruin' ? 4.5 : 6.5;
+      const material = type === 'wall' ? wallMat : roofMat;
+      const sx = width * T, sz = depth * T;
+      const geometry = worldUVs(new THREE.BoxGeometry(sx, h, sz), sx, h, sz, Array(6).fill(this._uvUnits.slab));
+      const shell = createBuildingShell(geometry, Array(6).fill(material), {
+        x: W(x) + (width - 1) * T / 2, z: W(z) + (depth - 1) * T / 2, height: h, interiorMaterial: this._interiorMat
+      });
+      shell.root.userData.perimeter = type === 'wall';
+      this.group.add(shell.root);
+      this.buildingVisibility.register(shell);
     }
-    if (fill.length) {
-      const m = new THREE.Mesh(mergeGeometries(fill), roofMat);
-      m.castShadow = m.receiveShadow = true;
-      this.group.add(m);
-    }
-    // muro perimetral
-    const wall = [];
-    for (let z = 0; z < S; z++) for (let x = 0; x < S; x++) {
-      if (map[z][x] !== 'wall') continue;
-      const g = new THREE.BoxGeometry(T, 9, T);
-      g.translate(W(x), 4.5, W(z));
-      wall.push(g);
-    }
-    const wm = new THREE.Mesh(mergeGeometries(wall), new THREE.MeshStandardMaterial({ color: '#3a3532', roughness: 1 }));
-    wm.receiveShadow = true;
-    this.group.add(wm);
   }
 
   _house(tiles, dx, dz, face, alongX, isB, map, sideMat, roofMat, tileRoof, covered) {
     const ruin = tiles.some(([x, z]) => map[z][x] === 'ruin');
-    // profundidad: hasta 3 tiles hacia adentro
+    // Profundidad: hasta 3 tiles hacia adentro, sin invadir casas ya construidas.
     let depth = 1;
-    while (depth < 3 && tiles.every(([x, z]) => isB(x - dx * depth, z - dz * depth))) depth++;
+    while (depth < 3 && tiles.every(([x, z]) => {
+      const tx = x - dx * depth, tz = z - dz * depth;
+      return isB(tx, tz) && !covered.has(`${tx},${tz}`);
+    })) depth++;
     for (const [x, z] of tiles) for (let d = 0; d < depth; d++) covered.add(`${x - dx * d},${z - dz * d}`);
 
     const widthM = tiles.length * T;
@@ -370,7 +424,14 @@ export class Bogota {
     const h = floors * 3;
     const style = ruin ? 'ruina' : Math.random() < 0.55 ? 'ladrillo' : 'pintada';
     // el ladrillo necesita más resolución para que cada ladrillo (36 × 12 cm) se distinga
-    const tex = TX.facade({ seed: Math.floor(Math.random() * 1e6), width: widthM, floors, pxPerM: style === 'pintada' ? 28 : 40, shopFront: true, style });
+    // Variantes compartidas: ampliar el barrio no triplica las texturas de fachada en la GPU.
+    const variant = Math.floor(Math.random() * 2);
+    const textureKey = `${widthM}:${floors}:${style}:${variant}`;
+    let tex = this._facadeTextures.get(textureKey);
+    if (!tex) {
+      tex = TX.facade({ seed: Math.floor(Math.random() * 1e6), width: widthM, floors, pxPerM: style === 'pintada' ? 28 : 40, shopFront: true, style });
+      this._facadeTextures.set(textureKey, tex);
+    }
     for (const t of [tex.map, tex.emissiveMap, tex.bumpMap]) { t.anisotropy = 8; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; }
     const facadeMat = new THREE.MeshStandardMaterial({
       map: tex.map, emissiveMap: tex.emissiveMap, emissive: '#ffffff', emissiveIntensity: 0,
@@ -389,10 +450,11 @@ export class Bogota {
     const U = this._uvUnits;
     const units = [U.brick, U.brick, clay ? U.tiles : U.slab, U.slab, U.brick, U.brick];
     units[face] = null; // la fachada usa su textura completa
-    const box = new THREE.Mesh(worldUVs(new THREE.BoxGeometry(sx, h, sz), sx, h, sz, units), mats);
-    box.position.set(cx, h / 2, cz);
-    box.castShadow = box.receiveShadow = true;
-    this.group.add(box);
+    const shell = createBuildingShell(worldUVs(new THREE.BoxGeometry(sx, h, sz), sx, h, sz, units), mats, {
+      x: cx, z: cz, height: h, interiorMaterial: this._interiorMat,
+      facadeFace: face, wallInteriorMaterial: sideMat, wallInteriorUV: U.brick
+    });
+    this.group.add(shell.root);
 
     // punto de la fachada (centro, al ras de la calle) y orientación hacia afuera
     const fx = (W(x0) + W(x1)) / 2 + dx * T / 2;
@@ -406,9 +468,9 @@ export class Bogota {
       if (map) {
         const sign = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(widthM * 0.85, 3.6), Math.min(widthM * 0.85, 3.6) / 4),
           new THREE.MeshBasicMaterial({ map }));
-        sign.position.set(fx + dx * 0.06, 3.05, fz + dz * 0.06);
+        sign.position.set(fx + dx * 0.06 - cx, 3.05, fz + dz * 0.06 - cz);
         sign.rotation.y = yaw;
-        this.group.add(sign);
+        shell.walls.get(face).add(sign);
       }
     }
     // balcón de madera en las casas viejas (Cartucho) o en algunas de ladrillo
@@ -426,29 +488,33 @@ export class Bogota {
         post.position.set(-bw / 2 + i * 0.25, 0.45, 0.32);
         bal.add(post);
       }
-      bal.position.set(fx + dx * 0.35, 3.1, fz + dz * 0.35);
+      bal.position.set(fx + dx * 0.35 - cx, 3.1, fz + dz * 0.35 - cz);
       bal.rotation.y = yaw;
       bal.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-      this.group.add(bal);
+      shell.walls.get(face).add(bal);
     }
     // tanque de agua negro en la terraza
     if (!ruin && Math.random() < 0.35) {
       const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.45, 0.9, 12), new THREE.MeshStandardMaterial({ color: '#1c1f22', roughness: 0.6 }));
-      tank.position.set(cx + rand(-0.5, 0.5), h + 0.45, cz + rand(-0.5, 0.5));
+      tank.position.set(rand(-0.5, 0.5), h + 0.45, rand(-0.5, 0.5));
       tank.castShadow = true;
-      this.group.add(tank);
+      shell.roof.add(tank);
+    }
+    const building = this.buildingVisibility.register(shell);
+    for (const part of building.parts) for (const material of part.materials) {
+      if (material.emissiveMap) this.facadeMats.push(material);
     }
   }
 
   /** Colisiones: tramos horizontales de tiles sólidos unidos en una caja */
   _buildCollisions(map, collisions) {
     if (!collisions) return;
-    for (let z = 0; z < S; z++) {
+    for (let z = 0; z < map.length; z++) {
       let x = 0;
-      while (x < S) {
+      while (x < map[0].length) {
         if (!SOLID.has(map[z][x])) { x++; continue; }
         let x2 = x;
-        while (x2 + 1 < S && SOLID.has(map[z][x2 + 1])) x2++;
+        while (x2 + 1 < map[0].length && SOLID.has(map[z][x2 + 1])) x2++;
         const o = new THREE.Object3D();
         o.position.set((W(x) + W(x2)) / 2, 0, W(z));
         collisions.add(o, new THREE.Vector3((x2 - x + 1) * T, 8, T));
@@ -457,28 +523,56 @@ export class Bogota {
     }
     // estación de la troncal
     const st = new THREE.Object3D();
-    st.position.set((W(CARACAS.busway[0]) + W(CARACAS.busway[1])) / 2, 0, W(21.5));
+    st.position.set((W(CARACAS.busway[0]) + W(CARACAS.busway[1])) / 2, 0, WZ(21.5));
     collisions.add(st, new THREE.Vector3(2.6, 3, 16));
   }
 
   _add(obj, x, z, rotY = 0) {
-    obj.position.set(x, obj.position.y + (this._groundY(x, z)), z);
+    obj.position.set(x, obj.position.y, z);
     obj.rotation.y = rotY;
+    obj.position.y += this.getGroundHeightUnder(obj);
     this.group.add(obj);
     if (obj.userData.update) this.animated.push(obj);
     return obj;
   }
 
-  _groundY(x, z) {
+  getGroundHeight(x, z) {
     const t = this.map[Math.round(z / T)]?.[Math.round(x / T)];
-    return t === 'sidewalk' || t === 'floor' || t === 'plaza' ? SIDEWALK_Y : t === 'grass' ? 0.06 : 0;
+    return GROUND_HEIGHTS[t] ?? 0;
+  }
+
+  /** Cota máxima bajo la base completa, incluida su rotación y los tiles vecinos. */
+  getGroundHeightUnder(obj) {
+    obj.updateWorldMatrix(true, true);
+    const origin = obj.getWorldPosition(new THREE.Vector3());
+    const footprint = new THREE.Box3();
+    const bounds = new THREE.Box3();
+    obj.traverseVisible(mesh => {
+      if (!mesh.isMesh || !mesh.visible) return;
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      bounds.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld);
+      // Solo piezas cercanas al piso: un tejado o las ramas no deben levantar el objeto.
+      if (bounds.min.y <= origin.y + 0.15) footprint.union(bounds);
+    });
+    if (footprint.isEmpty()) return this.getGroundHeight(origin.x, origin.z);
+    // Los tiles se extienden medio tile desde su centro; el contacto de borde no cuenta como área.
+    const epsilon = 1e-7;
+    const x0 = Math.max(0, Math.floor((footprint.min.x + T / 2 + epsilon) / T));
+    const x1 = Math.min(this.map[0].length - 1, Math.ceil((footprint.max.x + T / 2 - epsilon) / T) - 1);
+    const z0 = Math.max(0, Math.floor((footprint.min.z + T / 2 + epsilon) / T));
+    const z1 = Math.min(this.map.length - 1, Math.ceil((footprint.max.z + T / 2 - epsilon) / T) - 1);
+    let height = this.getGroundHeight(origin.x, origin.z);
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+      height = Math.max(height, GROUND_HEIGHTS[this.map[z]?.[x]] ?? 0);
+    }
+    return height;
   }
 
   /** Faroles, placas de nomenclatura, estación y bus de la troncal */
   _buildStreetProps(map) {
     // faroles cada ~14 m en los andenes junto a la calzada
-    for (let z = 2; z < S - 2; z += 7) {
-      for (let x = 2; x < S - 2; x += 7) {
+    for (let z = 2; z < map.length - 2; z += 7) {
+      for (let x = 2; x < map[0].length - 2; x += 7) {
         let best = null;
         for (let dz = 0; dz < 7 && !best; dz++) for (let dx = 0; dx < 7 && !best; dx++) {
           const tx = x + dx, tz = z + dz;
@@ -500,13 +594,14 @@ export class Bogota {
     }
     // estación y bus articulado
     const bx = (W(CARACAS.busway[0]) + W(CARACAS.busway[1])) / 2;
-    this._add(P.busStation(16), bx, W(21.5));
-    this._add(P.articulatedBus(), W(CARACAS.lanes[1][0]) + T / 2, W(36));
+    this._add(P.busStation(16), bx, WZ(21.5));
+    this.busService = new BusService(this.getBusRoute());
+    this.group.add(this.busService.group);
     // cerca de la estación: vendedor de tinto y una chaza
     this.vendors = [];
-    this._vendor(W(21), W(18.5), Math.PI / 2, 'chaza', 'Chaza de don Efraín', ['cigarrillo', 'cafe', 'pan', 'agua']);
-    this._vendor(W(28), W(29), 0, 'fritanga', 'Fritanga La Mona', ['lataComida', 'pan', 'refresco']);
-    this._vendor(W(39), W(36), -Math.PI / 2, 'chaza', 'Dulces y minutos', ['cigarrillo', 'refresco', 'agua']);
+    this._vendor(WX(21), WZ(18.5), Math.PI / 2, 'chaza', 'Chaza de don Efraín', ['cigarrillo', 'cafe', 'pan', 'agua']);
+    this._vendor(WX(28), WZ(29), 0, 'fritanga', 'Fritanga La Mona', ['lataComida', 'pan', 'refresco']);
+    this._vendor(WX(39), WZ(36), -Math.PI / 2, 'chaza', 'Dulces y minutos', ['cigarrillo', 'refresco', 'agua']);
   }
 
   /** Vendedor ambulante: puesto + persona; se le puede comprar (lo atiende la tienda con otro catálogo) */
@@ -514,7 +609,7 @@ export class Bogota {
     const stall = kind === 'fritanga' ? P.fritanga() : P.chaza();
     this._add(stall, x, z, rotY);
     const back = new THREE.Vector3(Math.sin(rotY), 0, Math.cos(rotY)).multiplyScalar(-0.9);
-    this.npcs.push(new Npc(this.scene, new THREE.Vector3(x + back.x, this._groundY(x, z), z + back.z), {
+    this.npcs.push(new Npc(this.scene, new THREE.Vector3(x + back.x, this.getGroundHeight(x, z), z + back.z), {
       facing: rotY, isWalkable: () => false
     }));
     this.vendors.push({ kind: 'shop', title, items, position: new THREE.Vector3(x, 0, z) });
@@ -522,7 +617,7 @@ export class Bogota {
 
   /** El Cartucho: humo, fuego, carretas, cambuches, ropa colgada y basura */
   _buildCartucho() {
-    const cx = (x) => W(x), cz = (z) => W(z);
+    const cx = WX, cz = WZ;
     // canecas con fuego en la olla y el callejón
     for (const [x, z] of [[13, 19], [16.5, 24.5], [10, 21.5], [19.5, 22]]) this._add(P.fireBarrel(), cx(x), cz(z));
     // zorras de reciclaje
@@ -548,30 +643,74 @@ export class Bogota {
     for (let i = 0; i < 9; i++) {
       const x = rand(29.5, 38.5), z = rand(33.5, 45.5);
       if (Math.abs(x - 33.5) < 1.6 || Math.abs(z - 39) < 1.2) continue;
-      this._add(P.tree(rand(0.9, 1.3)), W(x), W(z));
+      this._add(P.tree(rand(0.9, 1.3)), WX(x), WZ(z));
     }
     for (const [x, z, r] of [[32, 37, Math.PI / 2], [35, 41, -Math.PI / 2], [31, 39.8, 0], [36.5, 38.2, Math.PI]]) {
-      const banca = new Banca(new THREE.Vector3(W(x), 0.06, W(z)), r);
+      const banca = new Banca(new THREE.Vector3(WX(x), 0.06, WZ(z)), r);
       this.group.add(banca.group);
     }
     // cartel del parque
     const sign = P.streetSign(['Parque', 'Tercer Milenio']);
-    this._add(sign, W(29), W(33), -0.6);
+    this._add(sign, WX(29), WZ(33), -0.6);
   }
 
-  /** Gente: el gentío de El Cartucho y algunos en el parque */
+  _buildExtensions() {
+    for (const park of EXTENSION_PARKS) {
+      for (let z=park.z0+1;z<park.z1;z+=4) for (let x=park.x0+1;x<park.x1;x+=4) {
+        if (this.map[z][x] === 'grass') this._add(P.tree(rand(0.9,1.3)), W(x), W(z));
+      }
+      const pathZ=Math.floor((park.z0+park.z1)/2);
+      for (const x of [park.x0+2,park.x1-2]) {
+        const bench = new Banca(new THREE.Vector3(W(x), this.getGroundHeight(W(x),W(pathZ)), W(pathZ)), 0);
+        this.group.add(bench.group);
+      }
+      this._add(P.streetSign([park.name, 'Bogotá']), W(park.x0), W(pathZ));
+    }
+    this._vendor(W(CARRERAS[2][0]-1.5), W(55), Math.PI/2, 'chaza', 'Chaza de la Carrera 8', ['agua','pan','cafe']);
+    this._vendor(W(52), W(CALLES[2][0]-1.5), 0, 'fritanga', 'Fritanga del Sur', ['lataComida','pan','refresco']);
+  }
+
+  _createPedestrianNavigation() {
+    const carreras = [...CARRERAS, [CARACAS.lanes[0][0], CARACAS.lanes[1][1]]];
+    return new PedestrianNavigation(this.map, T, {
+      // Prolongación de los andenes en los cruces; no pasean por los carriles ni la estación.
+      isCrossing: (x, z) => CALLES.some(([a, b]) =>
+        (z >= a - SIDEWALK_TILES && z < a) || (z > b && z <= b + SIDEWALK_TILES)) ||
+        carreras.some(([a, b]) =>
+          (x >= a - SIDEWALK_TILES && x < a) || (x > b && x <= b + SIDEWALK_TILES)),
+      isBlocked: (x, z) => x === Math.round(this.reserved.shop.x / T) && z === Math.round(this.reserved.shop.z / T),
+      groundHeight: (x, z) => this.getGroundHeight(x, z)
+    });
+  }
+
+  /** Peatones que recorren la ciudad; los vendedores conservan su puesto. */
   _spawnPeople() {
-    const walk = (x, z) => this.isWalkableAt(x, z);
+    const navigation = this.pedestrianNavigation = this._createPedestrianNavigation();
+    const walk = (x, z) => navigation.isWalkableAt(x, z);
     const spots = [
-      // olla y callejón: quietos o deambulando poquito
-      [13.5, 20, 0], [15.5, 20.5, 1.5], [13, 23, 0], [16, 23.5, 2], [11, 21.8, 3], [18, 22.4, 2.5],
-      [17, 19, 0], [12.5, 21, 1], [19.8, 21.5, 0],
-      // parque y andenes
-      [33.5, 36, 4], [34, 43, 3], [21, 30, 0]
+      // El Cartucho y parque.
+      [13.5, 20], [15.5, 20.5], [13, 23], [16, 23.5], [11, 21.8], [18, 22.4],
+      [17, 19], [12.5, 21], [19.8, 21.5], [33.5, 36], [34, 43], [21, 30],
+      // Andenes, incluyendo la calle donde empieza el jugador.
+      [18, 11], [21, 11], [21, 16], [28, 19], [39, 20], [8, 27],
+      [5, 18], [30, 29], [37, 32], [8, 37]
     ];
-    for (const [x, z, wander] of spots) {
-      this.npcs.push(new Npc(this.scene, new THREE.Vector3(W(x), this._groundY(W(x), W(z)), W(z)), {
-        wander: wander * T, isWalkable: walk, gastada: true
+    for (const [x, z] of spots) {
+      const position = navigation.nearestPoint(WX(x), WZ(z));
+      if (!position) continue;
+      this.npcs.push(new Npc(this.scene, position, {
+        navigation, groundHeight: navigation.groundHeight, isWalkable: walk, gastada: true
+      }));
+    }
+    // Mantiene la densidad del centro y distribuye peatones por los barrios nuevos.
+    const candidates = navigation.nodes.filter(node => !node.crossing &&
+      (node.x >= ORIGINAL_CITY_WIDTH-1 || node.z >= ORIGINAL_CITY_HEIGHT-1));
+    const count = Math.min(candidates.length, Math.round(spots.length * (this.populationScale-1)));
+    for (let i=0;i<count;i++) {
+      const node=candidates[Math.floor((i+0.5)*candidates.length/count)];
+      const position = new THREE.Vector3(W(node.x), this.getGroundHeight(W(node.x),W(node.z)), W(node.z));
+      this.npcs.push(new Npc(this.scene, position, {
+        navigation, groundHeight: navigation.groundHeight, isWalkable: walk, gastada: true
       }));
     }
   }
@@ -583,43 +722,56 @@ export class Bogota {
   _mergeStatic() {
     this.group.updateMatrixWorld(true);
     const buckets = new Map();
-    const victims = [];
+    const replacedGeometries = new Set();
     const visit = (o) => {
       if (o.userData.update || o.userData.noMerge) return; // animados y faroles quedan aparte
       if (o.isMesh && !Array.isArray(o.material) && !o.isSkinnedMesh) {
-        const key = `${o.material.uuid}|${o.castShadow}|${o.receiveShadow}`;
-        const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+        if (!o.geometry.attributes.uv || !o.geometry.attributes.normal) return;
+        // Conserva los índices: expandir cajas y planos duplicaba sus vértices.
+        const key = `${o.material.uuid}|${o.castShadow}|${o.receiveShadow}|${!!o.geometry.index}|${geometryChunk(o.geometry, o.matrixWorld)}`;
+        const g = o.geometry.clone();
         for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
-        if (!g.attributes.uv || !g.attributes.normal) return;
         g.applyMatrix4(o.matrixWorld);
-        (buckets.get(key) ?? buckets.set(key, { mat: o.material, cast: o.castShadow, recv: o.receiveShadow, list: [] }).get(key)).list.push(g);
-        victims.push(o);
+        const bucket = buckets.get(key) ?? { mat: o.material, cast: o.castShadow, recv: o.receiveShadow, list: [], sources: [] };
+        buckets.set(key, bucket);
+        bucket.list.push(g);
+        bucket.sources.push(o);
         return;
       }
+      if (o.isMesh && !o.isSkinnedMesh) o.matrixAutoUpdate = false;
       for (const c of o.children) visit(c);
     };
     for (const c of this.group.children) visit(c);
-    for (const v of victims) v.parent.remove(v);
-    for (const { mat, cast, recv, list } of buckets.values()) {
+    for (const { mat, cast, recv, list, sources } of buckets.values()) {
       const merged = mergeGeometries(list);
+      for (const geometry of list) geometry.dispose();
       if (!merged) continue;
+      for (const source of sources) {
+        source.parent.remove(source);
+        replacedGeometries.add(source.geometry);
+      }
       const mesh = new THREE.Mesh(merged, mat);
       mesh.castShadow = cast;
       mesh.receiveShadow = recv;
+      mesh.matrixAutoUpdate = false;
       this.group.add(mesh);
     }
+    // Una geometría compartida por objetos animados sigue en uso.
+    this.group.traverse((o) => replacedGeometries.delete(o.geometry));
+    for (const geometry of replacedGeometries) geometry.dispose();
   }
 
   // ---------- ciclo ----------
 
   update(dt, playerPos, camera) {
     this.t += dt;
+    this.busService?.update(dt, { player: playerPos, pedestrians: this.npcs });
     for (const o of this.animated) o.userData.update(dt, this.t);
     // vista de la cámara una vez por cuadro: los NPC fuera de ella no se dibujan ni se animan
     let frustum = null;
     if (camera) {
       camera.updateMatrixWorld();
-      if (playerPos) updateCutaway(playerPos, camera);
+      if (playerPos) this.buildingVisibility.update(dt, playerPos, camera);
       _projView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       frustum = _frustum.setFromProjectionMatrix(_projView);
     }
@@ -633,6 +785,8 @@ export class Bogota {
   }
 
   dispose(scene) {
+    this.buildingVisibility.dispose();
+    this._facadeTextures.clear();
     scene.remove(this.group);
     for (const n of this.npcs) n.dispose();
     this.group.traverse((o) => {

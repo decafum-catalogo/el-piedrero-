@@ -1,0 +1,66 @@
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+
+export const STATIC_CHUNK_SIZE = 32;
+const center = new THREE.Vector3();
+
+export function geometryChunk(geometry, matrix = null) {
+  geometry.computeBoundingBox();
+  geometry.boundingBox.getCenter(center);
+  if (matrix) center.applyMatrix4(matrix);
+  return `${Math.floor(center.x / STATIC_CHUNK_SIZE)},${Math.floor(center.z / STATIC_CHUNK_SIZE)}`;
+}
+
+/** Mantiene geometría localizable por el frustum, sin una malla que cubra toda la ciudad. */
+export function mergeByChunk(geometries, material, { castShadow = false, receiveShadow = false } = {}) {
+  const group = new THREE.Group(), buckets = new Map();
+  for (const geometry of geometries) {
+    const key = geometryChunk(geometry);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(geometry);
+  }
+  for (const list of buckets.values()) {
+    const mesh = new THREE.Mesh(mergeGeometries(list), material);
+    mesh.castShadow = castShadow;
+    mesh.receiveShadow = receiveShadow;
+    mesh.geometry.computeBoundingSphere();
+    group.add(mesh);
+  }
+  for (const geometry of geometries) geometry.dispose();
+  return group;
+}
+
+/** Solo inmuebles: conserva matrices de bus, llamas, ropa tendida y otros animados. */
+export function freezeStaticTransforms(root, dynamicRoot = null) {
+  root.updateMatrixWorld(true);
+  const visit = object => {
+    if (object === dynamicRoot || object.userData.update) return;
+    object.matrixAutoUpdate = false;
+    object.matrixWorldAutoUpdate = false;
+    for (const child of object.children) visit(child);
+  };
+  visit(root);
+}
+
+/** Agrupa ramas completas sin alterar transformaciones locales ni referencias de edificios. */
+export function createRenderSectors(root, excluded = new Set()) {
+  root.updateWorldMatrix(true, true);
+  const sectors = new Map(), bounds = new THREE.Box3();
+  const inverse = root.matrixWorld.clone().invert();
+  for (const child of [...root.children]) {
+    if (excluded.has(child) || child.userData.update) continue;
+    bounds.setFromObject(child);
+    if (bounds.isEmpty()) continue;
+    bounds.getCenter(center).applyMatrix4(inverse);
+    const key = `${Math.floor(center.x / STATIC_CHUNK_SIZE)},${Math.floor(center.z / STATIC_CHUNK_SIZE)}`;
+    if (!sectors.has(key)) {
+      const sector = new THREE.Group();
+      sector.name = `Sector ${key}`;
+      sectors.set(key, sector);
+      root.add(sector);
+    }
+    // El nuevo padre tiene transformación identidad respecto al anterior.
+    sectors.get(key).add(child);
+  }
+  return [...sectors.values()];
+}

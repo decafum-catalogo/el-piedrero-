@@ -4,9 +4,9 @@
 
 export const ITEMS = {
   // ===== BASURA =====
-  lata:     { id: 'lata',     name: 'Lata vacía',    weight: 0.2,  value: 250 },
+  lata:     { id: 'lata',     name: 'Lata vacía',    weight: 0.2,  value: 250, rarity: 'common' },
   botella:  { id: 'botella',  name: 'Botella PET',   weight: 0.3,  value: 150 },
-  carton:   { id: 'carton',   name: 'Cartón',        weight: 0.5,  value: 200 },
+  carton:   { id: 'carton',   name: 'Cartón',        weight: 0.5,  value: 200, rarity: 'common' },
   chatarra: { id: 'chatarra', name: 'Chatarra',      weight: 1.0,  value: 900 },
   cable:    { id: 'cable',    name: 'Cable cobre',   weight: 0.4,  value: 2400 },
 
@@ -100,11 +100,16 @@ export const ITEMS = {
   },
 
   // ===== MATERIALES DEL CAMBUCHE =====
-  lona:    { id: 'lona',    name: 'Lona azul',     weight: 2,    value: 4000, build: true },
-  madera:  { id: 'madera',  name: 'Tablas',        weight: 2,    value: 1500, build: true },
-  colchon: { id: 'colchon', name: 'Colchón viejo', weight: 6,    value: 5000, build: true },
-  vela:    { id: 'vela',    name: 'Vela',          weight: 0.05, value: 500,  build: true }
+  lona:    { id: 'lona',    name: 'Lona azul',     weight: 2,    value: 4000, build: true, rarity: 'rare' },
+  madera:  { id: 'madera',  name: 'Tablas',        weight: 2,    value: 1500, build: true, rarity: 'uncommon' },
+  colchon: { id: 'colchon', name: 'Colchón viejo', weight: 6,    value: 5000, build: true, rarity: 'veryRare' },
+  vela:    { id: 'vela',    name: 'Vela',          weight: 0.05, value: 500,  build: true, rarity: 'rare' }
 };
+
+export const RARITIES = {
+  common: 'Común', uncommon: 'Poco común', rare: 'Raro', veryRare: 'Muy raro'
+};
+export const itemRarityLabel = id => RARITIES[ITEMS[id]?.rarity] ?? '';
 
 /** La recicladora compra todo lo que no se come, no cura, no es sustancia ni sirve para construir */
 export const isRecyclable = (item) =>
@@ -135,7 +140,8 @@ export const LOOT_COMMON = [
   { item: 'cigarrillo', weight: 2 },
   { item: 'madera',     weight: 3 },
   { item: 'lona',       weight: 0.6 },
-  { item: 'colchon',    weight: 0.4 }
+  { item: 'colchon',    weight: 0.4 },
+  { item: 'vela',       weight: 0.8 }
 ];
 
 export const LOOT_RARE = [

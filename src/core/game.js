@@ -21,6 +21,7 @@ import { TimeSystem } from '../systems/TimeSystem.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { CollisionSystem } from '../systems/CollisionSystem.js';
 import { TrafficSystem } from '../systems/TrafficSystem.js';
+import { distributeShelterLoot, spreadPickupPositions } from '../systems/ShelterLoot.js';
 import { InventorySystem } from '../systems/InventorySystem.js';
 import { AudioSystem } from '../systems/AudioSystem.js';
 import { InteractionSystem } from '../systems/InteractionSystem.js';
@@ -131,17 +132,20 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     await loading.stage('Construyendo la ciudad…', 1);
     this.world.loadDistrict('Bogota', this.collisions);
     this._spawnEntities();
-    this._registerRenderGroups();
 
     const district = this.world.active;
+    this._loadIfSave();
+    // Cada entrada a la partida comienza delante del cambuche, incluso si
+    // la partida guardada conserva una ubicación anterior de exploración.
     if (district?.reserved) {
       this.player.position.set(
-        district.reserved.spawn.x, 0, district.reserved.spawn.z
+        district.reserved.spawn.x,
+        district.getGroundHeight?.(district.reserved.spawn.x, district.reserved.spawn.z) ?? 0,
+        district.reserved.spawn.z
       );
       this.player.root.position.copy(this.player.position);
     }
 
-    this._loadIfSave();
     if (!this.look) {
       await this._createCharacter(loading);
     }
@@ -154,6 +158,18 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
         loading.stage(`Cargando personajes… ${done}/${total}`, 2 + done / total)),
       this.audio.ready
     ]), 'La carga de personajes tardó demasiado.');
+
+    await loading.stage('Cargando carros, TransMilenio y cambuche…', 3.2);
+    const importedEntities = [
+      ...(this.cars ?? []),
+      ...(this.traffic?.vehicles ?? []).map(vehicle => vehicle.car),
+      district?.busService, this.cambuche
+    ].filter(Boolean);
+    await withLoadTimeout(loadInBatches(importedEntities, entity => entity.preloadModel()), 'La carga de vehículos y refugio tardó demasiado.');
+    if (this.cambuche) this.cambuche.group.position.y = district?.getGroundHeightUnder?.(this.cambuche.group)
+      ?? district?.getGroundHeight?.(this.cambuche.position.x, this.cambuche.position.z) ?? 0;
+    // Calcular los límites después de reemplazar las carrocerías por los GLB.
+    this._registerRenderGroups();
 
     if (this.cameraRig.mode === 'third-person') this.player.root.rotation.y = this.cameraRig.yaw + Math.PI;
     this.cameraRig.follow(this.player.position, 0, this.collisions);
@@ -282,20 +298,28 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       [grid[i], grid[j]] = [grid[j], grid[i]];
     }
     const desired = Math.round(14 * (district.populationScale ?? 1));
+    const spawnPositions = spreadPickupPositions(grid, (district.width ?? district.size ?? 32) * 2, (district.height ?? district.size ?? 32) * 2);
     const usedPositions = [];
     for (let i = 0; i < desired; i++) {
       let pos;
       if (usedPositions.length < grid.length) {
-        pos = grid[usedPositions.length];
+        pos = spawnPositions[usedPositions.length];
         usedPositions.push(pos);
       } else {
         pos = findValidSpawn();
       }
       const p = new Pickup(this.sceneMgr.scene, pos);
-      p.onRespawn = (pickup) => pickup.relocate(findValidSpawn(pickup));
+      p.onRespawn = (pickup) => {
+        // Reutilizar zonas de basura transitables; evita interiores de edificios.
+        const available = grid.filter(point => [...this.pickups, ...this.cars].every(other =>
+          other === pickup || point.distanceTo(other.position) >= 4));
+        pickup.relocate(available.length ? available[Math.floor(Math.random() * available.length)] : pickup.position);
+      };
       this.pickups.push(p);
       this.interaction.register(p);
     }
+
+    distributeShelterLoot(this.pickups);
 
     // ===== Autos (robar retrovisores) =====
     const carCount = Math.round(5 * (district.populationScale ?? 1));
@@ -519,7 +543,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     const district = this.world.active;
     if (district?.reserved) {
-      this.player.position.set(district.reserved.bed.x, 0, district.reserved.bed.z + 2);
+      const spawn = district.reserved.respawn ?? { x: district.reserved.bed.x, z: district.reserved.bed.z + 2 };
+      this.player.position.set(spawn.x, district.getGroundHeight?.(spawn.x, spawn.z) ?? 0, spawn.z);
     }
     this.player.root.position.copy(this.player.position);
     this.cameraRig._snap = true;

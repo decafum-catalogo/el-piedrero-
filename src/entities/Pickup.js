@@ -1,6 +1,6 @@
 // src/entities/Pickup.js
 import * as THREE from 'three';
-import { LOOT_COMMON, LOOT_RARE } from '../data/items.js';
+import { ITEMS, LOOT_COMMON, LOOT_RARE } from '../data/items.js';
 import { PICKUP_COOLDOWN, COLORS, SORT_BASE_TIME } from '../utils/constants.js';
 
 export class Pickup {
@@ -76,6 +76,8 @@ export class Pickup {
 
     this._boostActive = false;
     this.onRespawn = null;
+    this.guaranteedLoot = [];
+    this._pendingLoot = null;
   }
 
   get position() { return this.group.position; }
@@ -114,7 +116,9 @@ export class Pickup {
 
     const rareChanceMult = talentEffects.rareChanceMult ?? 1;
 
-    const items = [];
+    const pending = this._pendingLoot;
+    this._pendingLoot = null;
+    const items = pending ? [...pending.items] : [...this.guaranteedLoot];
     let rolls;
     let rareChance;
 
@@ -128,15 +132,16 @@ export class Pickup {
     }
     rolls += talentEffects.extraRolls ?? 0;
 
-    for (let i = 0; i < rolls; i++) {
+    for (let i = 0; !pending && i < rolls; i++) {
       items.push(this._weightedPick(LOOT_COMMON));
     }
 
     let rare = null;
-    if (Math.random() < rareChance) {
+    if (!pending && Math.random() < rareChance) {
       rare = this._weightedPick(LOOT_RARE);
       items.push(rare);
     }
+    rare ??= items.find(id => ['rare', 'veryRare'].includes(ITEMS[id]?.rarity) || ITEMS[id]?.rare) ?? null;
 
     this.used = true;
     this.cooldown = PICKUP_COOLDOWN;
@@ -145,7 +150,18 @@ export class Pickup {
     this.aura.visible = false;
     this.stopSorting();
 
-    return { items, rare, sorted };
+    return { items, rare, sorted: pending?.sorted ?? sorted };
+  }
+
+  /** Conserva el contenido que no cabe; recoger de nuevo no vuelve a sortearlo. */
+  returnUncollected(items, sorted = false) {
+    if (!items.length) return;
+    this._pendingLoot = { items: [...items], sorted };
+    this.used = false;
+    this.cooldown = 0;
+    this.mesh.visible = true;
+    this.marker.visible = true;
+    this.aura.visible = true;
   }
 
   update(dt) {

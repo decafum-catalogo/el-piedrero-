@@ -80,6 +80,9 @@ test('el distrito completo construye y actualiza barrios, vendedores, peatones y
     assert.ok(collisions.colliders.some(({box})=>box.min.z>ORIGINAL_CITY_HEIGHT*2));
     assert.ok(city.busService.startZ>ORIGINAL_CITY_HEIGHT*2);
     for(const point of Object.values(city.reserved)) assert.ok(city.isWalkableAt(point.x,point.z));
+    assert.deepEqual(city.reserved.bed, { x: 112.98, z: 94.64 });
+    assert.deepEqual(city.reserved.respawn, { x: 112.98, z: 97.84 });
+    assert.deepEqual(city.reserved.spawn, city.reserved.respawn);
     const camera=new THREE.PerspectiveCamera(55,1,.1,500);
     camera.userData.cameraMode='isometric';
     camera.position.set(185,20,120);

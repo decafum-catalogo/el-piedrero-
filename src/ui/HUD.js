@@ -3,6 +3,7 @@ import { TALENTS, BRANCHES } from '../data/talents.js';
 import { XP_PER_LEVEL, XP_CRAFT } from '../utils/constants.js';
 import { NEEDS } from '../systems/StatsSystem.js';
 import { cop } from '../utils/money.js';
+import { itemRarityLabel } from '../data/items.js';
 
 export class HUD {
   constructor() {
@@ -264,7 +265,8 @@ export class HUD {
   _renderInventory(inv) {
     const rows = inv.items.map((i) => {
       const canUse = !!(i.consumable || i.cure);
-      return `<div class="inv-row ${canUse ? 'usable' : ''}" data-id="${i.id}" title="${canUse ? 'Clic para usar/consumir' : ''}">
+      const rarity = itemRarityLabel(i.id);
+      return `<div class="inv-row ${canUse ? 'usable' : ''}" data-id="${i.id}" title="${[rarity, canUse ? 'Clic para usar/consumir' : ''].filter(Boolean).join(' · ')}">
         ${i.name} <span>x${i.qty}</span>
       </div>`;
     }).join('');

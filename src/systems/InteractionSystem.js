@@ -1,4 +1,4 @@
-import { ITEMS } from '../data/items.js';
+import { ITEMS, itemRarityLabel } from '../data/items.js';
 import {
   INTERACT_RANGE,
   BOOST_DURATION,
@@ -193,18 +193,27 @@ export class InteractionSystem {
     this.player.playAction?.('buscar', 0.8);
 
     const added = [];
+    const uncollected = [];
+    let collectedRare = null;
     for (const itemId of result.items) {
       const item = ITEMS[itemId];
-      if (item && this.inventory.add(item)) added.push(item.name);
+      if (item && this.inventory.add(item)) {
+        const rarity = itemRarityLabel(itemId);
+        added.push(`${item.name}${rarity ? ` (${rarity})` : ''}`);
+        if (item.rare || ['rare', 'veryRare'].includes(item.rarity)) collectedRare ??= itemId;
+      } else if (item) uncollected.push(itemId);
     }
+    target.returnUncollected?.(uncollected, result.sorted);
+    if (uncollected.length) window.dispatchEvent(new CustomEvent('toast', {
+      detail: { text: 'Costal sin espacio: los objetos restantes siguen en esta bolsa.', type: 'info' }
+    }));
+    if (!added.length) { this.audio?.play('full'); return; }
 
     this.audio?.play('pickup');
-    if (result.rare) {
+    if (collectedRare) {
       this.audio?.play('treasure');
       this.stats.saludMental = Math.min(100, this.stats.saludMental + MENTAL_RESTORE_RARE);
     }
-    if (added.length === 0) this.audio?.play('full');
-
     // Riesgo de enfermedad
     const diseaseResist = this.talents.getEffect('diseaseResist', 1) * this._origin('diseaseResist');
     const sortDiseaseMult = this.talents.getEffect('sortDiseaseMult', 1);
@@ -213,7 +222,7 @@ export class InteractionSystem {
     this.stats.addXP(XP_PICKUP, this.talents);
 
     window.dispatchEvent(new CustomEvent('pickup', {
-      detail: { added, rare: result.rare, sorted: result.sorted }
+      detail: { added, rare: collectedRare, sorted: result.sorted }
     }));
   }
 

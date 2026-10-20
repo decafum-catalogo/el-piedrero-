@@ -43,6 +43,8 @@ const GROUND_HEIGHTS = Object.freeze({
 });
 
 const WX = STREET_X.world, WZ = STREET_Z.world;
+export const SHELTER_LOCATION = Object.freeze({ x: 112.98, z: 94.64 });
+export const SHELTER_RESPAWN = Object.freeze({ x: 112.98, z: 97.84 });
 
 const CARTUCHO = { x0: 8, x1: 21, z0: 14, z1: 29 };
 const SHOP_NAMES = [
@@ -176,9 +178,10 @@ export class Bogota {
 
     // Zonas reservadas (en metros)
     this.reserved = {
-      spawn:  { x: WX(20), z: WZ(11) },
+      spawn:  { ...SHELTER_RESPAWN },
+      respawn: { ...SHELTER_RESPAWN },
       sell:   { x: WX(14.5), z: WZ(34) },     // dentro del portón de la bodega
-      bed:    { x: WX(44.5), z: WZ(40) },     // lote baldío
+      bed:    { ...SHELTER_LOCATION },
       dealer: { x: WX(14.5), z: WZ(21.5) },   // la olla de El Cartucho
       craft:  { x: WX(16.5), z: WZ(24.5) },
       shop:   { x: WX(34), z: WZ(29) }        // andén de la Calle 9, de espaldas a la manzana
@@ -643,9 +646,11 @@ export class Bogota {
     for (let i = 0; i < 9; i++) {
       const x = rand(29.5, 38.5), z = rand(33.5, 45.5);
       if (Math.abs(x - 33.5) < 1.6 || Math.abs(z - 39) < 1.2) continue;
+      if (Math.hypot(WX(x) - SHELTER_LOCATION.x, WZ(z) - SHELTER_LOCATION.z) < 6) continue;
       this._add(P.tree(rand(0.9, 1.3)), WX(x), WZ(z));
     }
     for (const [x, z, r] of [[32, 37, Math.PI / 2], [35, 41, -Math.PI / 2], [31, 39.8, 0], [36.5, 38.2, Math.PI]]) {
+      if (Math.hypot(WX(x) - SHELTER_LOCATION.x, WZ(z) - SHELTER_LOCATION.z) < 5) continue;
       const banca = new Banca(new THREE.Vector3(WX(x), 0.06, WZ(z)), r);
       this.group.add(banca.group);
     }
@@ -785,6 +790,7 @@ export class Bogota {
   }
 
   dispose(scene) {
+    this.busService?.dispose();
     this.buildingVisibility.dispose();
     this._facadeTextures.clear();
     scene.remove(this.group);

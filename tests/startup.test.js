@@ -68,6 +68,9 @@ globalThis.localStorage ??= { getItem() { return null; } };
 
 test('el inicio espera modelos, shaders y GPU antes de mostrar, medir o simular; no se duplica', async t => {
   const f = fixture(t);
+  f.game.world.active.reserved = { spawn: { x: 112.98, z: 97.84 } };
+  f.game.world.active.getGroundHeight = () => .08;
+  f.game._loadIfSave = () => f.game.player.position.set(40, 0, 26);
   const start = f.game.start(f.loading);
   assert.equal(f.game.start(f.loading), start);
   await tick();
@@ -89,6 +92,8 @@ test('el inicio espera modelos, shaders y GPU antes de mostrar, medir o simular;
   assert.equal(f.metrics.previous, null);
   assert.deepEqual(f.game.input.keys, {});
   assert.equal(f.game.clock.hour, 6);
+  assert.deepEqual(f.game.player.position.toArray(), [112.98, .08, 97.84]);
+  assert.deepEqual(f.game.player.root.position, f.game.player.position);
   assert.equal(f.events.filter(e => e === 'map').length, 1);
   assert.ok(f.events.indexOf('show-game') < f.events.indexOf('schedule-loop'));
   f.metrics.sample(20000); f.metrics.sample(20020);
@@ -106,6 +111,27 @@ test('si falla un modelo no arranca una partida incompleta', async t => {
   assert.equal(f.game.paused, true);
   assert.ok(!f.events.includes('show-game'));
   assert.ok(!f.events.includes('schedule-loop'));
+});
+
+test('los vehículos y el refugio terminan de cargar antes del culling y de preparar shaders', async t => {
+  const f = fixture(t);
+  const asset = deferred();
+  const targets = [
+    { preloadModel: () => asset.promise },
+    { preloadModel: () => asset.promise }
+  ];
+  f.game.cars = [targets[0]];
+  f.game.traffic = { vehicles: [{ car: targets[1] }] };
+  f.game._registerRenderGroups = () => f.events.push('culling');
+  const start = f.game.start(f.loading);
+  f.models.resolve(); f.shaders.resolve(); f.gpu.resolve();
+  await tick();
+  assert.ok(!f.events.includes('culling'));
+  assert.ok(!f.events.includes('shaders'));
+  assert.equal(f.game._running, false);
+  asset.resolve(); await start;
+  assert.ok(f.events.indexOf('culling') < f.events.indexOf('shaders'));
+  assert.equal(f.game._running, true);
 });
 
 test('primera partida espera al creador y respeta el modelo liviano guardado', async t => {

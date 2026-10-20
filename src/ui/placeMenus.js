@@ -1,6 +1,6 @@
 // src/ui/placeMenus.js
 // Menús de los lugares: Recicladora El Progreso, Tienda La Esquinita y el cambuche.
-import { ITEMS, SHOP_ITEMS, isRecyclable, itemIcon } from '../data/items.js';
+import { ITEMS, SHOP_ITEMS, isRecyclable, itemIcon, itemRarityLabel } from '../data/items.js';
 import { CAMBUCHE } from '../data/cambuche.js';
 import { originEffect } from '../data/origins.js';
 import { XP_SELL } from '../utils/constants.js';
@@ -135,12 +135,12 @@ export function openCambuche(game) {
     ];
     return { body, foot };
   };
-  game.menu.open({ title: 'Tu cambuche', sub: 'Ármalo por partes con lo que encuentres o compres.', ic: 'tent', render });
+  game.menu.open({ title: 'Tu cambuche', sub: 'Busca materiales en la basura de toda la ciudad: hay suficientes para todas las mejoras.', ic: 'tent', render });
 }
 
 function reqLine(inventory, req) {
   return el('span', { class: 'req' }, Object.entries(req).map(([id, q]) => {
     const n = inventory.count(id);
-    return el('span', { class: n >= q ? 'req__ok' : 'req__no', text: `${nameOf(id)} ${Math.min(n, q)}/${q}` });
+    return el('span', { class: n >= q ? 'req__ok' : 'req__no', title: itemRarityLabel(id), text: `${nameOf(id)} ${Math.min(n, q)}/${q}` });
   }));
 }

@@ -38,7 +38,7 @@ export const CARACAS = {
   lanes: ORIGINAL_CARACAS.lanes.map(STREET_X.band),
   busway: STREET_X.band(ORIGINAL_CARACAS.busway)
 };
-export const WORLD_LAYOUT_VERSION = 2;
+export const WORLD_LAYOUT_VERSION = 3;
 
 export function expandStreets(map) {
   return map.flatMap((row, z) => {
@@ -48,7 +48,8 @@ export function expandStreets(map) {
 }
 
 export function migrateStreetPosition(position, version = 0) {
-  if (version >= WORLD_LAYOUT_VERSION) return [...position];
+  // La ampliación v3 añade terreno sin desplazar las coordenadas de la v2.
+  if (version >= 2) return [...position];
   const [x, y, z] = position;
   const tx = version === 1 ? previousX.original(x / TILE_SIZE) : x / TILE_SIZE;
   const tz = version === 1 ? previousZ.original(z / TILE_SIZE) : z / TILE_SIZE;

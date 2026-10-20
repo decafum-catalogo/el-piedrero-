@@ -19,6 +19,20 @@ export class AudioSystem {
       ambient:  new Howl({ src: ['/audio/ambient.wav'],  volume: 0.25, loop: true })
     };
 
+    // El audio es opcional: un archivo ausente o bloqueado no impide jugar.
+    this.ready = Promise.all(Object.values(this.sounds).map(sound => new Promise(resolve => {
+      if (sound.state() === 'loaded') { resolve(); return; }
+      const done = () => {
+        clearTimeout(timer);
+        sound.off('load', done);
+        sound.off('loaderror', done);
+        resolve();
+      };
+      const timer = setTimeout(done, 5000);
+      sound.once('load', done);
+      sound.once('loaderror', done);
+    })));
+
     this._stepsPlaying = false;
     this._boostPlaying = false;
     this._ambientStarted = false;

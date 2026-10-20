@@ -75,6 +75,36 @@ test('volver a tercera persona restaura inmediatamente todas las piezas y mantie
   }
 });
 
+test('la versión agrupada conserva triángulos y alterna sin duplicar edificios ni perder el recorte', () => {
+  const f = fixture();
+  const count = objects => {
+    let total = 0;
+    for (const object of objects) object.traverse(o => { if (o.isMesh) total += o.geometry.index.count; });
+    return total;
+  };
+  const parts = f.visibility.buildings.flatMap(building => building.parts.map(p => p.object));
+  const indices = count(parts);
+  const batch = f.visibility.buildClosedView();
+  f.scene.add(batch);
+  assert.equal(count([batch]), indices);
+  const originalBounds = new THREE.Box3();
+  for (const part of parts) originalBounds.union(new THREE.Box3().setFromObject(part));
+  assert.ok(new THREE.Box3().setFromObject(batch).equals(originalBounds));
+  f.camera.userData.cameraMode = 'third-person';
+  f.advance(1);
+  assert.equal(batch.visible, true);
+  assert.ok(parts.every(p => !p.visible));
+  f.camera.userData.cameraMode = 'isometric';
+  f.advance();
+  assert.equal(batch.visible, false);
+  assert.equal(f.building.roofPart.opacity, 0);
+  f.camera.userData.cameraMode = 'third-person';
+  f.advance(1);
+  assert.ok(parts.every(p => !p.visible));
+  assert.equal(batch.visible, true);
+  batch.traverse(o => { if (o.isMesh) assert.equal(o.material.opacity, 1); });
+});
+
 test('el techo y las paredes separadas conservan altura, normales y un piso interior cerrado', () => {
   const f = fixture();
   const before = new THREE.Box3().setFromObject(f.building.root);

@@ -7,7 +7,16 @@
   <link rel="stylesheet" href="/src/ui/styles.css" />
   <link rel="stylesheet" href="/src/ui/menus.css" />
 </head>
-<body>
+<body class="is-loading">
+<section id="loading-screen" aria-label="Carga del juego">
+  <div class="loading-card">
+    <h1>VAGABUNDO</h1>
+    <p id="loading-status" role="status" aria-live="polite">Preparando el juego…</p>
+    <progress id="loading-progress" max="5" value="0" aria-label="Progreso de carga"></progress>
+    <p class="loading-hint">La partida y el contador de FPS comenzarán cuando termine la carga.</p>
+    <button id="loading-retry" type="button" hidden>Reintentar</button>
+  </div>
+</section>
 <div id="app">
   <canvas id="game-canvas"></canvas>
 

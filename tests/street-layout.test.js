@@ -5,12 +5,13 @@ import { Game } from '../src/core/game.js';
 import * as THREE from 'three';
 import { STREET_X, STREET_Z, CARRERAS, CALLES, CARACAS, SIDEWALK_TILES,
   migrateStreetPosition, WORLD_LAYOUT_VERSION } from '../src/world/bogota/StreetLayout.js';
+import { CITY_WIDTH, CITY_HEIGHT } from '../src/world/bogota/CityLayout.js';
 
 test('las calzadas conservan 12 metros y los andenes pasan de 2 a 4 metros sin reducir las manzanas', () => {
   const city = new Bogota();
   const map = city.map = city._layout();
-  assert.equal(map.length, 60);
-  assert.ok(map.every(row => row.length === 74));
+  assert.equal(map.length, CITY_HEIGHT);
+  assert.ok(map.every(row => row.length === CITY_WIDTH));
   const z = STREET_Z.tile(5), x = STREET_X.tile(18);
   for (const [a,b] of [...CARRERAS, ...CARACAS.lanes, CARACAS.busway]) {
     assert.equal((b - a + 1) * 2, 12);

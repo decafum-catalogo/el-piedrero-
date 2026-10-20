@@ -2,6 +2,24 @@
 html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 canvas { display: block; width: 100vw; height: 100vh; }
 
+#performance-panel {
+  position: fixed; right: 12px; bottom: 48px; z-index: 20;
+  max-width: calc(100vw - 24px); padding: 10px 12px;
+  color: #d9f9e6; background: rgba(9, 17, 21, .88);
+  border: 1px solid #54776a; border-radius: 6px;
+  font: 12px/1.6 monospace; font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+#performance-panel pre { font: inherit; white-space: pre-wrap; }
+#performance-panel button {
+  margin-top: 5px; padding: 3px 6px; cursor: pointer;
+  color: #d9f9e6; background: #243d35; border: 1px solid #54776a;
+  border-radius: 3px; font: inherit; pointer-events: auto;
+}
+@media (max-width: 650px) {
+  #performance-panel { font-size: 10px; right: 6px; bottom: 38px; padding: 6px; }
+}
+
 #hud {
   position: fixed; bottom: 20px; left: 20px;
   display: flex; flex-direction: column; gap: 6px;
@@ -298,3 +316,16 @@ canvas { display: block; width: 100vw; height: 100vh; }
   font-size: 9px;
   color: #888;
 }
+body.is-loading #app, body.is-loading #performance-panel { visibility: hidden; }
+body.is-loading #creator-modal { visibility: visible; }
+#loading-screen {
+  position: fixed; inset: 0; z-index: 20000; display: grid; place-items: center;
+  background: radial-gradient(ellipse at center, #30281f, #101317 75%); color: #ece3ce;
+  font-family: Overpass, sans-serif; text-align: center;
+}
+#loading-screen[hidden] { display: none; }
+.loading-card { width: min(480px, 85vw); padding: 24px; }
+.loading-card h1 { color: #edc55e; letter-spacing: .15em; font-size: 36px; }
+#loading-progress { width: 100%; height: 12px; accent-color: #edc55e; }
+.loading-hint { color: #afa99d; font-size: 14px; line-height: 1.6; }
+#loading-retry { padding: 10px 24px; cursor: pointer; }

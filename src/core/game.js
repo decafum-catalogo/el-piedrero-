@@ -29,6 +29,10 @@ import { TalentSystem } from '../systems/TalentSystem.js';
 import { CraftingSystem } from '../systems/CraftingSystem.js';
 
 import { HUD } from '../ui/HUD.js';
+import { PerformanceHUD } from '../ui/PerformanceHUD.js';
+import { LocalLights } from './LocalLights.js';
+import { loadInBatches, withLoadTimeout } from './Startup.js';
+import { paintLoadingFrame } from '../ui/LoadingScreen.js';
 import { el, button } from '../ui/dom.js';
 import { Menu } from '../ui/Menu.js';
 import { createCreator } from '../ui/Creator.js';
@@ -75,6 +79,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     // HUD, menús y creador de personaje
     this.hud = new HUD();
+    this.performanceHUD = new PerformanceHUD();
+    this.localLights = new LocalLights(this.sceneMgr.scene);
     this.menu = new Menu();
     this.creator = createCreator({ audio: null });
     this.cameraRig.canControl = () => !this.paused && !this.isSleeping &&
@@ -87,7 +93,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
       if (e.code === 'KeyV') this._toggleCamera();
-      if (e.code === 'KeyP' && !this.menu.isOpen && !this.creator.isOpen && this.look) this.editLook();
+      if (e.code === 'KeyP' && !this.paused && this.look) this.editLook();
       if (e.code === 'KeyM' && !this.paused) this._toggleModel();
     });
 
@@ -112,14 +118,20 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     this._lastTime = performance.now();
     this._running = false;
+    this._loading = true;
 
     window.__game = this;
   }
 
-  start() {
-    this._running = true;
+  start(loading) {
+    return this._startPromise ??= this._initialize(loading);
+  }
+
+  async _initialize(loading) {
+    await loading.stage('Construyendo la ciudad…', 1);
     this.world.loadDistrict('Bogota', this.collisions);
     this._spawnEntities();
+    this._registerRenderGroups();
 
     const district = this.world.active;
     if (district?.reserved) {
@@ -130,21 +142,59 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }
 
     this._loadIfSave();
-    if (this.cameraRig.mode === 'third-person') this.player.root.rotation.y = this.cameraRig.yaw + Math.PI;
-    this.cameraRig.follow(this.player.position, 0, this.collisions);
-    this.audio.startAmbient();
-    this._loop();
-    if (!this.look) this._createCharacter();
+    if (!this.look) {
+      await this._createCharacter(loading);
+    }
+    await loading.stage('Cargando personajes y sonidos…', 2);
     let modelo = null;
     try { modelo = localStorage.getItem('bazuko.modelo'); } catch { /* sin almacenamiento */ }
-    // El realista es el principal; el procedural queda como modo liviano (tecla M)
-    if (modelo !== 'procedural') this.player.setModel('realista');
+    await withLoadTimeout(Promise.all([
+      modelo !== 'procedural' ? this.player.setModel('realista') : Promise.resolve(),
+      loadInBatches(district?.npcs ?? [], npc => npc.preload(), (done, total) =>
+        loading.stage(`Cargando personajes… ${done}/${total}`, 2 + done / total)),
+      this.audio.ready
+    ]), 'La carga de personajes tardó demasiado.');
+
+    if (this.cameraRig.mode === 'third-person') this.player.root.rotation.y = this.cameraRig.yaw + Math.PI;
+    this.cameraRig.follow(this.player.position, 0, this.collisions);
+    this.sceneMgr.setTimeOfDay(this.clock.hour);
+    this.sceneMgr.followTarget(this.player.position);
+    this._wasNight = this.clock.isNight;
+    district?.setNightMode?.(this._wasNight);
+    this.dealer?.setNight(this._wasNight);
+    this.world.update(0, this.player.position, this.cameraRig.camera);
+    this.localLights.update(0, this.player.position, (x, z) => district?.getGroundHeight?.(x, z) ?? 0, this.cameraRig.camera);
+    await loading.stage('Preparando texturas, luces y shaders…', 4);
+    const extraModels = (district?.npcs ?? []).flatMap(npc => [npc.lodChar?.group, npc.fullChar?.group]).filter(Boolean);
+    await withLoadTimeout(this.renderer.prepare(this.sceneMgr.scene, this.cameraRig.camera, extraModels), 'La preparación gráfica tardó demasiado.');
+    await loading.stage('Preparando el primer fotograma…', 4.8);
+    // Estas pasadas preparan sombras, geometría y silueta sin simular ni medir FPS.
+    for (let frame = 0; frame < 3; frame++) {
+      this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera, this.player.root, [this.sceneMgr.sun]);
+      await paintLoadingFrame();
+    }
+    await this.renderer.waitForGPU();
+    await loading.stage('Todo listo', 5);
+    this.performanceHUD.metrics.reset();
+    this.performanceHUD.nextPaint = 0;
+    this.renderer.resolution.resetWindow();
+    this.input.keys = {};
+    this.input.endFrame();
+    this._lastTime = performance.now();
+    this._lastRenderTime = undefined;
+    this._loading = false;
+    this._running = true;
+    loading.finish();
+    this.audio.startAmbient();
+    requestAnimationFrame(this._loop);
   }
 
   /** Primera vez: abre el creador antes de jugar */
-  async _createCharacter() {
-    const look = await this.creator.open(DEFAULT_LOOK, { doneLabel: 'Empezar' });
-    this._applyLook(look ?? { ...DEFAULT_LOOK, nombre: 'Parcero' });
+  async _createCharacter(loading = null) {
+    const look = await this.creator.open(DEFAULT_LOOK, {
+      doneLabel: 'Empezar', onReady: () => loading?.forCreator()
+    });
+    await this._applyLook(look ?? { ...DEFAULT_LOOK, nombre: 'Parcero' });
     this._save();
   }
 
@@ -152,15 +202,16 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
   async editLook() {
     const look = await this.creator.open(this.look, { doneLabel: 'Guardar' });
     if (look) {
-      this._applyLook(look);
+      await this._applyLook(look);
       this._save();
     }
   }
 
   _applyLook(look) {
     this.look = normalizeLook({ ...look, v: 2 });
-    this.player.setLook(this.look);
+    const ready = this.player.setLook(this.look);
     this.interaction.originId = this.look.origen;
+    return ready;
   }
 
   /** Tecla M: alterna personaje realista / procedural (liviano) y lo recuerda */
@@ -182,7 +233,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
   /** El mundo se congela mientras hay un menú o el creador abierto */
   get paused() {
-    return this._deathPending || this.menu.isOpen || this.creator.isOpen;
+    return this._loading || this._deathPending || this.menu.isOpen || this.creator.isOpen;
   }
 
   _spawnEntities() {
@@ -230,7 +281,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       const j = Math.floor(Math.random() * (i + 1));
       [grid[i], grid[j]] = [grid[j], grid[i]];
     }
-    const desired = 14;
+    const desired = Math.round(14 * (district.populationScale ?? 1));
     const usedPositions = [];
     for (let i = 0; i < desired; i++) {
       let pos;
@@ -247,7 +298,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }
 
     // ===== Autos (robar retrovisores) =====
-    const carCount = 5;
+    const carCount = Math.round(5 * (district.populationScale ?? 1));
     // parqueados junto al andén y alineados con la calle si el distrito lo sabe; si no, donde se pueda
     const parking = district.getParkingSpots?.() ?? [];
     for (let i = parking.length - 1; i > 0; i--) {
@@ -492,7 +543,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     if (this.isSleeping || this.paused) {
       this.cameraRig.cancelDrag();
       this.audio.updateSteps(false, false);
-      this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera, this.player.root);
+      this._renderFrame(now, false);
       this.input.endFrame();
       return;
     }
@@ -559,7 +610,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.audio.updateBoost(this.interaction.boostActive);
 
     // 12. Render
-    this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera, this.player.root);
+    this._renderFrame(now, true);
 
     // 13. UI
     this.hud.update(
@@ -570,6 +621,26 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     // 15. Fin de frame
     this.input.endFrame();
   };
+
+  _renderFrame(now, active) {
+    const elapsed = this._lastRenderTime === undefined ? 0 : (now - this._lastRenderTime) / 1000;
+    this._lastRenderTime = now;
+    this.localLights.update(elapsed, this.player.position, (x, z) => this.world.active?.getGroundHeight?.(x, z) ?? 0, this.cameraRig.camera);
+    this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera, this.player.root, [this.sceneMgr.sun]);
+    if (this.performanceHUD.update(now, this.player.position, this.renderer, active, this.localLights)) {
+      this.renderer.adaptResolution(this.performanceHUD.metrics.frameMs);
+    } else this.renderer.resolution.resetWindow();
+  }
+
+  _registerRenderGroups() {
+    const culling = this.renderer.culling, district = this.world.active;
+    culling.clear();
+    for (const sector of district?.renderSectors ?? []) culling.register(sector);
+    for (const object of district?.animated ?? []) culling.register(object, { margin: 1 });
+    if (district?.busService) culling.register(district.busService.group, { dynamic: true, margin: .5 });
+    for (const car of this.cars) culling.register(car.group, { dynamic: true, margin: .5 });
+    for (const { car } of this.traffic?.vehicles ?? []) culling.register(car.group, { dynamic: true, margin: .5 });
+  }
 
   stop() { this._running = false; }
 }

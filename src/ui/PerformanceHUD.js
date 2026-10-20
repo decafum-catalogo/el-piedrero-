@@ -1,0 +1,42 @@
+import { FrameMetrics } from '../core/FrameMetrics.js';
+
+export class PerformanceHUD {
+  constructor() {
+    this.metrics = new FrameMetrics();
+    this.nextPaint = 0;
+    this.element = document.createElement('aside');
+    this.element.id = 'performance-panel';
+    this.element.setAttribute('aria-label', 'Rendimiento y coordenadas del jugador');
+    this.element.innerHTML = '<pre></pre><button type="button" title="Reiniciar mínimos, máximos y promedio">Reiniciar medición</button>';
+    this.text = this.element.querySelector('pre');
+    this.element.querySelector('button').addEventListener('click', () => this.metrics.reset());
+    document.body.appendChild(this.element);
+    this.onVisibility = () => { this.metrics.previous = null; };
+    document.addEventListener('visibilitychange', this.onVisibility);
+  }
+
+  update(now, position, renderer, active, lighting = null) {
+    const sampled = this.metrics.sample(now, active && !document.hidden);
+    if (now < this.nextPaint) return sampled;
+    this.nextPaint = now + 250; // 4 escrituras/s; las muestras sí se toman cada cuadro.
+    const m = this.metrics;
+    const fps = value => m.frames ? value.toFixed(1) : '—';
+    const info = renderer.instance.info.render;
+    this.text.textContent = [
+      `FPS actual ${fps(m.current)}${active ? '' : ' · pausa'}`,
+      `Mín ${fps(m.min)} · Máx ${fps(m.max)}`,
+      `Promedio ${fps(m.average)} · ${m.frameMs.toFixed(1)} ms`,
+      `X ${position.x.toFixed(2)}  Y ${position.y.toFixed(2)}  Z ${position.z.toFixed(2)}`,
+      `Dibujo ${info.calls} · Triángulos ${info.triangles.toLocaleString('es')}`,
+      `Resolución ${renderer.instance.getPixelRatio().toFixed(2)}×`,
+      ...(renderer.culling ? [`Grupos en cámara ${renderer.culling.stats.visible}/${renderer.culling.stats.total} · Descartados ${renderer.culling.stats.culled}`] : []),
+      ...(lighting ? [`Luces dinámicas ${lighting.pool.length} · Halos ${lighting.halos.mesh.count}`] : [])
+    ].join('\n');
+    return sampled;
+  }
+
+  dispose() {
+    document.removeEventListener('visibilitychange', this.onVisibility);
+    this.element.remove();
+  }
+}

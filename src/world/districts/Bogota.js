@@ -1,7 +1,8 @@
 // src/world/districts/Bogota.js
 // Centro de Bogotá (inspirado en Santa Inés / El Cartucho y la Av. Caracas).
 //
-// Rejilla original de 48 × 48; calzadas a 3× y andenes a 2× (74 × 60 tiles de 2 m). Ejes: x = oriente↔occidente (los cerros quedan hacia −x,
+// Ciudad de 120 × 111 tiles de 2 m; conserva el centro de 74 × 60 y añade barrios al oriente y al sur.
+// Ejes: x = oriente↔occidente (los cerros quedan hacia −x,
 // que es donde mira la cámara), z = norte↔sur. Carreras corren a lo largo de z, calles a lo largo de x.
 //
 //   Carrera 15 (x 6-7) · Av. Caracas (x 22-27, troncal en x 24-25) · Carrera 10 (x 40-41)
@@ -23,9 +24,13 @@ import { BuildingVisibility, createBuildingShell } from '../bogota/BuildingVisib
 import { PedestrianNavigation } from '../bogota/PedestrianNavigation.js';
 import { TrafficRoute } from '../bogota/TrafficRoute.js';
 import { BusService } from '../bogota/BusService.js';
+import { geometryChunk, mergeByChunk, freezeStaticTransforms, createRenderSectors } from '../bogota/StaticGeometry.js';
+import { CITY_WIDTH, CITY_HEIGHT, CITY_AREA_MULTIPLIER, CITY_CARRERAS as CARRERAS,
+  CITY_CALLES as CALLES, ORIGINAL_CITY_WIDTH, ORIGINAL_CITY_HEIGHT, EXTENSION_PARKS,
+  expandCity } from '../bogota/CityLayout.js';
 
 import { ORIGINAL_SIZE as S, ORIGINAL_CARRERAS, ORIGINAL_CARACAS, ORIGINAL_CALLES,
-  CARRERAS, CARACAS, CALLES, STREET_X, STREET_Z, expandStreets,
+  CARACAS, STREET_X, STREET_Z, expandStreets,
   migrateStreetPosition, WORLD_LAYOUT_VERSION, SIDEWALK_TILES } from '../bogota/StreetLayout.js';
 const T = TILE_SIZE;
 const WALKABLE = new Set(['road', 'busway', 'sidewalk', 'dirt', 'grass', 'plaza', 'floor']);
@@ -74,13 +79,15 @@ const W = (t) => t * T; // tile → metros (centro del tile)
 export class Bogota {
   constructor() {
     this.group = new THREE.Group();
-    this.width = STREET_X.size;
-    this.height = STREET_Z.size;
+    this.width = CITY_WIDTH;
+    this.height = CITY_HEIGHT;
+    this.populationScale = CITY_AREA_MULTIPLIER;
     this.size = Math.max(this.width, this.height);
     this.layoutVersion = WORLD_LAYOUT_VERSION;
     this.props = [];          // { instance } con setNight/update (faroles de bazuko)
     this.animated = [];       // grupos con userData.update
     this.facadeMats = [];
+    this._facadeTextures = new Map();
     this.npcs = [];
     this.buildingVisibility = new BuildingVisibility();
     this.t = 0;
@@ -128,7 +135,7 @@ export class Bogota {
     for (let z = 33; z <= 45; z++) for (let x = 29; x <= 38; x++) m[z][x] = (x === 33 || x === 34 || z === 39) ? 'plaza' : 'grass';
     // lote baldío del cambuche
     for (let z = 33; z <= 45; z++) for (let x = 43; x <= 46; x++) m[z][x] = 'dirt';
-    return expandStreets(m);
+    return expandCity(expandStreets(m));
   }
 
   migrateSavedPosition(position, version) { return migrateStreetPosition(position, version); }
@@ -145,13 +152,21 @@ export class Bogota {
     this._buildStreetProps(map);
     this._buildCartucho();
     this._buildPark();
+    this._buildExtensions();
 
     const cer = P.cerros();
     cer.position.set(-130, 0, W(this.height / 2) - 30);
     cer.rotation.y = Math.PI / 2;
     this.group.add(cer);
     this._mergeStatic();
+    this.group.add(this.buildingVisibility.buildClosedView());
+    const closedView = this.buildingVisibility.closedView;
+    this.renderSectors = [
+      ...createRenderSectors(this.group, new Set([closedView, this.busService?.group])),
+      ...createRenderSectors(closedView)
+    ];
     scene.add(this.group);
+    freezeStaticTransforms(this.group, this.busService?.group);
 
     this.isWalkableAt = (wx, wz) => {
       const tx = Math.round(wx / T), tz = Math.round(wz / T);
@@ -218,7 +233,11 @@ export class Bogota {
     const top = lane(CALLES[0], 1), bottom = lane(CALLES[1], -1);
     return [
       new TrafficRoute(lane(CARRERAS[0], 1), lane(CARACAS.lanes[0], -1), top, bottom),
-      new TrafficRoute(lane(CARACAS.lanes[1], 1), lane(CARRERAS[1], -1), top, bottom)
+      new TrafficRoute(lane(CARACAS.lanes[1], 1), lane(CARRERAS[1], -1), top, bottom),
+      new TrafficRoute(lane(CARRERAS[1], 1), lane(CARRERAS[2], -1), top, lane(CALLES.at(-1), -1)),
+      new TrafficRoute(lane(CARRERAS[2], 1), lane(CARRERAS[3], -1), top, lane(CALLES.at(-1), -1)),
+      new TrafficRoute(lane(CARRERAS[0], 1), lane(CARACAS.lanes[0], -1), lane(CALLES[1], 1), lane(CALLES.at(-1), -1)),
+      new TrafficRoute(lane(CARACAS.lanes[1], 1), lane(CARRERAS[1], -1), lane(CALLES[1], 1), lane(CALLES.at(-1), -1))
     ];
   }
 
@@ -277,9 +296,7 @@ export class Bogota {
     }
     mats.curb = new THREE.MeshStandardMaterial({ color: '#d8d4c8', roughness: 0.8 });
     for (const [t, list] of Object.entries(quads)) {
-      const mesh = new THREE.Mesh(mergeGeometries(list), mats[t]);
-      mesh.receiveShadow = true;
-      this.group.add(mesh);
+      this.group.add(mergeByChunk(list, mats[t], { receiveShadow: true }));
     }
     // muro perimetral bajo y oscuro (no se ve el borde del mundo)
   }
@@ -323,10 +340,10 @@ export class Bogota {
     }
     const markMat = new THREE.MeshStandardMaterial({ color: '#e2e2dc', roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 });
     const yelMat = new THREE.MeshStandardMaterial({ color: '#e0a800', roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2 });
-    this.group.add(new THREE.Mesh(mergeGeometries(white), markMat));
-    this.group.add(new THREE.Mesh(mergeGeometries(yellow), yelMat));
-    const sep = new THREE.Mesh(mergeGeometries(curbs), new THREE.MeshStandardMaterial({ color: '#cfcac0', roughness: 0.8 }));
-    sep.receiveShadow = sep.castShadow = true;
+    this.group.add(mergeByChunk(white, markMat));
+    this.group.add(mergeByChunk(yellow, yelMat));
+    const sep = mergeByChunk(curbs, new THREE.MeshStandardMaterial({ color: '#cfcac0', roughness: 0.8 }),
+      { receiveShadow: true, castShadow: true });
     this.group.add(sep);
   }
 
@@ -407,7 +424,14 @@ export class Bogota {
     const h = floors * 3;
     const style = ruin ? 'ruina' : Math.random() < 0.55 ? 'ladrillo' : 'pintada';
     // el ladrillo necesita más resolución para que cada ladrillo (36 × 12 cm) se distinga
-    const tex = TX.facade({ seed: Math.floor(Math.random() * 1e6), width: widthM, floors, pxPerM: style === 'pintada' ? 28 : 40, shopFront: true, style });
+    // Variantes compartidas: ampliar el barrio no triplica las texturas de fachada en la GPU.
+    const variant = Math.floor(Math.random() * 2);
+    const textureKey = `${widthM}:${floors}:${style}:${variant}`;
+    let tex = this._facadeTextures.get(textureKey);
+    if (!tex) {
+      tex = TX.facade({ seed: Math.floor(Math.random() * 1e6), width: widthM, floors, pxPerM: style === 'pintada' ? 28 : 40, shopFront: true, style });
+      this._facadeTextures.set(textureKey, tex);
+    }
     for (const t of [tex.map, tex.emissiveMap, tex.bumpMap]) { t.anisotropy = 8; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; }
     const facadeMat = new THREE.MeshStandardMaterial({
       map: tex.map, emissiveMap: tex.emissiveMap, emissive: '#ffffff', emissiveIntensity: 0,
@@ -630,6 +654,22 @@ export class Bogota {
     this._add(sign, WX(29), WZ(33), -0.6);
   }
 
+  _buildExtensions() {
+    for (const park of EXTENSION_PARKS) {
+      for (let z=park.z0+1;z<park.z1;z+=4) for (let x=park.x0+1;x<park.x1;x+=4) {
+        if (this.map[z][x] === 'grass') this._add(P.tree(rand(0.9,1.3)), W(x), W(z));
+      }
+      const pathZ=Math.floor((park.z0+park.z1)/2);
+      for (const x of [park.x0+2,park.x1-2]) {
+        const bench = new Banca(new THREE.Vector3(W(x), this.getGroundHeight(W(x),W(pathZ)), W(pathZ)), 0);
+        this.group.add(bench.group);
+      }
+      this._add(P.streetSign([park.name, 'Bogotá']), W(park.x0), W(pathZ));
+    }
+    this._vendor(W(CARRERAS[2][0]-1.5), W(55), Math.PI/2, 'chaza', 'Chaza de la Carrera 8', ['agua','pan','cafe']);
+    this._vendor(W(52), W(CALLES[2][0]-1.5), 0, 'fritanga', 'Fritanga del Sur', ['lataComida','pan','refresco']);
+  }
+
   _createPedestrianNavigation() {
     const carreras = [...CARRERAS, [CARACAS.lanes[0][0], CARACAS.lanes[1][1]]];
     return new PedestrianNavigation(this.map, T, {
@@ -662,6 +702,17 @@ export class Bogota {
         navigation, groundHeight: navigation.groundHeight, isWalkable: walk, gastada: true
       }));
     }
+    // Mantiene la densidad del centro y distribuye peatones por los barrios nuevos.
+    const candidates = navigation.nodes.filter(node => !node.crossing &&
+      (node.x >= ORIGINAL_CITY_WIDTH-1 || node.z >= ORIGINAL_CITY_HEIGHT-1));
+    const count = Math.min(candidates.length, Math.round(spots.length * (this.populationScale-1)));
+    for (let i=0;i<count;i++) {
+      const node=candidates[Math.floor((i+0.5)*candidates.length/count)];
+      const position = new THREE.Vector3(W(node.x), this.getGroundHeight(W(node.x),W(node.z)), W(node.z));
+      this.npcs.push(new Npc(this.scene, position, {
+        navigation, groundHeight: navigation.groundHeight, isWalkable: walk, gastada: true
+      }));
+    }
   }
 
   /**
@@ -677,7 +728,7 @@ export class Bogota {
       if (o.isMesh && !Array.isArray(o.material) && !o.isSkinnedMesh) {
         if (!o.geometry.attributes.uv || !o.geometry.attributes.normal) return;
         // Conserva los índices: expandir cajas y planos duplicaba sus vértices.
-        const key = `${o.material.uuid}|${o.castShadow}|${o.receiveShadow}|${!!o.geometry.index}`;
+        const key = `${o.material.uuid}|${o.castShadow}|${o.receiveShadow}|${!!o.geometry.index}|${geometryChunk(o.geometry, o.matrixWorld)}`;
         const g = o.geometry.clone();
         for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
         g.applyMatrix4(o.matrixWorld);
@@ -735,6 +786,7 @@ export class Bogota {
 
   dispose(scene) {
     this.buildingVisibility.dispose();
+    this._facadeTextures.clear();
     scene.remove(this.group);
     for (const n of this.npcs) n.dispose();
     this.group.traverse((o) => {

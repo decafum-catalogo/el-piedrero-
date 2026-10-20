@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { geometryChunk } from './StaticGeometry.js';
 
 const WALL_FACES = [0, 1, 4, 5];
 const LOW_WALL_HEIGHT = 0.65;
@@ -86,6 +88,8 @@ export class BuildingVisibility {
   constructor() {
     this.buildings = [];
     this.enabled = false;
+    this.closedView = null;
+    this._closedMode = null;
     this._camera = new THREE.Vector3();
     this._right = new THREE.Vector3();
     this._target = new THREE.Vector3();
@@ -110,6 +114,7 @@ export class BuildingVisibility {
           if (!clones.has(key)) {
             const copy = material.clone();
             copy.side = side;
+            copy.userData.staticBatchKey = key;
             clones.set(key, copy);
           }
           return clones.get(key);
@@ -137,6 +142,38 @@ export class BuildingVisibility {
     return false;
   }
 
+  /** Versión agrupada de las partes altas para tercera persona; conserva el recorte isométrico. */
+  buildClosedView() {
+    const group = new THREE.Group(), buckets = new Map();
+    group.name = 'Edificios agrupados en tercera persona';
+    group.userData.noMerge = true;
+    group.visible = false;
+    for (const building of this.buildings) for (const part of building.parts) {
+      part.object.updateWorldMatrix(true, true);
+      part.object.traverse(mesh => {
+        if (!mesh.isMesh || Array.isArray(mesh.material)) return;
+        const key = `${mesh.material.userData.staticBatchKey ?? mesh.material.uuid}|${mesh.castShadow}|${mesh.receiveShadow}|${geometryChunk(mesh.geometry, mesh.matrixWorld)}`;
+        if (!buckets.has(key)) buckets.set(key, { source: mesh, geometries: [] });
+        const geometry = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
+        // Las caras y los adornos comparten estos atributos; no se necesitan tangentes.
+        for (const name of Object.keys(geometry.attributes)) if (!['position', 'normal', 'uv'].includes(name)) geometry.deleteAttribute(name);
+        buckets.get(key).geometries.push(geometry);
+      });
+    }
+    for (const { source, geometries } of buckets.values()) {
+      const geometry = mergeGeometries(geometries);
+      for (const temporary of geometries) temporary.dispose();
+      if (!geometry) throw new Error('Geometría incompatible en edificios agrupados');
+      const mesh = new THREE.Mesh(geometry, source.material);
+      mesh.castShadow = source.castShadow;
+      mesh.receiveShadow = source.receiveShadow;
+      geometry.computeBoundingSphere();
+      group.add(mesh);
+    }
+    this.closedView = group;
+    return group;
+  }
+
   _fade(part, hidden, dt, reset = false) {
     part.clearTime = hidden ? 0 : part.clearTime + dt;
     const target = hidden || part.clearTime < RESTORE_DELAY ? 0 : 1;
@@ -154,9 +191,19 @@ export class BuildingVisibility {
   }
 
   update(dt, player, camera) {
+    const wasEnabled = this.enabled;
     this.enabled = camera.userData.cameraMode === 'isometric';
+    if (this.closedView && this._closedMode !== !this.enabled) {
+      this._closedMode = !this.enabled;
+      this.closedView.visible = this._closedMode;
+      // Restaurar antes de ocultar las piezas también restaura los materiales usados por lotes.
+      for (const building of this.buildings) for (const part of building.parts) {
+        this._fade(part, false, dt, true);
+        part.object.visible = this.enabled;
+      }
+    }
     if (!this.enabled) {
-      for (const building of this.buildings) for (const part of building.parts) this._fade(part, false, dt, true);
+      if (wasEnabled && !this.closedView) for (const building of this.buildings) for (const part of building.parts) this._fade(part, false, dt, true);
       return;
     }
     this._camera.setFromMatrixPosition(camera.matrixWorld);
@@ -182,6 +229,8 @@ export class BuildingVisibility {
   }
 
   dispose() {
+    this.closedView = null;
+    this._closedMode = null;
     this.buildings.length = 0;
   }
 }

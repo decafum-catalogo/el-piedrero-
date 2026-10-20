@@ -55,7 +55,7 @@ export class Player {
     this.procedural.group.traverse((o) => {
       if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
     });
-    this._realistic?.setLook(look);
+    return this._realistic?.setLook(look);
   }
 
   /** Cambia entre el personaje realista (MakeHuman, por defecto) y el procedural (liviano) */

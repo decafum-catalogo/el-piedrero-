@@ -307,7 +307,7 @@ export function createCreator({ audio }) {
 
   return {
     /** Abre el editor. Devuelve una promesa con la apariencia elegida (o null si se cancela). */
-    async open(current, { doneLabel = 'Listo' } = {}) {
+    async open(current, { doneLabel = 'Listo', onReady = () => {} } = {}) {
       catalog ??= await loadCatalog();
       look = normalizeLook(current);
       look.real = normalizeReal(catalog, look.real);
@@ -323,6 +323,7 @@ export function createCreator({ audio }) {
       $('creator-error').hidden = true;
       root.hidden = false;
       renderPanel();
+      onReady();
       last = performance.now();
       raf = requestAnimationFrame(loop);
       tabsEl.querySelector(`[data-tab="${tab}"]`)?.focus({ preventScroll: true });

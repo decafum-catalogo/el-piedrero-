@@ -11,6 +11,38 @@ const { TrafficSystem } = await import('../src/systems/TrafficSystem.js');
 const { Car } = await import('../src/entities/Car.js');
 const { Bogota } = await import('../src/world/districts/Bogota.js');
 
+test('descartar peatones lejanos mantiene el mismo frenado en rectas y giros', () => {
+  const route = new TrafficRoute(0, 30, 0, 30);
+  const traffic = new TrafficSystem(new THREE.Scene(), [route], { carsPerRoute: 1 });
+  const vehicle = traffic.vehicles[0], direction = new THREE.Vector3();
+  const pedestrians = [];
+  for (let x = -4; x <= 34; x += 2) for (let z = -4; z <= 34; z += 2) {
+    pedestrians.push({ position: new THREE.Vector3(x, 0, z) });
+  }
+  for (let distance = 0; distance < route.length; distance += .75) {
+    vehicle.distance = distance;
+    vehicle.speed = 5;
+    route.sample(distance, vehicle.car.position, direction);
+    const actual = traffic._clearance(vehicle, null, pedestrians);
+    const lookAhead = Math.max(5, vehicle.speed ** 2 / 10 + vehicle.speed * .2 + 2);
+    let expected = Infinity;
+    for (let ahead = 0; ahead <= lookAhead; ahead += .5) {
+      route.sample(distance + ahead, traffic._probePosition, traffic._probeDirection);
+      if (pedestrians.some(p => traffic._personInCar(p.position, vehicle.car))) {
+        expected = Math.max(0, ahead - .5);
+        break;
+      }
+    }
+    assert.equal(actual, expected);
+  }
+  let probes = 0;
+  const check = traffic._personInCar.bind(traffic);
+  traffic._personInCar = (...args) => { probes++; return check(...args); };
+  traffic._clearance(vehicle, null, [{ position: new THREE.Vector3(500, 0, 500) }]);
+  assert.equal(probes, 0);
+  traffic.dispose();
+});
+
 test('los circuitos son continuos y toda la carrocería permanece en la calzada', () => {
   const city = new Bogota(), map = city._layout();
   const position = new THREE.Vector3(), direction = new THREE.Vector3();

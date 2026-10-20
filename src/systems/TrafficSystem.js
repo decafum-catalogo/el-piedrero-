@@ -13,6 +13,7 @@ export class TrafficSystem {
     this._direction = new THREE.Vector3();
     this._probePosition = new THREE.Vector3();
     this._probeDirection = new THREE.Vector3();
+    this._nearbyPedestrians = [];
     for (const route of routes) {
       // Evita una población inicial mayor que el espacio disponible en el circuito.
       const count = Math.min(carsPerRoute, Math.floor(route.length / 12));
@@ -44,10 +45,19 @@ export class TrafficSystem {
     }
     // Mira también alrededor de los giros; no solo en línea recta frente al carro.
     const lookAhead = Math.max(5, speed * speed / (2 * BRAKING) + speed * 0.2 + 2);
+    // Descarte amplio y conservador una vez por carro, no por cada muestra de su ruta.
+    // Incluye toda la diagonal de la carrocería y el trayecto hasta el punto de frenado.
+    const radius = lookAhead + Math.hypot(car.length / 2 + 0.8, car.width / 2 + 0.55);
+    const nearby = this._nearbyPedestrians;
+    nearby.length = 0;
+    for (const pedestrian of pedestrians) {
+      const dx = pedestrian.position.x - car.position.x, dz = pedestrian.position.z - car.position.z;
+      if (dx * dx + dz * dz <= radius * radius) nearby.push(pedestrian);
+    }
     for (let ahead = 0; ahead <= Math.min(lookAhead, clearance); ahead += PROBE_STEP) {
       route.sample(distance + ahead, this._probePosition, this._probeDirection);
       if (player && this._personInCar(player, car)) return Math.max(0, ahead - PROBE_STEP);
-      for (const pedestrian of pedestrians) {
+      for (const pedestrian of nearby) {
         if (this._personInCar(pedestrian.position, car)) return Math.max(0, ahead - PROBE_STEP);
       }
     }

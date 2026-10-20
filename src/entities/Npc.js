@@ -3,7 +3,7 @@
 // quieto, deambula cerca o recorre la red peatonal del distrito.
 //
 // Rendimiento: de lejos usa la versión liviana (cuerpo proxy de MakeHuman y piezas simplificadas);
-// la completa se carga al acercarse. Fuera de cámara no se dibuja ni se anima, y la animación
+// la completa se precarga al iniciar y se muestra al acercarse. Fuera de cámara no se dibuja ni se anima, y la animación
 // se actualiza menos seguido a media distancia.
 import * as THREE from 'three';
 import { createRealisticCharacter, loadCatalog, normalizeReal, optionsFor, REALISTIC_SCALE } from '../character/RealisticCharacter.js';
@@ -69,7 +69,7 @@ export class Npc {
     this.animAcc = 0;
     this.frame = Math.floor(Math.random() * 3); // reparte los cuadros de animación entre NPC
     this.lodChar = null;   // liviano (siempre)
-    this.fullChar = null;  // completo (al acercarse)
+    this.fullChar = null;  // completo (precargado; se muestra al acercarse)
     this._fullLoading = null;
     this.character = null; // el que se ve ahora
     this.ready = (async () => {
@@ -78,7 +78,18 @@ export class Npc {
       this._show(this.lodChar);
       // arranca cada uno en otro punto de la animación para que no se muevan al unísono
       this.character.update(Math.random() * 3, { speed: 0 });
-    })().catch((e) => console.warn('[Npc] no se pudo crear', e));
+    })().catch((e) => { this.loadError = e; console.warn('[Npc] no se pudo crear', e); });
+  }
+
+  async preload() {
+    await this.ready;
+    if (this.loadError) throw this.loadError;
+    await this._loadFull();
+  }
+
+  _loadFull() {
+    return this._fullLoading ??= createRealisticCharacter(this.look, { lod: false })
+      .then(c => { this.fullChar = c; });
   }
 
   _show(char) {
@@ -88,14 +99,12 @@ export class Npc {
     this.root.add(char.group);
   }
 
-  /** Cambia de nivel de detalle según la distancia (carga el completo la primera vez). */
+  /** Cambia de detalle según distancia; permite carga diferida fuera del arranque normal. */
   _updateDetail(dist) {
     if (dist < NPC_LOD.fullIn) {
       if (this.fullChar) this._show(this.fullChar);
       else if (!this._fullLoading) {
-        this._fullLoading = createRealisticCharacter(this.look, { lod: false })
-          .then((c) => { this.fullChar = c; })
-          .catch((e) => console.warn('[Npc] sin modelo completo', e));
+        this._loadFull().catch((e) => console.warn('[Npc] sin modelo completo', e));
       }
     } else if (dist > NPC_LOD.fullOut && this.lodChar) {
       this._show(this.lodChar);

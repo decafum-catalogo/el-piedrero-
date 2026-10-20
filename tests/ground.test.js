@@ -60,7 +60,8 @@ test('el cartón y la tierra conservan separación antes y después de unir las 
 
 test('todos los refugios de El Cartucho quedan separados del terreno, incluso al cruzar límites de tiles', () => {
   const city = district();
-  const groundMaterials = new Set(city.group.children.map(o => o.material));
+  const groundMaterials = new Set();
+  city.group.traverse(o => { if (o.isMesh) groundMaterials.add(o.material); });
   const shelters = [];
   const add = city._add.bind(city);
   city._add = (obj, ...args) => {

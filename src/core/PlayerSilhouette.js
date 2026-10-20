@@ -4,6 +4,7 @@ import * as THREE from 'three';
 export class PlayerSilhouette {
   constructor() {
     this._lightLayers = [];
+    this._overlayObjects = [];
     this.material = new THREE.MeshBasicMaterial({
       color: 0x73e5ef, transparent: true, opacity: 0.65,
       depthTest: true, depthFunc: THREE.GreaterDepth, depthWrite: false,
@@ -20,11 +21,17 @@ export class PlayerSilhouette {
     const background = scene.background;
     const autoClear = renderer.autoClear;
     const shadowUpdate = renderer.shadowMap.autoUpdate;
+    const worldUpdate = scene.matrixWorldAutoUpdate;
+    const children = scene.children;
+    const overlayObjects = this._overlayObjects;
+    overlayObjects.length = 0;
+    overlayObjects.push(playerRoot);
     const lightLayers = this._lightLayers;
     lightLayers.length = 0;
-    scene.traverse(o => {
+    scene.traverseVisible(o => {
       if (o.isLight && o.layers.test(camera.layers)) {
         lightLayers.push(o, o.layers.mask);
+        overlayObjects.push(o);
         o.layers.enable(1);
       }
     });
@@ -34,12 +41,18 @@ export class PlayerSilhouette {
       scene.background = null;
       renderer.autoClear = false;
       renderer.shadowMap.autoUpdate = false;
+      // Conserva padre y matrices mundiales. Solo visita jugador y luces en estas pasadas;
+      // recorrer otra vez toda la ciudad no aporta ningún píxel a la silueta.
+      scene.children = overlayObjects;
+      scene.matrixWorldAutoUpdate = false;
       renderer.render(scene, camera);
       // La ropa y el cuerpo pueden ocultarse entre sí. Repintar las superficies visibles
       // elimina esa falsa silueta, conservándola solo donde las tapa el entorno.
       scene.overrideMaterial = override;
       renderer.render(scene, camera);
     } finally {
+      scene.children = children;
+      scene.matrixWorldAutoUpdate = worldUpdate;
       camera.layers.mask = mask;
       scene.overrideMaterial = override;
       scene.background = background;

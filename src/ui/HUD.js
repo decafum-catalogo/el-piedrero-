@@ -128,6 +128,12 @@ export class HUD {
   toggleCraftPanel() {
     this._craftOpen = !this._craftOpen;
     this.craftPanel?.classList.toggle('open', this._craftOpen);
+    if (this._craftOpen) {
+      const game = window.__game;
+      if (game?.crafting && game.inventory) {
+        this.renderCrafting(game.crafting, game.inventory, game.talents);
+      }
+    }
   }
 
   toggleDealerPanel(dealer = null) {

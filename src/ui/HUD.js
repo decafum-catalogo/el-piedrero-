@@ -98,7 +98,7 @@ export class HUD {
       this.cameraButton.setAttribute('aria-label', `Cambiar a vista ${thirdPerson ? 'isométrica' : 'en tercera persona'} (V)`);
     }
     if (this.cameraHint) this.cameraHint.textContent = thirdPerson
-      ? 'Botón derecho + arrastrar o flechas: girar · Rueda: distancia'
+      ? 'Mueve el ratón (o arrastra) para girar la cámara · Rueda: zoom'
       : 'V: cambiar a tercera persona';
   }
 

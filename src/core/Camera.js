@@ -60,8 +60,8 @@ export class CameraRig {
   }
 
   cancelDrag() {
-    if (this._drag && this.canvas.hasPointerCapture?.(this._drag.id)) {
-      this.canvas.releasePointerCapture(this._drag.id);
+    if (this._drag && this.canvas?.hasPointerCapture?.(this._drag.id)) {
+      try { this.canvas.releasePointerCapture(this._drag.id); } catch { /* sin captura */ }
     }
     this._drag = null;
   }
@@ -70,23 +70,54 @@ export class CameraRig {
     this.canvas = canvas;
     const active = () => this.mode === 'third-person' && (this.canControl?.() ?? true);
     canvas.addEventListener('contextmenu', (e) => { if (active()) e.preventDefault(); });
+
     canvas.addEventListener('pointerdown', (e) => {
-      if (e.button !== 2 || !active()) return;
+      if (!active()) return;
+      if (e.button !== 0 && e.button !== 2) return;
       e.preventDefault();
+
+      // En clic izquierdo solicita Pointer Lock para control fluido estilo juego 3D
+      if (e.button === 0 && (typeof document === 'undefined' || document.pointerLockElement !== canvas) && canvas.requestPointerLock) {
+        try { canvas.requestPointerLock(); } catch { /* sin permiso */ }
+      }
+
       this._drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
-      canvas.setPointerCapture(e.pointerId);
+      try { canvas.setPointerCapture?.(e.pointerId); } catch { /* sin captura */ }
     });
-    canvas.addEventListener('pointermove', (e) => {
-      if (!this._drag || this._drag.id !== e.pointerId) return;
-      if (!active()) { this.cancelDrag(); return; }
-      this.orbit(e.clientX - this._drag.x, e.clientY - this._drag.y);
-      this._drag.x = e.clientX;
-      this._drag.y = e.clientY;
-    });
-    canvas.addEventListener('pointerup', () => this.cancelDrag());
-    canvas.addEventListener('pointercancel', () => this.cancelDrag());
-    canvas.addEventListener('lostpointercapture', () => { this._drag = null; });
-    window.addEventListener('blur', () => this.cancelDrag());
+
+    const onPointerMove = (e) => {
+      if (!active()) {
+        if (this._drag) this.cancelDrag();
+        return;
+      }
+
+      // 1. Si el cursor está bloqueado en el juego, rotar con el movimiento del mouse
+      if (typeof document !== 'undefined' && document.pointerLockElement === canvas) {
+        const mx = e.movementX ?? 0;
+        const my = e.movementY ?? 0;
+        if (Math.abs(mx) < 300 && Math.abs(my) < 300 && (mx !== 0 || my !== 0)) {
+          this.orbit(mx, my);
+        }
+        return;
+      }
+
+      // 2. Arrastre con botón presionado (izquierdo o derecho)
+      if (this._drag && this._drag.id === e.pointerId) {
+        this.orbit(e.clientX - this._drag.x, e.clientY - this._drag.y);
+        this._drag.x = e.clientX;
+        this._drag.y = e.clientY;
+      }
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('mousemove', onPointerMove);
+
+    const onRelease = () => this.cancelDrag();
+    canvas.addEventListener('pointerup', onRelease);
+    canvas.addEventListener('pointercancel', onRelease);
+    canvas.addEventListener('lostpointercapture', onRelease);
+    window.addEventListener('blur', onRelease);
+
     canvas.addEventListener('wheel', (e) => {
       if (!active()) return;
       e.preventDefault();

@@ -61,8 +61,8 @@ En PowerShell, si una política de ejecución impide usar `npm`, ejecuta los mis
 | `W`, `A`, `S`, `D` | Moverse. En tercera persona, el movimiento sigue el rumbo de la cámara. |
 | `Shift` | Correr. |
 | `V` o botón de cámara | Alternar entre tercera persona e isométrica. |
-| Botón derecho + arrastrar o flechas | Girar la cámara en tercera persona. |
-| Rueda del ratón | Ajustar la distancia de la cámara en tercera persona. |
+| Mover el ratón (o arrastrar botón izq/der) o flechas | Girar la cámara libremente en tercera persona (Pointer Lock con clic izquierdo). |
+| Rueda del ratón | Ajustar la distancia/zoom de la cámara en tercera persona. |
 | `E` | Interactuar con el objetivo cercano. |
 | Mantener y soltar `Q` junto a basura | Seleccionar materiales y recogerlos al soltar. |
 | `Q` junto al dealer | Abrir su tienda. |

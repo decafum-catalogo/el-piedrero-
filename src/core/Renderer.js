@@ -20,7 +20,7 @@ export class Renderer {
 
     // Look realista: tone mapping fílmico
     this.instance.toneMapping = THREE.ACESFilmicToneMapping;
-    this.instance.toneMappingExposure = 1.05;
+    this.instance.toneMappingExposure = 1.15;
     this.instance.outputColorSpace = THREE.SRGBColorSpace;
     this.silhouette = new PlayerSilhouette();
     this.culling = new FrustumCulling();

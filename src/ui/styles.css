@@ -1,15 +1,16 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
-canvas { display: block; width: 100vw; height: 100vh; }
+#game-canvas { display: block; width: 100vw; height: 100vh; }
 
 #performance-panel {
   position: fixed; right: 12px; bottom: 48px; z-index: 20;
   max-width: calc(100vw - 24px); padding: 10px 12px;
-  color: #d9f9e6; background: rgba(9, 17, 21, .88);
+  color: #a3c9b8; background: rgba(9, 17, 21, 0.75); backdrop-filter: blur(4px); opacity: 0.6; transition: opacity 0.2s ease;
   border: 1px solid #54776a; border-radius: 6px;
   font: 12px/1.6 monospace; font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+#performance-panel:hover { opacity: 1; pointer-events: auto; }
 #performance-panel pre { font: inherit; white-space: pre-wrap; }
 #performance-panel button {
   margin-top: 5px; padding: 3px 6px; cursor: pointer;
@@ -357,7 +358,7 @@ body.is-loading #creator-modal { visibility: visible; }
   border-radius: 3px; padding: 1px 5px; font-size: 10px; cursor: pointer;
 }
 .minimap-toggle-btn:hover { background: #2f4f41; }
-#minimap-canvas { display: block; border-radius: 50%; margin: 4px 0; }
+#minimap-canvas { width: 130px; height: 130px; max-width: 130px; max-height: 130px; display: block; border-radius: 50%; margin: 4px 0; box-shadow: 0 0 10px rgba(0, 0, 0, 0.4); }
 .minimap-info {
   color: #eed688; font-size: 10px; text-align: center;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;

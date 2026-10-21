@@ -112,6 +112,7 @@ export function openPauseMenu(game) {
       el('summary', { text: '📖 Guía completa de controles y supervivencia' }),
       el('ul', { class: 'pause-controls-list' },
         el('li', {}, el('kbd', { text: 'WASD' }), ' — Desplazarse por el barrio.'),
+        el('li', {}, el('kbd', { text: 'Ratón' }), ' — Clic para fijar cámara (o arrastrar) · Rueda para zoom.'),
         el('li', {}, el('kbd', { text: 'Shift' }), ' — Correr.'),
         el('li', {}, el('kbd', { text: 'V' }), ' — Alternar vista tercera persona / isométrica.'),
         el('li', {}, el('kbd', { text: 'E' }), ' — Interactuar con basura, tiendas, cambuche o autos.'),

@@ -6,6 +6,7 @@ export class Input {
     this.pressedThisFrame = new Set();
 
     window.addEventListener('keydown', (e) => {
+      if (this.locked) return;
       if (e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
       if (e.code.startsWith('Arrow')) e.preventDefault();
       if (!this.keys[e.code]) this.pressedThisFrame.add(e.code);
@@ -22,7 +23,7 @@ export class Input {
   }
 
   isDown(code) {
-    return !!this.keys[code];
+    return !this.locked && !!this.keys[code];
   }
 
   /**

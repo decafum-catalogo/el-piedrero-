@@ -65,3 +65,17 @@ test('el bus frena ante el jugador y los peatones, y vuelve a avanzar cuando des
     assert.ok(bus.position.z<stopped-1);
   }
 });
+
+test('el bus frena ante un carro que cruza la troncal y continúa al despejarse', () => {
+  const bus = new BusService({ x: 10, startZ: 100, endZ: 0, stationZ: 20 });
+  bus.position.z = 80;
+  bus.speed = 5;
+  const car = { position: new THREE.Vector3(10, 0, 55), group: new THREE.Group(), length: 4.3, width: 1.76 };
+  for (let frame = 0; frame < 300; frame++) bus.update(.1, { vehicles: [{ car }] });
+  assert.ok(bus.speed < 1e-8);
+  assert.ok(bus.position.z >= 55 + bus.length / 2 + car.width / 2 + .79);
+  const stopped = bus.position.z;
+  car.position.x = 20;
+  for (let frame = 0; frame < 30; frame++) bus.update(.1, { vehicles: [{ car }] });
+  assert.ok(bus.position.z < stopped - 3);
+});

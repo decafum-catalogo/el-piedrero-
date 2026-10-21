@@ -76,7 +76,8 @@ export class BusService {
     }
   }
 
-  update(dt, { player = null, pedestrians = [] } = {}) {
+  update(dt, { player = null, pedestrians = [], vehicles = [] } = {}) {
+    this.personBlocked = false;
     let remaining = Math.min(Math.max(dt, 0), 0.5);
     while (remaining > 1e-8) {
       const step = Math.min(remaining, 0.05);
@@ -86,9 +87,20 @@ export class BusService {
         continue;
       }
       let clearance = this.position.z - this.endZ;
+      clearance = Math.min(clearance, this.signals?.busClearance(this.position, this.length) ?? Infinity);
       if (!this.servedStation) clearance = Math.min(clearance, this.position.z - this.stationZ);
-      if (player) clearance = Math.min(clearance, this._clearance(player));
-      for (const npc of pedestrians) clearance = Math.min(clearance, this._clearance(npc.position));
+      let personClearance = player ? this._clearance(player) : Infinity;
+      for (const npc of pedestrians) personClearance = Math.min(personClearance, this._clearance(npc.position));
+      for (const { car } of vehicles) {
+        const cos = Math.abs(Math.cos(car.group.rotation.y)), sin = Math.abs(Math.sin(car.group.rotation.y));
+        const halfX = cos * car.length / 2 + sin * car.width / 2;
+        const halfZ = sin * car.length / 2 + cos * car.width / 2;
+        if (Math.abs(car.position.x - this.position.x) > this.width / 2 + halfX + .2) continue;
+        if (car.position.z > this.position.z + this.length / 2 + halfZ) continue;
+        clearance = Math.min(clearance, Math.max(0, this.position.z - car.position.z - this.length / 2 - halfZ - .8));
+      }
+      this.personBlocked = personClearance < 2.5 || personClearance < Math.min(clearance, 10);
+      clearance = Math.min(clearance, personClearance);
       const desiredSpeed = Math.min(CRUISE_SPEED, Math.sqrt(2 * BRAKING * Math.max(0, clearance)));
       const rate = desiredSpeed < this.speed ? BRAKING : ACCELERATION;
       this.speed = THREE.MathUtils.clamp(desiredSpeed, this.speed - rate * step, this.speed + rate * step);

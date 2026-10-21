@@ -10,6 +10,7 @@ mock.module('../src/world/bogota/textures.js', { namedExports: { ...textures, ra
 const { Car } = await import('../src/entities/Car.js');
 const { Cambuche } = await import('../src/entities/Cambuche.js');
 const { BusService } = await import('../src/world/bogota/BusService.js');
+const { TrafficSignals } = await import('../src/world/bogota/TrafficSignals.js');
 
 // Lee posiciones e índices reales del GLB; las imágenes no requieren decodificador de navegador.
 function geometryFromAsset(file) {
@@ -48,15 +49,17 @@ mock.method(GLTFLoader.prototype, 'loadAsync', async function(url) {
   return { scene: geometryFromAsset(file) };
 });
 
-test('los cuatro GLB reales caben en las dimensiones actuales y descansan sobre Y=0', () => {
+test('los GLB reales caben en las dimensiones actuales y descansan sobre Y=0', () => {
   for (const spec of Object.values(IMPORTED_MODELS)) {
     const model = fitImportedModel(geometryFromAsset(spec.file), spec);
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
     size.toArray().forEach((value, axis) => assert.ok(Math.abs(value - spec.size[axis]) < 1e-5));
     assert.ok(Math.abs(box.min.y) < 1e-6);
-    assert.ok(Math.abs(box.min.x + box.max.x) < 1e-6);
-    assert.ok(Math.abs(box.min.z + box.max.z) < 1e-6);
+    if (!spec.anchor) {
+      assert.ok(Math.abs(box.min.x + box.max.x) < 1e-6);
+      assert.ok(Math.abs(box.min.z + box.max.z) < 1e-6);
+    }
     model.traverse(object => { if (object.isMesh) assert.equal(object.userData.sharedImportedModel, true); });
   }
   const front = new THREE.Vector3(-1, 0, 0);
@@ -128,4 +131,29 @@ test('el cambuche permanece oculto hasta construir base y techo y conserva las m
   assert.equal(shelter.pieces.cama.visible, true);
   assert.equal(shelter.built.cama, true);
   shelter.dispose();
+});
+
+test('las lentes del semáforo se iluminan sobre el GLB, sin discos flotantes ni luces dinámicas', async () => {
+  const signals = new TrafficSignals();
+  await signals.preloadModel();
+  assert.equal(signals.poleMesh.count, signals.poles.length);
+  assert.equal(signals.group.children.length, 1);
+  const axes = signals.poleMesh.geometry.getAttribute('trafficAxis');
+  assert.deepEqual([...axes.array], signals.poles.map(pole => pole.axis));
+  let pointLights = 0;
+  signals.group.traverse(object => { if (object.isLight) pointLights++; });
+  assert.equal(pointLights, 0);
+  const before = signals.lensStates.value.clone();
+  signals.update(25);
+  assert.ok(!signals.lensStates.value.equals(before));
+  const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.standard.vertexShader, fragmentShader: THREE.ShaderLib.standard.fragmentShader };
+  signals.poleMesh.material.onBeforeCompile(shader);
+  assert.equal(shader.uniforms.trafficStates, signals.lensStates);
+  assert.ok(shader.vertexShader.includes('vTrafficAxis = trafficAxis;'));
+  assert.ok(shader.fragmentShader.includes('totalEmissiveRadiance += trafficLensColor * trafficLensOn'));
+  assert.ok(shader.fragmentShader.includes('redLens'));
+  const bounds = new THREE.Box3().setFromObject(signals.group);
+  assert.ok(Number.isFinite(bounds.min.x));
+  assert.ok(bounds.max.y > 4);
+  signals.dispose();
 });

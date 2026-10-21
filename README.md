@@ -8,11 +8,11 @@ Este proyecto es un fork de [juanagogo/bazuko](https://github.com/juanagogo/bazu
 
 ## Características
 
-- Integración experimental en `pruebas-integracion`: modelos de carros, taxi, TransMilenio y cambuche del fork de [mreyeswilson](https://github.com/mreyeswilson/bazuko). [Detalles de integración y procedencia](docs/modelos-importados.md).
+- Integración experimental en `pruebas-integracion`: carriles rojos con SOLO BUS, estación, semáforos que regulan el tráfico, inventario por casillas y modelos de bolsas, canecas, lámparas, carros, taxi, TransMilenio y cambuche del fork de [mreyeswilson](https://github.com/mreyeswilson/bazuko). [Detalles de integración y procedencia](docs/modelos-importados.md).
 - Cámaras en tercera persona e isométrica, intercambiables durante la partida.
 - Techos y paredes que se ocultan cuando tapan al personaje en vista isométrica, con muros bajos y silueta del jugador.
 - Peatones que caminan por los andenes y cruzan las calles.
-- Carros y taxis en movimiento y un bus articulado que circula por la troncal y para en la estación.
+- Carros y taxis con recorridos aleatorios entre 90 alternativas transitables y un bus articulado que circula por la troncal y para en la estación.
 - Calzadas de 12 metros y andenes de 4 metros.
 - Ciudad de 240 × 222 metros: tres veces la superficie inicial, con barrios nuevos al oriente y al sur, dos calles y dos carreras adicionales y dos parques nuevos.
 - Creación de personaje, inventario, reciclaje, comercio, talentos y construcción del cambuche.
@@ -61,6 +61,9 @@ En PowerShell, si una política de ejecución impide usar `npm`, ejecuta los mis
 | `V` o botón de cámara | Alternar entre tercera persona e isométrica. |
 | Botón derecho + arrastrar o flechas | Girar la cámara en tercera persona. |
 | Rueda del ratón | Ajustar la distancia de la cámara en tercera persona. |
+| `I` / `Tab` o botón Inventario | Abrir el inventario por casillas; el mundo queda en pausa. |
+| `1`–`5` | Asignar el objeto seleccionado a acceso rápido mientras el inventario está abierto; usarlo cuando está cerrado. |
+| `Enter`, `X`, `R` en el inventario | Usar, tirar una unidad (Mayús: todo), ordenar. |
 | `E` | Interactuar con el objetivo cercano. |
 | Mantener y soltar `Q` junto a basura | Seleccionar materiales y recogerlos al soltar. |
 | `Q` junto al dealer | Abrir su tienda. |
@@ -102,6 +105,10 @@ Si los FPS permanecen por debajo de 45 durante tres segundos, la resolución int
 
 Referencias técnicas: [renderizado y métricas de Three.js](https://threejs.org/docs/pages/WebGLRenderer), [resolución de renderizado](https://threejs.org/manual/pages/responsive.html), [volumen visible de la cámara](https://threejs.org/docs/pages/Frustum.html).
 
+## Sonido
+
+El ambiente usa `city_atmosphere_soun.wav` y los pasos usan `Sounds_of_a_steps.wav`, con mayor cadencia al correr. Cada carro y el bus mantienen voces independientes para ralentí, marcha y claxon. Por ahora motores y claxon usan reproducción normal, sin audio espacial, paneo ni atenuación por distancia. El volumen depende de la marcha o el ralentí y permanece igual al girar la cámara. Solo suenan los ocho vehículos más cercanos a menos de 55 metros; las grabaciones se cargan una sola vez y se comparten entre instancias. El claxon utiliza una pitada corta de car_horn_sound1.wav, car_horn_sound.wav o car_horn_sound_v3.wav, espera ante peatones atravesados y tiene un intervalo propio de 6–11 segundos. Los semáforos y las colas de vehículos no lo activan por sí solos; si alguien se queda junto al parachoques, el conductor pita incluso estando detenido por rojo o tráfico. Menús, sueño y pestaña oculta pausan el audio; un clic o una tecla desbloquea el sonido si el navegador lo exige.
+
 ## Compilación y pruebas
 
 Para generar la versión de producción y verla localmente:
@@ -119,7 +126,7 @@ Para ejecutar las pruebas con el runner de Node.js:
 node --experimental-test-module-mocks --test tests/*.test.js
 ```
 
-Las 89 pruebas actuales cubren colisiones, cámaras, visibilidad de edificios, suelos, navegación de peatones, tráfico, bus, supervivencia, migración de partidas guardadas, ampliación de la ciudad, rendimiento y carga inicial. Las pruebas de arranque verifican que la partida espere modelos, shaders y GPU, que un fallo impida comenzar una partida incompleta y que la espera no contamine las estadísticas de FPS. Las pruebas de modelos importados comprueban las dimensiones de los cuatro GLB reales, el uso compartido de recursos, el desvanecimiento del bus y los estados de construcción del cambuche. La reserva de materiales se comprueba contra todas las recetas, también tras reponerse las bolsas, con protección de objetos cuando el costal está lleno.
+Las 121 pruebas actuales cubren colisiones, cámaras, visibilidad de edificios, suelos, navegación de peatones, tráfico, bus, supervivencia, migración de partidas guardadas, ampliación de la ciudad, rendimiento y carga inicial. Los carros circulan a 5–7 m/s en rectas libres y los semáforos completan su ciclo en 36 segundos, con 14 segundos de verde por eje, 3 de amarillo y 1 de despeje. El tráfico permite cruces simultáneos compatibles, mantiene la prioridad entre giros que se cortan y usa aceleración, frenado y reacción progresivos. Se comprueba su circulación durante diez minutos simulados, además del paso compartido con el bus y la carrocería dentro de la calzada al girar. Las pruebas de arranque verifican que la partida espere modelos, shaders y GPU, que un fallo impida comenzar una partida incompleta y que la espera no contamine las estadísticas de FPS. Las pruebas de modelos importados comprueban las dimensiones de los nueve GLB reales, el uso compartido de recursos, el desvanecimiento del bus y los estados de construcción del cambuche. La reserva de materiales se comprueba contra todas las recetas, también tras reponerse las bolsas, con protección de objetos cuando el costal está lleno.
 
 ## Estructura
 

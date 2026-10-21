@@ -8,7 +8,12 @@ export const IMPORTED_MODELS = Object.freeze({
   car1: { file: 'car1.opt.glb', yaw: Math.PI, size: [4.3, 1.75, 1.76] },
   car2: { file: 'car2.opt.glb', yaw: Math.PI, size: [4.3, 1.45, 1.76] },
   transmilenio: { file: 'tm.opt.glb', yaw: -Math.PI / 2, size: [2.52, 3.5, 18.2] },
-  cambuche: { file: 'cambuche.opt.glb', yaw: 0, size: [3.91, 2.1, 2.875] }
+  cambuche: { file: 'cambuche.opt.glb', yaw: 0, size: [3.91, 2.1, 2.875] },
+  bolsa: { file: 'bolsa.opt.glb', yaw: 0, size: [1.1, 1.095, .864] },
+  contenedor: { file: 'contenedor.opt.glb', yaw: 0, size: [1.56, 1.4, 1.12] },
+  estacion: { file: 'estacion.opt.glb', yaw: Math.PI / 2, size: [2.6, 4.2, 16] },
+  semaforo: { file: 'semaforo.opt.glb', yaw: 0, size: [1.66, 4.3, .893] },
+  lampara: { file: 'lamparas.opt.glb', yaw: Math.PI / 2, size: [2.163, 4.2, .53], anchor: 'pole' }
 });
 
 /** Centra X/Z, apoya en Y=0 y conserva las dimensiones de circulación existentes. */
@@ -21,6 +26,19 @@ export function fitImportedModel(source, spec) {
   const size = bounds.getSize(new THREE.Vector3());
   if (Math.min(size.x, size.y, size.z) <= 0) throw new Error('Modelo sin volumen válido.');
   const center = bounds.getCenter(new THREE.Vector3());
+  if (spec.anchor === 'pole') {
+    const point = new THREE.Vector3();
+    let x = 0, z = 0, count = 0;
+    oriented.traverse(object => {
+      const positions = object.geometry?.attributes.position;
+      if (!positions) return;
+      for (let i = 0; i < positions.count; i++) {
+        point.fromBufferAttribute(positions, i).applyMatrix4(object.matrixWorld);
+        if (point.y < bounds.min.y + size.y * .04) { x += point.x; z += point.z; count++; }
+      }
+    });
+    if (count) { center.x = x / count; center.z = z / count; }
+  }
   const root = new THREE.Group();
   oriented.position.set(-center.x, -bounds.min.y, -center.z);
   root.add(oriented);

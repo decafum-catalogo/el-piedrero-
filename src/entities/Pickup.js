@@ -2,10 +2,13 @@
 import * as THREE from 'three';
 import { ITEMS, LOOT_COMMON, LOOT_RARE } from '../data/items.js';
 import { PICKUP_COOLDOWN, COLORS, SORT_BASE_TIME } from '../utils/constants.js';
+import { createImportedModel, disposeImportedInstance } from '../utils/ImportedModels.js';
 
 export class Pickup {
-  constructor(scene, position) {
+  constructor(scene, position, { modelKind = 'bolsa', cooldown = PICKUP_COOLDOWN } = {}) {
     this.scene = scene;
+    this.modelKind = modelKind;
+    this.refillSeconds = cooldown;
     this.used = false;
     this.cooldown = 0;
     this.sorting = false;
@@ -83,6 +86,17 @@ export class Pickup {
   get position() { return this.group.position; }
   get sortComplete() { return this.sortProgress >= SORT_BASE_TIME; }
 
+  preloadModel() {
+    return this._modelPromise ??= createImportedModel(this.modelKind).then(model => {
+      if (this._disposed) { disposeImportedInstance(model); return; }
+      this.group.remove(this.mesh);
+      this.mesh.geometry.dispose(); this.mesh.material.dispose();
+      this.mesh = model;
+      this.importedModel = model;
+      this.group.add(model);
+    });
+  }
+
   setBoost(active) {
     this._boostActive = active;
   }
@@ -144,7 +158,7 @@ export class Pickup {
     rare ??= items.find(id => ['rare', 'veryRare'].includes(ITEMS[id]?.rarity) || ITEMS[id]?.rare) ?? null;
 
     this.used = true;
-    this.cooldown = PICKUP_COOLDOWN;
+    this.cooldown = this.refillSeconds;
     this.mesh.visible = false;
     this.marker.visible = false;
     this.aura.visible = false;
@@ -225,6 +239,8 @@ export class Pickup {
   }
 
   dispose() {
+    this._disposed = true;
+    if (this.importedModel) disposeImportedInstance(this.importedModel);
     this.scene.remove(this.group);
     this.group.traverse((o) => {
       o.geometry?.dispose?.();

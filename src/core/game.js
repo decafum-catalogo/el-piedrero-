@@ -9,6 +9,7 @@ import { Input } from './Input.js';
 import { World } from '../world/World.js';
 import { Player } from '../entities/Player.js';
 import { Pickup } from '../entities/Pickup.js';
+import { TrashContainer } from '../entities/TrashContainer.js';
 import { SellPoint } from '../entities/SellPoint.js';
 import { Cambuche } from '../entities/Cambuche.js';
 import { Shop } from '../entities/Shop.js';
@@ -30,6 +31,7 @@ import { TalentSystem } from '../systems/TalentSystem.js';
 import { CraftingSystem } from '../systems/CraftingSystem.js';
 
 import { HUD } from '../ui/HUD.js';
+import { InventoryUI } from '../ui/InventoryUI.js';
 import { PerformanceHUD } from '../ui/PerformanceHUD.js';
 import { LocalLights } from './LocalLights.js';
 import { loadInBatches, withLoadTimeout } from './Startup.js';
@@ -84,6 +86,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.localLights = new LocalLights(this.sceneMgr.scene);
     this.menu = new Menu();
     this.creator = createCreator({ audio: null });
+    this.inventoryUI = new InventoryUI(this.inventory, this);
     this.cameraRig.canControl = () => !this.paused && !this.isSleeping &&
       !this.hud._talentOpen && !this.hud._craftOpen && !this.hud._dealerOpen;
     this.hud.setCameraMode(this.cameraRig.mode);
@@ -163,9 +166,13 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     const importedEntities = [
       ...(this.cars ?? []),
       ...(this.traffic?.vehicles ?? []).map(vehicle => vehicle.car),
-      district?.busService, this.cambuche
+      district?.busService, this.cambuche, ...(this.pickups ?? [])
     ].filter(Boolean);
     await withLoadTimeout(loadInBatches(importedEntities, entity => entity.preloadModel()), 'La carga de vehículos y refugio tardó demasiado.');
+    await loading.stage('Preparando estación, lámparas y semáforos…', 3.7);
+    await withLoadTimeout(district?.preloadDetails?.() ?? Promise.resolve(), 'La carga del mobiliario urbano tardó demasiado.');
+    if (this.traffic) this.traffic.signals = district?.signals;
+    this.traffic?.setBus?.(district?.busService);
     if (this.cambuche) this.cambuche.group.position.y = district?.getGroundHeightUnder?.(this.cambuche.group)
       ?? district?.getGroundHeight?.(this.cambuche.position.x, this.cambuche.position.z) ?? 0;
     // Calcular los límites después de reemplazar las carrocerías por los GLB.
@@ -249,10 +256,11 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
   /** El mundo se congela mientras hay un menú o el creador abierto */
   get paused() {
-    return this._loading || this._deathPending || this.menu.isOpen || this.creator.isOpen;
+    return this._loading || this._deathPending || this.menu.isOpen || this.creator.isOpen || !!this.inventoryUI?.isOpen;
   }
 
   _spawnEntities() {
+    this.audio.vehicles?.clear();
     this.traffic?.dispose();
     this.traffic = null;
     this.pickups.forEach((p) => p.dispose());
@@ -320,6 +328,15 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }
 
     distributeShelterLoot(this.pickups);
+    // Canecas permanentes en puntos de basura separados de las bolsas y lugares reservados.
+    const containerSpots = spawnPositions.filter(point => this.pickups.every(pickup => point.distanceTo(pickup.position) >= 4));
+    for (const point of containerSpots.slice(0, 12)) {
+      const position = point.clone();
+      position.y = district.getGroundHeight?.(position.x, position.z) ?? 0;
+      const container = new TrashContainer(this.sceneMgr.scene, position);
+      this.pickups.push(container);
+      this.interaction.register(container);
+    }
 
     // ===== Autos (robar retrovisores) =====
     const carCount = Math.round(5 * (district.populationScale ?? 1));
@@ -504,6 +521,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.input.keys = {};
     this.input.endFrame();
     this.audio.updateSteps(false, false);
+    this.audio.setPaused?.(true);
     if (this.interaction.boostActive) this.interaction._endBoost();
     const causes = [];
     for (const [stat, name] of [['sed', 'deshidratación'], ['hambre', 'hambre'],
@@ -565,8 +583,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     const dt = Math.min((now - this._lastTime) / 1000, 0.1);
     this._lastTime = now;
 
-    if (this.isSleeping || this.paused) {
+    if (this.isSleeping || this.paused || globalThis.document?.hidden) {
       this.cameraRig.cancelDrag();
+      this.audio.setPaused(true);
       this.audio.updateSteps(false, false);
       this._renderFrame(now, false);
       this.input.endFrame();
@@ -592,6 +611,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.cameraRig.updateControls(dt, this.input);
     // Actualiza el rumbo antes de calcular WASD en relación con la cámara.
     this.cameraRig.prepareMovement();
+    const previousX = this.player.position.x, previousZ = this.player.position.z;
     this.player.update(dt, this.cameraRig.camera, this.collisions);
 
     // 4. Stats
@@ -620,7 +640,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     // 8. Mundo
     // La visibilidad de edificios usa la cámara del mismo cuadro.
     this.cameraRig.follow(this.player.position, dt, this.collisions);
-    this.world.update(dt, this.player.position, this.cameraRig.camera);
+    this.world.update(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? []);
     this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.npcs ?? [] });
 
     // 9. Entidades
@@ -630,7 +650,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.dealer?.update(dt);
 
     // 10. Audio
-    const moving = this.input.axis.x !== 0 || this.input.axis.z !== 0;
+    const moving = Math.hypot(this.player.position.x - previousX, this.player.position.z - previousZ) > .001;
+    this.audio.updateWorld(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? [], this.world.active?.busService);
     this.audio.updateSteps(moving, this.input.isRunning);
     this.audio.updateBoost(this.interaction.boostActive);
 
@@ -661,6 +682,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     const culling = this.renderer.culling, district = this.world.active;
     culling.clear();
     for (const sector of district?.renderSectors ?? []) culling.register(sector);
+    if (district?.signals) culling.register(district.signals.group);
+    for (const pickup of this.pickups) culling.register(pickup.group, { dynamic: true, margin: .2 });
     for (const object of district?.animated ?? []) culling.register(object, { margin: 1 });
     if (district?.busService) culling.register(district.busService.group, { dynamic: true, margin: .5 });
     for (const car of this.cars) culling.register(car.group, { dynamic: true, margin: .5 });

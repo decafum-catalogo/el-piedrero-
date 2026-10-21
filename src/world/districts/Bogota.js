@@ -15,8 +15,10 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { TILE_SIZE } from '../../utils/constants.js';
 import { Farol } from '../props/Farol.js';
-import { Banca } from '../props/Banca.js';
+import { createImportedModel } from '../../utils/ImportedModels.js';
+import { TrafficSignals } from '../bogota/TrafficSignals.js';
 import { signTexture } from '../../utils/signs.js';
+import { Banca } from '../props/Banca.js';
 import * as TX from '../bogota/textures.js';
 import * as P from '../bogota/props.js';
 import { Npc } from '../../entities/Npc.js';
@@ -169,6 +171,9 @@ export class Bogota {
     ];
     scene.add(this.group);
     freezeStaticTransforms(this.group, this.busService?.group);
+    this.signals = new TrafficSignals();
+    this.group.add(this.signals.group);
+    this.busService.signals = this.signals;
 
     this.isWalkableAt = (wx, wz) => {
       const tx = Math.round(wx / T), tz = Math.round(wz / T);
@@ -234,14 +239,27 @@ export class Bogota {
   getTrafficRoutes() {
     const lane = ([a, b], side) => W((a + b) / 2 + side * (b - a + 1) / 4);
     const top = lane(CALLES[0], 1), bottom = lane(CALLES[1], -1);
-    return [
-      new TrafficRoute(lane(CARRERAS[0], 1), lane(CARACAS.lanes[0], -1), top, bottom),
-      new TrafficRoute(lane(CARACAS.lanes[1], 1), lane(CARRERAS[1], -1), top, bottom),
-      new TrafficRoute(lane(CARRERAS[1], 1), lane(CARRERAS[2], -1), top, lane(CALLES.at(-1), -1)),
-      new TrafficRoute(lane(CARRERAS[2], 1), lane(CARRERAS[3], -1), top, lane(CALLES.at(-1), -1)),
-      new TrafficRoute(lane(CARRERAS[0], 1), lane(CARACAS.lanes[0], -1), lane(CALLES[1], 1), lane(CALLES.at(-1), -1)),
-      new TrafficRoute(lane(CARACAS.lanes[1], 1), lane(CARRERAS[1], -1), lane(CALLES[1], 1), lane(CALLES.at(-1), -1))
+    const circuit = (...bounds) => new TrafficRoute(...bounds, 3.2);
+    const routes = [
+      circuit(lane(CARRERAS[0], 1), lane(CARACAS.lanes[0], -1), top, bottom),
+      circuit(lane(CARACAS.lanes[1], 1), lane(CARRERAS[1], -1), top, bottom),
+      circuit(lane(CARRERAS[1], 1), lane(CARRERAS[2], -1), top, lane(CALLES.at(-1), -1)),
+      circuit(lane(CARRERAS[2], 1), lane(CARRERAS[3], -1), top, lane(CALLES.at(-1), -1)),
+      circuit(lane(CARRERAS[0], 1), lane(CARACAS.lanes[0], -1), lane(CALLES[1], 1), lane(CALLES.at(-1), -1)),
+      circuit(lane(CARACAS.lanes[1], 1), lane(CARRERAS[1], -1), lane(CALLES[1], 1), lane(CALLES.at(-1), -1))
     ];
+    // Combinar calles y carreras permite continuar por otros barrios en los cruces.
+    // Solo las seis rutas de partida generan carros; las demás son alternativas.
+    const vertical = [CARRERAS[0], ...CARACAS.lanes, ...CARRERAS.slice(1)];
+    const alternatives = new Map(routes.map(route => [route.key, route]));
+    for (let left = 0; left < vertical.length - 1; left++) for (let right = left + 1; right < vertical.length; right++) {
+      for (let north = 0; north < CALLES.length - 1; north++) for (let south = north + 1; south < CALLES.length; south++) {
+        const route = circuit(lane(vertical[left], 1), lane(vertical[right], -1), lane(CALLES[north], 1), lane(CALLES[south], -1));
+        if (!alternatives.has(route.key)) alternatives.set(route.key, route);
+      }
+    }
+    routes.alternatives = [...alternatives.values()];
+    return routes;
   }
 
   getBusRoute() {
@@ -264,7 +282,7 @@ export class Bogota {
     const mats = {
       // sin roughnessMap: los charcos espejo se ven como huecos negros con cámara cenital
       road: new THREE.MeshStandardMaterial({ map: tex(asphalt.map, 14), roughness: 0.82, color: '#b4b4b4' }),
-      busway: new THREE.MeshStandardMaterial({ map: asphalt.map, roughness: 1, color: '#a8726a' }),
+      busway: new THREE.MeshStandardMaterial({ bumpMap: asphalt.map, bumpScale: .06, roughness: 1, color: '#9c3030' }),
       sidewalk: new THREE.MeshStandardMaterial({ map: tex(walk.map, 6), bumpMap: walk.bumpMap, bumpScale: 0.3, roughness: 0.75, color: '#b9b4aa' }),
       floor: new THREE.MeshStandardMaterial({ map: tex(concrete.map, 6), roughness: 0.9, color: '#8a8a86' }),
       dirt: new THREE.MeshStandardMaterial({ map: tex(dirt.map, 8), roughness: 1, color: '#8a7a64' }),
@@ -306,6 +324,17 @@ export class Bogota {
 
   /** Cebras en los cruces, líneas amarillas y separadores de la troncal */
   _buildMarkings() {
+    const busText = new THREE.MeshBasicMaterial({ map: signTexture({ title: 'SOLO BUS', bg: null, fg: '#f6d340', border: false }), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    const busCenter = (W(CARACAS.busway[0]) + W(CARACAS.busway[1])) / 2;
+    for (let z = 8; z < W(this.height) - 8; z += 22) {
+      if (CALLES.some(([a, b]) => z > W(a) - 7 && z < W(b) + 7) || Math.abs(z - WZ(21.5)) < 14) continue;
+      for (const side of [-1, 1]) {
+        const label = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.4), busText);
+        label.rotation.set(-Math.PI / 2, 0, side * Math.PI / 2);
+        label.position.set(busCenter + side * 3.5, .035, z);
+        this.group.add(label);
+      }
+    }
     const white = [], yellow = [], curbs = [];
     const plane = (w, d, x, z) => { const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2); g.translate(x, 0.015, z); return g; };
     const carrX = [...CARRERAS, [CARACAS.lanes[0][0], CARACAS.lanes[1][1]]];
@@ -597,7 +626,9 @@ export class Bogota {
     }
     // estación y bus articulado
     const bx = (W(CARACAS.busway[0]) + W(CARACAS.busway[1])) / 2;
-    this._add(P.busStation(16), bx, WZ(21.5));
+    this.stationGroup = P.busStation(16);
+    this.stationGroup.userData.noMerge = true;
+    this._add(this.stationGroup, bx, WZ(21.5));
     this.busService = new BusService(this.getBusRoute());
     this.group.add(this.busService.group);
     // cerca de la estación: vendedor de tinto y una chaza
@@ -768,9 +799,22 @@ export class Bogota {
 
   // ---------- ciclo ----------
 
-  update(dt, playerPos, camera) {
+  async preloadDetails() {
+    const station = await createImportedModel('estacion');
+    for (const child of [...this.stationGroup.children]) this.stationGroup.remove(child);
+    this.stationGroup.add(station);
+    await Promise.all([
+      this.signals.preloadModel(),
+      ...this.props.map(prop => prop.instance.preloadModel?.())
+    ]);
+    // Los sectores se calcularon con la estación procedural; actualizar sus límites al registrar.
+    this.group.updateWorldMatrix(true, true);
+  }
+
+  update(dt, playerPos, camera, trafficVehicles = []) {
     this.t += dt;
-    this.busService?.update(dt, { player: playerPos, pedestrians: this.npcs });
+    this.signals?.update(this.t);
+    this.busService?.update(dt, { player: playerPos, pedestrians: this.npcs, vehicles: trafficVehicles });
     for (const o of this.animated) o.userData.update(dt, this.t);
     // vista de la cámara una vez por cuadro: los NPC fuera de ella no se dibujan ni se animan
     let frustum = null;
@@ -790,6 +834,9 @@ export class Bogota {
   }
 
   dispose(scene) {
+    this.signals?.dispose();
+    this.stationGroup?.clear();
+    for (const prop of this.props) prop.instance.dispose?.();
     this.busService?.dispose();
     this.buildingVisibility.dispose();
     this._facadeTextures.clear();

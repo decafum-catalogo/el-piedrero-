@@ -89,6 +89,9 @@ test('el distrito completo construye y actualiza barrios, vendedores, peatones y
     camera.lookAt(170,0,100);
     const before=city.busService.position.z;
     city.update(.1,new THREE.Vector3(170,0,100),camera);
+    assert.ok(Math.abs(city.busService.position.z - before) < 1e-8); // Nuevo cruce: espera el rojo al salir.
+    city.t = 25;
+    city.update(.1,new THREE.Vector3(170,0,100),camera);
     assert.ok(city.busService.position.z<before);
     const culling = new FrustumCulling();
     for (const sector of city.renderSectors) culling.register(sector);

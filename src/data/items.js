@@ -111,6 +111,30 @@ export const RARITIES = {
 };
 export const itemRarityLabel = id => RARITIES[ITEMS[id]?.rarity] ?? '';
 
+const ITEM_EMOJIS = {
+  lata: '🥫', botella: '🍶', carton: '📦', chatarra: '🔩', cable: '🔌',
+  lona: '⛺', madera: '🪵', colchon: '🛏️', vela: '🕯️', pan: '🍞',
+  agua: '💧', refresco: '🥤', cafe: '☕', lataComida: '🐟', vendaje: '🩹',
+  reloj: '⌚', moneda: '🪙', anillo: '💍', jabon: '🧼', cepillo: '🪥',
+  retrovisor: '🪞', radio: '📻', cigarrillo: '🚬'
+};
+for (const item of Object.values(ITEMS)) {
+  item.emoji = ITEM_EMOJIS[item.id] ?? (item.cure ? '💊' : item.substance ? '🧪' : '📦');
+  item.desc = item.build ? 'Material para mejorar el cambuche.' : item.consumable ? 'Consumible.' : item.cure ? 'Tratamiento.' : 'Se puede vender.';
+}
+export const isUsable = item => !!(item?.consumable || item?.cure);
+export function describeEffects(item) {
+  const lines = [];
+  if (item.consumable) lines.push(`${item.consumable}: +${item.amount}`);
+  for (const key of ['hambre', 'sed', 'energia', 'salud', 'higiene', 'animo', 'vicio']) {
+    if (item[key]) lines.push(`${key}: ${item[key] > 0 ? '+' : ''}${item[key]}`);
+  }
+  if (item.cure) lines.push(`Cura: ${item.cure}`);
+  const rarity = itemRarityLabel(item.id);
+  if (rarity) lines.push(`Rareza: ${rarity}`);
+  return lines;
+}
+
 /** La recicladora compra todo lo que no se come, no cura, no es sustancia ni sirve para construir */
 export const isRecyclable = (item) =>
   !!item && !item.consumable && !item.cure && !item.substance && !item.build;

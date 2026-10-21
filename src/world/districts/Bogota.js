@@ -26,6 +26,7 @@ import { BuildingVisibility, createBuildingShell } from '../bogota/BuildingVisib
 import { PedestrianNavigation } from '../bogota/PedestrianNavigation.js';
 import { TrafficRoute } from '../bogota/TrafficRoute.js';
 import { BusService } from '../bogota/BusService.js';
+import { PigeonFlock } from '../../entities/PigeonFlock.js';
 import { geometryChunk, mergeByChunk, freezeStaticTransforms, createRenderSectors } from '../bogota/StaticGeometry.js';
 import { CITY_WIDTH, CITY_HEIGHT, CITY_AREA_MULTIPLIER, CITY_CARRERAS as CARRERAS,
   CITY_CALLES as CALLES, ORIGINAL_CITY_WIDTH, ORIGINAL_CITY_HEIGHT, EXTENSION_PARKS,
@@ -157,6 +158,15 @@ export class Bogota {
     this._buildCartucho();
     this._buildPark();
     this._buildExtensions();
+    const parks = [
+      { x0: WX(29.5), x1: WX(37.5), z0: WZ(33.5), z1: WZ(44.5) },
+      ...EXTENSION_PARKS.map(park => ({ x0: W(park.x0 + .5), x1: W(park.x1 - .5), z0: W(park.z0 + .5), z1: W(park.z1 - .5) }))
+    ];
+    this.pigeonFlocks = parks.map(bounds => new PigeonFlock(scene, bounds, {
+      groundHeight: (x, z) => this.getGroundHeight(x, z),
+      isGround: (x, z) => ['grass', 'plaza'].includes(map[Math.round(z / T)]?.[Math.round(x / T)]) &&
+        Math.hypot(x - SHELTER_LOCATION.x, z - SHELTER_LOCATION.z) > 6
+    }));
 
     const cer = P.cerros();
     cer.position.set(-130, 0, W(this.height / 2) - 30);
@@ -826,6 +836,7 @@ export class Bogota {
     }
     const ctx = { player: playerPos, frustum };
     for (const n of this.npcs) n.update(dt, ctx);
+    for (const flock of this.pigeonFlocks ?? []) flock.update(dt, playerPos);
   }
 
   setNightMode(isNight) {
@@ -834,6 +845,7 @@ export class Bogota {
   }
 
   dispose(scene) {
+    for (const flock of this.pigeonFlocks ?? []) flock.dispose();
     this.signals?.dispose();
     this.stationGroup?.clear();
     for (const prop of this.props) prop.instance.dispose?.();

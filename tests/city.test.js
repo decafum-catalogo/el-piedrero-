@@ -66,6 +66,14 @@ test('el distrito completo construye y actualiza barrios, vendedores, peatones y
     await Promise.all(city.npcs.map(npc=>npc.ready));
     assert.equal(city.npcs.length,72); // 66 peatones y 6 vendedores.
     assert.equal(city.vendors.length,6);
+    assert.equal(city.pigeonFlocks.length, 3);
+    for (const flock of city.pigeonFlocks) {
+      assert.equal(flock.birds.length, 10);
+      for (const bird of flock.birds) {
+        const type = city.map[Math.round(bird.position.z / 2)][Math.round(bird.position.x / 2)];
+        assert.ok(['grass', 'plaza'].includes(type));
+      }
+    }
     assert.equal(city.getTrafficRoutes().length,6);
     let separateMeshes = 0;
     for (const building of city.buildingVisibility.buildings) for (const part of building.parts) {

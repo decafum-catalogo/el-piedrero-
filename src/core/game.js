@@ -779,6 +779,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     const culling = this.renderer.culling, district = this.world.active;
     culling.clear();
     if (this.dog) culling.register(this.dog.group, { dynamic: true, margin: 1 });
+    for (const flock of district?.pigeonFlocks ?? []) culling.register(flock.group);
     for (const sector of district?.renderSectors ?? []) culling.register(sector);
     if (district?.signals) culling.register(district.signals.group);
     for (const pickup of this.pickups) culling.register(pickup.group, { dynamic: true, margin: .2 });

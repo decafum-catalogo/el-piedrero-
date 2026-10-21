@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { mock, test } from 'node:test';
 import * as THREE from 'three';
 import { AudioSystem } from '../src/systems/AudioSystem.js';
+import { audioMetadata } from './helpers/audio-file.js';
+import { InteractionSystem } from '../src/systems/InteractionSystem.js';
 import { VehicleAudio } from '../src/systems/VehicleAudio.js';
 import * as textures from '../src/world/bogota/textures.js';
 import { TrafficRoute } from '../src/world/bogota/TrafficRoute.js';
@@ -56,18 +58,71 @@ test('volumen y silencio persistentes controlan el maestro sin reemplazar motore
 const car = (x, z = 0) => ({ car: { position: new THREE.Vector3(x, 0, z), group: new THREE.Group() }, speed: 0 });
 const origin = new THREE.Vector3();
 
+test('la alarma usa una voz por carro estacionado, no se duplica y respeta pausa y volumen maestro', () => {
+  const { audio } = fixture(), first = {}, second = {};
+  const sound = audio.sounds.carAlarm;
+  assert.equal(sound.options.src[0], '/audio/Sonido%20De%20Alarma%20De%20Auto.opus');
+  assert.equal(sound.options.loop, false);
+  assert.equal(audio.playCarAlarm({ traffic: true }), false);
+  assert.equal(audio.playCarAlarm(first), true);
+  assert.equal(audio.playCarAlarm(first), false);
+  assert.equal(audio.playCarAlarm(second), true);
+  assert.equal(sound.starts, 2);
+  const id = audio._carAlarms.get(first).id;
+  audio.setPaused(true); assert.equal(sound.playing(id), false);
+  assert.equal(audio.playCarAlarm({}), false);
+  audio.setPaused(false); assert.equal(sound.playing(id), true);
+  assert.equal(sound.starts, 2);
+  sound.stop(id); audio.updateWorld(.1, origin, null, []);
+  assert.equal(audio._carAlarms.has(first), false);
+  audio.dispose(); assert.equal(sound.unloaded, true);
+});
+
+test('robar un retrovisor activa la alarma aunque te atrapen, pero un carro ya saqueado no la repite', () => {
+  globalThis.window = new EventTarget();
+  for (const caught of [false, true]) {
+    let alarms = 0, used = false;
+    const target = { steal() { if (used) return null; used = true; return { items: ['retrovisor'], caught }; } };
+    const interaction = new InteractionSystem({}, { add() { return true; } },
+      { salud: 100, dinero: 10000, addXP() {} },
+      { play() {}, playCarAlarm(car) { assert.equal(car, target); alarms++; } },
+      null, { getEffect: (_key, fallback) => fallback });
+    interaction._stealCar(target); assert.equal(alarms, 1);
+    interaction._stealCar(target); assert.equal(alarms, 1);
+  }
+});
+
+test('la carpeta de audio contiene únicamente archivos utilizados y todos tienen duración válida', () => {
+  const { audio } = fixture();
+  try {
+    const sounds = [...Object.values(audio.sounds), ...Object.values(audio.vehicleSounds)];
+    const used = sounds.map(sound => decodeURIComponent(sound.options.src[0].split('/').at(-1))).sort();
+    const files = readdirSync(new URL('../public/audio/', import.meta.url)).sort();
+    assert.deepEqual(files, used);
+    assert.equal(files.filter(file => file.endsWith('.opus')).length, 10);
+    for (const file of files) {
+      const bytes = readFileSync(new URL(`../public/audio/${file}`, import.meta.url));
+      assert.ok(audioMetadata(bytes).duration > 0);
+    }
+  } finally { audio.dispose(); }
+});
+
 test('los nueve audios nuevos existen y las rutas de claxon coinciden con los nombres actuales', async () => {
   const { audio, bank } = fixture(); await audio.ready;
   for (const sound of [...Object.values(bank), audio.sounds.steps, audio.sounds.ambient]) {
     const file = decodeURIComponent(sound.options.src[0].replace('/audio/', ''));
     const bytes = readFileSync(new URL(`../public/audio/${encodeURIComponent(file)}`, import.meta.url));
-    assert.equal(bytes.toString('ascii', 0, 4), 'RIFF');
-    assert.equal(bytes.toString('ascii', 8, 12), 'WAVE');
-    assert.ok(bytes.length > 100_000);
+    const metadata = audioMetadata(bytes);
+    assert.equal(metadata.format, 'opus');
+    assert.ok(bytes.length > 1000);
+    if (sound.options.sprite) {
+      const [start, length] = sound.options.sprite.honk;
+      assert.ok(metadata.duration * 1000 >= start + length, 'La pitada cabe en el nuevo archivo');
+    }
   }
   assert.deepEqual([bank.horn1, bank.horn2, bank.horn3].map(sound => sound.options.src[0]),
-    ['/audio/car_horn_sound1.wav', '/audio/car_horn_sound.wav', '/audio/car_horn_sound_v3.wav']);
-  assert.equal(audio.sounds.steps.options.src[0], '/audio/Sounds_of_a_steps.wav');
+    ['/audio/car_horn_sound1.opus', '/audio/car_horn_sound.opus', '/audio/car_horn_sound_v3.opus']);
+  assert.equal(audio.sounds.steps.options.src[0], '/audio/Sounds_of_a_steps.opus');
   assert.ok(bank.horn1.options.sprite.honk[1] < 1000);
   audio.dispose();
 });
@@ -78,9 +133,9 @@ test('un archivo de sonido ausente informa su ruta y conserva el error hasta una
   try {
     bank.horn2.options.onloaderror(null, '404');
     bank.horn2.options.onloaderror(null, '404');
-    assert.equal(audio.loadErrors.get('car_horn_sound.wav'), '404');
+    assert.equal(audio.loadErrors.get('car_horn_sound.opus'), '404');
     assert.equal(errors.length, 1);
-    assert.ok(errors[0][0].includes('/audio/car_horn_sound.wav'));
+    assert.ok(errors[0][0].includes('/audio/car_horn_sound.opus'));
     bank.horn2.options.onload();
     assert.equal(audio.loadErrors.size, 0);
   } finally { logger.mock.restore(); audio.dispose(); }

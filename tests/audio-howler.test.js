@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as THREE from 'three';
 import { AudioSystem } from '../src/systems/AudioSystem.js';
+import { audioMetadata } from './helpers/audio-file.js';
 
 // Ejecuta Howler real, incluida su extensión espacial. Solo se sustituye
 // la interfaz del dispositivo: así detectamos opciones ignoradas por la librería.
@@ -34,16 +35,8 @@ class Context {
   createBufferSource() { return audioNode(); }
   createBuffer() { return {}; }
   decodeAudioData(bytes, done) {
-    const buffer = Buffer.from(bytes);
-    assert.equal(buffer.toString('ascii', 0, 4), 'RIFF');
-    let offset = 12, byteRate, dataSize;
-    while (offset + 8 <= buffer.length) {
-      const size = buffer.readUInt32LE(offset + 4), name = buffer.toString('ascii', offset, offset + 4);
-      if (name === 'fmt ') byteRate = buffer.readUInt32LE(offset + 16);
-      if (name === 'data') dataSize = size;
-      offset += 8 + size + size % 2;
-    }
-    setTimeout(() => done({ duration: dataSize / byteRate }), 0);
+    const { duration } = audioMetadata(Buffer.from(bytes));
+    setTimeout(() => done({ duration }), 0);
   }
   resume() { return Promise.resolve(); }
   close() {}
@@ -84,16 +77,16 @@ test('Howler real reproduce motores y claxones normales conectados a la salida s
     for (let frame = 0; frame < 20; frame++) audio.updateWorld(.1, listener, camera, [vehicle], bus);
     const carState = audio.vehicles.instances.get(vehicle.car), busState = audio.vehicles.instances.get(bus);
     assert.equal(audio.loadErrors.size, 0);
-    assert.equal(carState.idle.sound._src, '/audio/car_idling_at_a_traf.wav');
+    assert.equal(carState.idle.sound._src, '/audio/car_idling_at_a_traf.opus');
     assert.ok(carState.idle.sound._soundById(carState.idle.id)._node.gain.value > .30);
-    assert.equal(busState.drive.sound._src, '/audio/bus_vehicle_drivin.wav');
+    assert.equal(busState.drive.sound._src, '/audio/bus_vehicle_drivin.opus');
     assert.ok(Math.abs(busState.drive.sound._soundById(busState.drive.id)._node.gain.value - .42) < .001);
     const voices = [carState.idle, busState.drive, carState.horn];
     vehicle.speed = 4; bus.speed = 0;
     for (let frame = 0; frame < 20; frame++) audio.updateWorld(.1, listener, camera, [vehicle], bus);
     voices.push(carState.drive, busState.idle);
-    assert.equal(carState.drive.sound._src, '/audio/small_vehicle_drivin.wav');
-    assert.equal(busState.idle.sound._src, '/audio/car_idling_at_a_traf_bus.wav');
+    assert.equal(carState.drive.sound._src, '/audio/small_vehicle_drivin.opus');
+    assert.equal(busState.idle.sound._src, '/audio/car_idling_at_a_traf_bus.opus');
     assert.ok(carState.drive.sound._soundById(carState.drive.id)._node.gain.value > .35);
     assert.ok(busState.idle.sound._soundById(busState.idle.id)._node.gain.value > .35);
     assert.ok(busState.drive.sound._soundById(busState.drive.id)._node.gain.value < .001);

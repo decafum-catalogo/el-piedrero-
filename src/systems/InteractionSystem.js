@@ -255,6 +255,7 @@ export class InteractionSystem {
     const caughtMult = this.talents.getEffect('stealCaughtMult', 1);
     const result = target.steal(caughtMult);
     if (!result) return;
+    if (result.items.includes('retrovisor')) this.audio?.playCarAlarm?.(target);
 
     const added = [];
     for (const itemId of result.items) {

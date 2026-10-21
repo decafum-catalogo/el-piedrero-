@@ -33,22 +33,24 @@ export class AudioSystem {
       sell: sound('sell.wav', { volume: .8 }),
       full: sound('full.wav', { volume: .5 }),
       empty: sound('empty.wav', { volume: .4 }),
-      steps: sound('Sounds_of_a_steps.wav', { volume: .65, loop: true }),
-      ambient: sound('city_atmosphere_soun.wav', { volume: .18, loop: true })
+      carAlarm: sound('Sonido De Alarma De Auto.opus', { volume: .6, loop: false, pool: 6 }),
+      steps: sound('Sounds_of_a_steps.opus', { volume: .65, loop: true }),
+      ambient: sound('city_atmosphere_soun.opus', { volume: .18, loop: true })
     };
     // Reproducción normal: sin posiciones, panners ni atenuación 3D.
     const vehicleOptions = { volume: 0, loop: true, pool: 10 };
     this.vehicleSounds = {
-      carIdle: sound('car_idling_at_a_traf.wav', vehicleOptions),
-      carDrive: sound('small_vehicle_drivin.wav', vehicleOptions),
-      busIdle: sound('car_idling_at_a_traf_bus.wav', vehicleOptions),
-      busDrive: sound('bus_vehicle_drivin.wav', vehicleOptions),
+      carIdle: sound('car_idling_at_a_traf.opus', vehicleOptions),
+      carDrive: sound('small_vehicle_drivin.opus', vehicleOptions),
+      busIdle: sound('car_idling_at_a_traf_bus.opus', vehicleOptions),
+      busDrive: sound('bus_vehicle_drivin.opus', vehicleOptions),
       // Tomar una sola pitada de cada grabación evita reproducir secuencias de casi 8 s.
-      horn1: sound('car_horn_sound1.wav', { ...vehicleOptions, loop: false, sprite: { honk: [900, 550] } }),
-      horn2: sound('car_horn_sound.wav', { ...vehicleOptions, loop: false, sprite: { honk: [1000, 600] } }),
-      horn3: sound('car_horn_sound_v3.wav', { ...vehicleOptions, loop: false, sprite: { honk: [200, 650] } })
+      horn1: sound('car_horn_sound1.opus', { ...vehicleOptions, loop: false, sprite: { honk: [900, 550] } }),
+      horn2: sound('car_horn_sound.opus', { ...vehicleOptions, loop: false, sprite: { honk: [1000, 600] } }),
+      horn3: sound('car_horn_sound_v3.opus', { ...vehicleOptions, loop: false, sprite: { honk: [200, 650] } })
     };
     this.vehicles = new VehicleAudio(this.vehicleSounds);
+    this._carAlarms = new Map();
 
     // El audio es opcional: un archivo ausente o bloqueado no impide jugar.
     this.ready = Promise.all([...Object.values(this.sounds), ...Object.values(this.vehicleSounds)].map(sound => new Promise(resolve => {
@@ -135,6 +137,15 @@ export class AudioSystem {
     this.sounds[name]?.stop();
   }
 
+  playCarAlarm(car) {
+    const sound = this.sounds.carAlarm;
+    if (!car || car.traffic || this._paused || sound.state() !== 'loaded') return false;
+    const current = this._carAlarms.get(car);
+    if (current && (current.paused || sound.playing(current.id))) return false;
+    this._carAlarms.set(car, { id: sound.play(), paused: false });
+    return true;
+  }
+
   updateSteps(moving, running) {
     const s = this.sounds.steps;
     if (!s) return;
@@ -174,6 +185,14 @@ export class AudioSystem {
     if (this._paused === paused) return;
     this._paused = paused;
     this.vehicles.setPaused(paused);
+    for (const [car, alarm] of this._carAlarms) {
+      const sound = this.sounds.carAlarm;
+      if (paused && sound.playing(alarm.id)) {
+        sound.pause(alarm.id); alarm.paused = true;
+      } else if (!paused && alarm.paused) {
+        sound.play(alarm.id); alarm.paused = false;
+      } else if (!alarm.paused && !sound.playing(alarm.id)) this._carAlarms.delete(car);
+    }
     if (paused) {
       this.updateSteps(false, false); this.updateBoost(false);
       if (this._ambientId !== undefined) this.sounds.ambient.pause(this._ambientId);
@@ -183,9 +202,13 @@ export class AudioSystem {
   updateWorld(dt, position, _camera, vehicles, bus) {
     this.setPaused(false);
     this.vehicles.update(dt, position, vehicles, bus);
+    for (const [car, alarm] of this._carAlarms) {
+      if (!alarm.paused && !this.sounds.carAlarm.playing(alarm.id)) this._carAlarms.delete(car);
+    }
   }
 
   dispose() {
+    this._carAlarms.clear();
     this.eventTarget?.removeEventListener('dog-bark', this._dogBark);
     this.vehicles.clear();
     this._removeUnlock();

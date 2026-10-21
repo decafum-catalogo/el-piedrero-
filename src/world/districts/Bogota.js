@@ -836,7 +836,7 @@ export class Bogota {
     }
     const ctx = { player: playerPos, frustum };
     for (const n of this.npcs) n.update(dt, ctx);
-    for (const flock of this.pigeonFlocks ?? []) flock.update(dt, playerPos);
+    for (const flock of this.pigeonFlocks ?? []) flock.update(dt, playerPos, this.npcs);
   }
 
   setNightMode(isNight) {

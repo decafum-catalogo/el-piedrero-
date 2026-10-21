@@ -3,15 +3,16 @@ const MAX_NEARBY_VEHICLES = 8;
 
 /** Buffers compartidos; identificadores, mezcla y claxon independientes por vehículo. */
 export class VehicleAudio {
-  constructor(sounds, random = Math.random) {
+  constructor(sounds, random = Math.random, driverSounds = []) {
     this.sounds = sounds;
     this.random = random;
+    this.driverSounds = driverSounds;
     this.instances = new Map();
     this.paused = false;
   }
 
   _stop(state) {
-    for (const key of ['idle', 'drive', 'horn']) {
+    for (const key of ['idle', 'drive', 'horn', 'remark']) {
       if (state[key]) state[key].sound.stop(state[key].id);
       state[key] = null;
     }
@@ -33,6 +34,7 @@ export class VehicleAudio {
       }
       // Un claxon interrumpido por un menú no se repite al volver.
       if (paused && state.horn) { state.horn.sound.stop(state.horn.id); state.horn = null; }
+      if (paused && state.remark) { state.remark.sound.stop(state.remark.id); state.remark = null; }
     }
   }
 
@@ -58,6 +60,7 @@ export class VehicleAudio {
     for (const entry of entries) {
       const dx = entry.car.position.x - position.x, dz = entry.car.position.z - position.z;
       entry.distance = Math.hypot(dx, dz);
+      entry.voiceDistance = Math.hypot(dx, entry.car.position.y - position.y, dz);
     }
     // La visibilidad del render no determina si un vehículo se puede oír.
     const nearby = new Set(entries.filter(entry => entry.distance < HEARING_DISTANCE)
@@ -93,8 +96,21 @@ export class VehicleAudio {
           state.horn = { sound, id };
           sound.volume(.48, id);
           sound.rate(state.pitch, id);
+          if (!entry.bus && entry.voiceDistance < 8 && this.driverSounds.length) {
+            const index = Math.min(this.driverSounds.length - 1, Math.floor(this.random() * this.driverSounds.length));
+            const remark = this.driverSounds[index];
+            if (remark.state() === 'loaded') {
+              if (state.remark) state.remark.sound.stop(state.remark.id);
+              state.remark = { sound: remark, id: remark.play() };
+            }
+          }
           state.cooldown = 6 + this.random() * 5;
         }
+      }
+      if (state.remark) {
+        const { sound, id } = state.remark;
+        if (!sound.playing(id)) state.remark = null;
+        else sound.volume(.7 * Math.max(0, Math.min(1, (8 - entry.voiceDistance) / 6)), id);
       }
     }
   }

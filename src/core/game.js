@@ -381,6 +381,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     if (district.getTrafficRoutes) {
       this.traffic = new TrafficSystem(this.sceneMgr.scene, district.getTrafficRoutes());
       this.traffic.setParkedCars(this.cars);
+      for (const { car } of this.traffic.vehicles) this.interaction.register(car);
     }
 
     // ===== Puesto de venta =====
@@ -727,6 +728,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     // 9. Entidades
     for (const p of this.pickups) p.update(dt);
     for (const c of this.cars) c.update(dt);
+    for (const { car } of this.traffic?.vehicles ?? []) car.update(dt);
     this.cambuche?.update(dt);
     this.dealer?.update(dt);
 

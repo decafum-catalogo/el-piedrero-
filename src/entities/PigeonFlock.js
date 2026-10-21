@@ -33,12 +33,14 @@ export class PigeonFlock {
     this.group.position.set((bounds.x0 + bounds.x1) / 2, 0, (bounds.z0 + bounds.z1) / 2);
     this._dummy = new THREE.Object3D(); this._local = new THREE.Object3D(); this._matrix = new THREE.Matrix4();
     this._disposed = false;
+    this._people = []; this._scanTimer = 0;
     this.birds = [];
     for (let i = 0; i < count; i++) {
       const position = this._point();
       if (!position) break;
       this.birds.push({ position, from: position.clone(), target: position.clone(), yaw: random() * Math.PI * 2,
-        phase: random() * Math.PI * 2, state: 'idle', timer: .5 + random() * 3, scale: .9 + random() * .2 });
+        phase: random() * Math.PI * 2, state: 'idle', timer: .5 + random() * 3, scale: .9 + random() * .2,
+        threat: new THREE.Vector3() });
     }
     const material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
     const body = bodyGeometry();
@@ -84,16 +86,34 @@ export class PigeonFlock {
     bird.height = 2 + this.random() * 2;
   }
 
-  update(dt, player) {
+  update(dt, player, npcs = []) {
     if (this._disposed || !player) return;
     this.group.visible = Math.hypot(player.x - this.group.position.x, player.z - this.group.position.z) < 90;
     if (!this.group.visible) return;
     dt = Math.min(Math.max(0, dt), .1);
+    // Filtrar personas del parque siete veces por segundo; las posiciones siguen siendo referencias vivas.
+    this._scanTimer -= dt;
+    if (this._scanTimer <= 0) {
+      this._scanTimer = .15; this._people.length = 0;
+      const b = this.bounds;
+      for (const npc of npcs) {
+        const p = npc.position;
+        if (p && p.x >= b.x0 - 3.5 && p.x <= b.x1 + 3.5 && p.z >= b.z0 - 3.5 && p.z <= b.z1 + 3.5) this._people.push(p);
+      }
+    }
     for (const bird of this.birds) {
       bird.phase += dt * (bird.state === 'flying' ? 32 : 8);
-      const near = Math.hypot(player.x - bird.position.x, player.z - bird.position.z) < 3.5;
-      if (near && bird.state !== 'flying' && bird.state !== 'startled') {
-        bird.state = 'startled'; bird.timer = this.random() * .22;
+      if (bird.state !== 'flying' && bird.state !== 'startled') {
+        let threat = null, nearest = 3.5 * 3.5;
+        const check = p => {
+          const dx = p.x - bird.position.x, dz = p.z - bird.position.z, squared = dx * dx + dz * dz;
+          if (squared < nearest) { threat = p; nearest = squared; }
+        };
+        check(player);
+        for (const person of this._people) check(person);
+        if (threat) {
+          bird.threat.copy(threat); bird.state = 'startled'; bird.timer = this.random() * .22;
+        }
       }
       if (bird.state === 'flying') {
         bird.elapsed += dt;
@@ -104,7 +124,7 @@ export class PigeonFlock {
         if (t === 1) { bird.state = 'idle'; bird.timer = 1 + this.random() * 3; }
       } else if (bird.state === 'startled') {
         bird.timer -= dt;
-        if (bird.timer <= 0) this._takeOff(bird, player);
+        if (bird.timer <= 0) this._takeOff(bird, bird.threat);
       } else if (bird.state === 'walking') {
         const dx = bird.target.x - bird.position.x, dz = bird.target.z - bird.position.z, distance = Math.hypot(dx, dz);
         const step = Math.min(distance, dt * .45);

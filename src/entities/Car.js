@@ -77,12 +77,12 @@ export class Car {
    * @returns { items, caught }
    */
   steal(caughtMult = 1) {
-    if (this.traffic || this.used || this.cooldown > 0) return null;
+    if (this.used || this.cooldown > 0) return null;
 
     const items = [];
     const mirrorCount = Math.random() < 0.5 ? 2 : 1;
     for (let i = 0; i < mirrorCount; i++) items.push('retrovisor');
-    if (Math.random() < 0.2) items.push('radio');
+    if (!this.traffic && Math.random() < 0.2) items.push('radio');
 
     const caughtChance = 0.25 * caughtMult;
     const caught = Math.random() < caughtChance;
@@ -101,7 +101,7 @@ export class Car {
       if (this.cooldown <= 0) {
         this.used = false;
         this.mirrors.forEach((m) => (m.visible = true));
-        this.marker.visible = true;
+        this.marker.visible = !this.traffic;
       }
     }
     if (this.marker.visible) {

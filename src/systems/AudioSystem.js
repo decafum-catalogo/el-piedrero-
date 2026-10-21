@@ -49,11 +49,18 @@ export class AudioSystem {
       horn2: sound('car_horn_sound.opus', { ...vehicleOptions, loop: false, sprite: { honk: [1000, 600] } }),
       horn3: sound('car_horn_sound_v3.opus', { ...vehicleOptions, loop: false, sprite: { honk: [200, 650] } })
     };
-    this.vehicles = new VehicleAudio(this.vehicleSounds);
+    const driverFiles = [
+      ...Array.from({ length: 7 }, (_, i) => `valentina_n${i + 1}.mp3`),
+      ...Array.from({ length: 6 }, (_, i) => `roberto_n${i + 1}.mp3`)
+    ];
+    this.driverSounds = driverFiles.map(file => sound(file, { volume: 0, loop: false, pool: 8 }));
+    this.theftSounds = Array.from({ length: 5 }, (_, i) => sound(`roberto_robo_espejo_n${i + 1}.mp3`, { volume: 0, loop: false, pool: 6 }));
+    this._theftVoices = new Map();
+    this.vehicles = new VehicleAudio(this.vehicleSounds, Math.random, this.driverSounds);
     this._carAlarms = new Map();
 
     // El audio es opcional: un archivo ausente o bloqueado no impide jugar.
-    this.ready = Promise.all([...Object.values(this.sounds), ...Object.values(this.vehicleSounds)].map(sound => new Promise(resolve => {
+    this.ready = Promise.all([...Object.values(this.sounds), ...Object.values(this.vehicleSounds), ...this.driverSounds, ...this.theftSounds].map(sound => new Promise(resolve => {
       if (sound.state() === 'loaded') { resolve(); return; }
       const done = () => {
         clearTimeout(timer);
@@ -155,6 +162,30 @@ export class AudioSystem {
     return .6 * Math.max(0, Math.min(1, (41 - distance) / 36));
   }
 
+  playMovingTheft(car) {
+    if (!car?.traffic || this._paused) return false;
+    const sound = this.theftSounds[Math.min(4, Math.floor(this.vehicles.random() * 5))];
+    if (sound.state() !== 'loaded') return false;
+    const previous = this._theftVoices.get(car);
+    if (previous) previous.sound.stop(previous.id);
+    const voice = { sound, id: sound.play() };
+    sound.volume(this._theftVolume(car, this._listenerPosition), voice.id);
+    this._theftVoices.set(car, voice);
+    // El reclamo por el robo reemplaza la frase normal de obstrucción de ese conductor.
+    const driver = this.vehicles.instances.get(car);
+    if (driver) {
+      if (driver.remark) { driver.remark.sound.stop(driver.remark.id); driver.remark = null; }
+      driver.cooldown = Math.max(driver.cooldown, sound.duration() + .5);
+    }
+    return true;
+  }
+
+  _theftVolume(car, listener) {
+    if (!car.position || !listener) return .75;
+    const distance = Math.hypot(car.position.x - listener.x, car.position.y - listener.y, car.position.z - listener.z);
+    return .75 * Math.max(0, Math.min(1, (12 - distance) / 10));
+  }
+
   updateSteps(moving, running) {
     const s = this.sounds.steps;
     if (!s) return;
@@ -194,6 +225,10 @@ export class AudioSystem {
     if (this._paused === paused) return;
     this._paused = paused;
     this.vehicles.setPaused(paused);
+    if (paused) {
+      for (const voice of this._theftVoices.values()) voice.sound.stop(voice.id);
+      this._theftVoices.clear();
+    }
     for (const [car, alarm] of this._carAlarms) {
       const sound = this.sounds.carAlarm;
       if (paused && sound.playing(alarm.id)) {
@@ -212,6 +247,10 @@ export class AudioSystem {
     this._listenerPosition = position;
     this.setPaused(false);
     this.vehicles.update(dt, position, vehicles, bus);
+    for (const [car, voice] of this._theftVoices) {
+      if (!voice.sound.playing(voice.id)) this._theftVoices.delete(car);
+      else voice.sound.volume(this._theftVolume(car, position), voice.id);
+    }
     for (const [car, alarm] of this._carAlarms) {
       if (!alarm.paused && !this.sounds.carAlarm.playing(alarm.id)) {
         this._carAlarms.delete(car);
@@ -226,11 +265,12 @@ export class AudioSystem {
   }
 
   dispose() {
+    this._theftVoices.clear();
     this._carAlarms.clear();
     this.eventTarget?.removeEventListener('dog-bark', this._dogBark);
     this.vehicles.clear();
     this._removeUnlock();
     globalThis.document?.removeEventListener('visibilitychange', this._visibilityChanged);
-    for (const sound of [...Object.values(this.sounds), ...Object.values(this.vehicleSounds)]) sound.unload();
+    for (const sound of [...Object.values(this.sounds), ...Object.values(this.vehicleSounds), ...this.driverSounds, ...this.theftSounds]) sound.unload();
   }
 }

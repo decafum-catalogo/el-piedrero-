@@ -2,6 +2,26 @@ import assert from 'node:assert/strict';
 
 /** Lee metadatos del contenedor real; no sustituye probar la decodificación en el navegador. */
 export function audioMetadata(buffer) {
+  if (buffer.toString('ascii', 0, 3) === 'ID3' || (buffer.readUInt16BE(0) & 0xffe0) === 0xffe0) {
+    let offset = 0, duration = 0, frames = 0;
+    if (buffer.toString('ascii', 0, 3) === 'ID3') {
+      offset = 10 + ((buffer[6] & 127) << 21) + ((buffer[7] & 127) << 14) + ((buffer[8] & 127) << 7) + (buffer[9] & 127);
+      if (buffer[5] & 16) offset += 10;
+    }
+    while (offset + 4 <= buffer.length) {
+      const header = buffer.readUInt32BE(offset), version = (header >>> 19) & 3;
+      const layer = (header >>> 17) & 3, rate = (header >>> 10) & 3, bitrate = (header >>> 12) & 15;
+      if ((header >>> 21) !== 0x7ff || version === 1 || layer !== 1 || rate === 3 || bitrate === 0 || bitrate === 15) { offset++; continue; }
+      const sampleRate = [44100, 48000, 32000][rate] / (version === 3 ? 1 : version === 2 ? 2 : 4);
+      const kbps = (version === 3 ? [0,32,40,48,56,64,80,96,112,128,160,192,224,256,320] : [0,8,16,24,32,40,48,56,64,80,96,112,128,144,160])[bitrate];
+      const length = Math.floor((version === 3 ? 144 : 72) * kbps * 1000 / sampleRate) + ((header >>> 9) & 1);
+      assert.ok(offset + length <= buffer.length, 'Trama MP3 completa');
+      duration += (version === 3 ? 1152 : 576) / sampleRate;
+      frames++; offset += length;
+    }
+    assert.ok(frames > 0 && duration > 0, 'MP3 contiene tramas de audio');
+    return { format: 'mp3', duration };
+  }
   if (buffer.toString('ascii', 0, 4) === 'OggS') {
     let offset = 0, samples = 0n, preSkip, end = false;
     while (offset < buffer.length) {

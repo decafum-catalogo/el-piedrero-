@@ -227,7 +227,7 @@ export class HUD {
         const type = interaction.currentTargetType;
         let text = '';
         if (type === 'pickup') text = '[E] Recoger basura · [Mantener Q] Seleccionar';
-        else if (type === 'car') text = '[E] Robar retrovisor de auto';
+        else if (type === 'car') text = interaction.currentTarget?.traffic ? '[E] Robar retrovisor del carro en circulación' : '[E] Robar retrovisor de auto';
         else if (type === 'sell') text = '[E] Recicladora El Progreso · Vender material';
         else if (type === 'shop') text = `[E] ${interaction.currentTarget.title ?? 'Tienda La Esquinita'} · Comprar`;
         else if (type === 'dog') {

@@ -75,3 +75,24 @@ test('descartar una bandada libera cada recurso compartido una sola vez', () => 
   flock.dispose(); flock.dispose();
   assert.equal(scene.children.length, 0); assert.equal(geometries, 4); assert.equal(materials, 1);
 });
+
+test('un NPC cercano también provoca vuelo alejándose de él aunque el jugador esté lejos', () => {
+  const { flock } = fixture(1), bird = flock.birds[0];
+  const npc = { position: bird.position.clone() }, player = new THREE.Vector3(25, 0, 25);
+  for (let i = 0; i < 15; i++) flock.update(1 / 30, player, [npc]);
+  assert.equal(bird.state, 'flying'); assert.ok(bird.position.y > .06);
+  assert.ok(bird.target.distanceTo(npc.position) > 8);
+  assert.deepEqual(bird.threat, npc.position);
+  flock.dispose();
+});
+
+test('descarta NPC lejanos y detecta a quienes entran al parque sin revisar toda la ciudad por ave', () => {
+  const { flock } = fixture(1), bird = flock.birds[0], player = new THREE.Vector3(25, 0, 25);
+  const npcs = Array.from({ length: 72 }, () => ({ position: new THREE.Vector3(100, 0, 100) }));
+  flock.update(.1, player, npcs);
+  assert.equal(flock._people.length, 0); assert.notEqual(bird.state, 'flying');
+  npcs[0].position.copy(bird.position);
+  for (let i = 0; i < 5; i++) flock.update(.1, player, npcs);
+  assert.equal(flock._people.length, 1); assert.equal(bird.state, 'flying');
+  flock.dispose();
+});

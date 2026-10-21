@@ -58,6 +58,95 @@ test('volumen y silencio persistentes controlan el maestro sin reemplazar motore
 const car = (x, z = 0) => ({ car: { position: new THREE.Vector3(x, 0, z), group: new THREE.Group() }, speed: 0 });
 const origin = new THREE.Vector3();
 
+test('el robo en circulación selecciona inmediatamente cualquiera de las cinco frases exclusivas', () => {
+  const { audio } = fixture(), vehicle = car(2); vehicle.car.traffic = true;
+  audio.updateWorld(.1, origin, null, [vehicle]);
+  assert.equal(audio.playMovingTheft({ traffic: false }), false);
+  for (let i = 0; i < 5; i++) {
+    audio.vehicles.random = () => (i + .1) / 5;
+    assert.equal(audio.playMovingTheft(vehicle.car), true);
+    const voice = audio._theftVoices.get(vehicle.car);
+    assert.equal(voice.sound.options.src[0], `/audio/roberto_robo_espejo_n${i + 1}.mp3`);
+    assert.equal(voice.sound.voices.get(voice.id).volume, .75);
+  }
+  assert.ok(audio.theftSounds.every(sound => sound.starts === 1));
+  assert.equal(audio.sounds.carAlarm.starts, 0);
+  audio.dispose(); assert.ok(audio.theftSounds.every(sound => sound.unloaded));
+});
+
+test('la voz de robo sigue al carro, se silencia a doce metros y no se repite tras pausar', () => {
+  const { audio } = fixture(), vehicle = car(2); vehicle.car.traffic = true;
+  audio.updateWorld(.1, origin, null, [vehicle]); audio.playMovingTheft(vehicle.car);
+  const { sound, id } = audio._theftVoices.get(vehicle.car);
+  vehicle.car.position.x = 7; audio.updateWorld(.1, origin, null, [vehicle]);
+  assert.equal(sound.voices.get(id).volume, .375);
+  for (const distance of [12, 13, 30]) {
+    vehicle.car.position.x = distance; audio.updateWorld(.1, origin, null, [vehicle]);
+    assert.equal(sound.voices.get(id).volume, 0);
+  }
+  vehicle.car.position.x = 1; audio.updateWorld(.1, origin, null, [vehicle]);
+  assert.equal(sound.voices.get(id).volume, .75); assert.equal(sound.starts, 1);
+  audio.setPaused(true); assert.equal(sound.playing(id), false); assert.equal(audio._theftVoices.size, 0);
+  audio.setPaused(false); assert.equal(sound.playing(id), false);
+  audio.dispose();
+});
+
+test('la interacción distingue robo de tráfico y alarma de estacionado antes de recoger los objetos', () => {
+  globalThis.window = new EventTarget();
+  for (const moving of [false, true]) {
+    const order = [];
+    const target = { traffic: moving, steal() { order.push('steal'); return { items: ['retrovisor'], caught: false }; } };
+    const interaction = new InteractionSystem({}, { add() { order.push('add'); return true; } },
+      { salud: 100, dinero: 10000, addXP() {} },
+      { play() {}, playCarAlarm() { order.push('alarm'); }, playMovingTheft() { order.push('voice'); } },
+      null, { getEffect: (_key, fallback) => fallback });
+    interaction._stealCar(target);
+    assert.deepEqual(order, ['steal', moving ? 'voice' : 'alarm', 'add']);
+  }
+});
+
+test('cada pitada elige al azar entre las trece frases de Valentina y Roberto', () => {
+  const { audio } = fixture(), vehicle = car(2);
+  audio.updateWorld(.1, origin, null, [vehicle]);
+  const state = audio.vehicles.instances.get(vehicle.car);
+  vehicle.personBlocked = true; state.patience = 0;
+  assert.equal(audio.driverSounds.length, 13);
+  for (let i = 0; i < 13; i++) {
+    audio.vehicles.random = () => (i + .1) / 13;
+    state.cooldown = 0;
+    audio.updateWorld(.1, origin, null, [vehicle]);
+    const file = i < 7 ? `valentina_n${i + 1}.mp3` : `roberto_n${i - 6}.mp3`;
+    assert.equal(state.remark.sound.options.src[0], `/audio/${file}`);
+    assert.equal(state.remark.sound.voices.get(state.remark.id).volume, .7);
+  }
+  assert.ok(audio.driverSounds.every(sound => sound.starts === 1));
+  audio.dispose(); assert.ok(audio.driverSounds.every(sound => sound.unloaded));
+});
+
+test('las frases solo empiezan a menos de ocho metros, se atenúan y los menús las detienen sin repetirlas', () => {
+  const { audio } = fixture(), vehicle = car(0), listener = new THREE.Vector3(9, 0, 0);
+  audio.updateWorld(.1, listener, null, [vehicle]);
+  const state = audio.vehicles.instances.get(vehicle.car);
+  assert.equal(state.remark, undefined, 'No habla sin una obstrucción');
+  vehicle.personBlocked = true; state.patience = 0;
+  audio.updateWorld(.1, listener, null, [vehicle]);
+  assert.ok(state.horn); assert.equal(state.remark, undefined, 'La frase no empieza fuera de su alcance');
+  listener.x = 2; state.cooldown = 0;
+  audio.updateWorld(.1, listener, null, [vehicle]);
+  const { sound, id } = state.remark;
+  listener.x = 5; audio.updateWorld(.1, listener, null, [vehicle]);
+  assert.equal(sound.voices.get(id).volume, .35);
+  for (const distance of [8, 9, 20]) {
+    listener.x = distance; audio.updateWorld(.1, listener, null, [vehicle]);
+    assert.equal(sound.voices.get(id).volume, 0);
+  }
+  listener.set(0, 9, 0); audio.updateWorld(.1, listener, null, [vehicle]);
+  assert.equal(sound.voices.get(id).volume, 0, 'También respeta la distancia vertical');
+  audio.setPaused(true); assert.equal(sound.playing(id), false); assert.equal(state.remark, null);
+  audio.setPaused(false); assert.equal(sound.playing(id), false);
+  audio.dispose();
+});
+
 test('cada alarma se atenúa según su carro y queda muda desde los 41 metros sin reiniciar', () => {
   const { audio } = fixture(), car = { position: new THREE.Vector3() }, other = { position: new THREE.Vector3(60, 0, 0) };
   audio.updateWorld(.1, origin, null, []);
@@ -113,13 +202,13 @@ test('robar un retrovisor activa la alarma aunque te atrapen, pero un carro ya s
 test('la carpeta de audio contiene únicamente archivos utilizados y todos tienen duración válida', () => {
   const { audio } = fixture();
   try {
-    const sounds = [...Object.values(audio.sounds), ...Object.values(audio.vehicleSounds)];
+    const sounds = [...Object.values(audio.sounds), ...Object.values(audio.vehicleSounds), ...audio.driverSounds, ...audio.theftSounds];
     const used = sounds.map(sound => decodeURIComponent(sound.options.src[0].split('/').at(-1))).sort();
     const files = readdirSync(new URL('../public/audio/', import.meta.url)).sort();
     assert.deepEqual(files, used);
     assert.equal(files.filter(file => file.endsWith('.opus')).length, 10);
     for (const file of files) {
-      const bytes = readFileSync(new URL(`../public/audio/${file}`, import.meta.url));
+      const bytes = readFileSync(new URL(`../public/audio/${encodeURIComponent(file)}`, import.meta.url));
       assert.ok(audioMetadata(bytes).duration > 0);
     }
   } finally { audio.dispose(); }

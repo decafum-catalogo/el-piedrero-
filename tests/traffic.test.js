@@ -90,7 +90,12 @@ test('el tráfico recorre vueltas completas, gira las ruedas y mantiene la dista
     assert.notEqual(traffic.vehicles[i].distance, starts[i]);
     assert.ok(traffic.vehicles[i].car.vehicle.wheels[0].rotation.z < 0);
     assert.equal(traffic.vehicles[i].car.marker.visible, false);
-    assert.equal(traffic.vehicles[i].car.steal(), null);
+    const car = traffic.vehicles[i].car, stolen = car.steal();
+    assert.ok(stolen.items.includes('retrovisor'));
+    assert.equal(stolen.items.includes('radio'), false);
+    assert.equal(car.steal(), null, 'El mismo carro no se puede saquear de nuevo durante el enfriamiento');
+    car.update(1000);
+    assert.equal(car.marker.visible, false, 'Un carro de tráfico no muestra el marcador de estacionado');
   }
   traffic.dispose();
 });

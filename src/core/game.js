@@ -644,10 +644,10 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     // 8. Mundo
     // La visibilidad de edificios usa la cámara del mismo cuadro.
-    this.cameraRig.follow(this.player.position, dt, this.collisions);
+    this.cameraRig.follow(this.player.position, dt, this.collisions, this.player.speed, this.input.isRunning);
     this.world.update(dt, this.player.position, this.cameraRig.camera);
     this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.npcs ?? [] });
-    this.weather?.update?.(dt, this.player.position);
+    this.weather?.update?.(dt, this.player.position, this.world.active);
 
     // 9. Entidades
     for (const p of this.pickups) p.update(dt);
@@ -665,7 +665,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this._renderFrame(now, true);
 
     // 13. UI
-    this.minimap?.update?.(this.player.position, this.cameraRig?.yaw ?? 0, this._getPOIs(), now);
+    this.minimap?.update?.(this.player.position, this.cameraRig?.yaw ?? 0, this._getPOIs(now), now);
     this.hud.update(
       this.stats, this.clock, this.interaction, this.inventory,
       this.diseases, this.talents, this.crafting, dt
@@ -685,18 +685,29 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     } else this.renderer.resolution.resetWindow();
   }
 
-  _getPOIs() {
+  _getPOIs(now = performance.now()) {
+    if (this._lastPOIs && (now - (this._lastPOITime ?? 0) < 350)) {
+      if (this.dog?.isFriend && this._dogPOI) {
+        this._dogPOI.x = this.dog.position.x;
+        this._dogPOI.z = this.dog.position.z;
+      }
+      return this._lastPOIs;
+    }
+    this._lastPOITime = now;
     const district = this.world?.active;
     const reserved = district?.reserved;
     if (!reserved) return [];
-    return [
+
+    this._dogPOI = this.dog?.isFriend ? { name: 'El Chato', icon: '🐕', x: this.dog.position.x, z: this.dog.position.z, color: '#e67e22' } : null;
+    this._lastPOIs = [
       { name: 'Cambuche', icon: '⛺', x: this.cambuche?.position?.x ?? this.cambuche?.group?.position?.x ?? reserved.bed.x, z: this.cambuche?.position?.z ?? this.cambuche?.group?.position?.z ?? reserved.bed.z, color: '#ffd166' },
       { name: 'Recicladora', icon: '♻️', x: this.sellPoint?.position?.x ?? this.sellPoint?.group?.position?.x ?? reserved.sell.x, z: this.sellPoint?.position?.z ?? this.sellPoint?.group?.position?.z ?? reserved.sell.z, color: '#2ab7ca' },
       { name: 'Tienda', icon: '🏪', x: this.shop?.position?.x ?? this.shop?.group?.position?.x ?? reserved.shop?.x ?? 34, z: this.shop?.position?.z ?? this.shop?.group?.position?.z ?? reserved.shop?.z ?? 29, color: '#2ecc71' },
       { name: 'Crafteo', icon: '🔨', x: this.craftingStation?.position?.x ?? this.craftingStation?.group?.position?.x ?? reserved.craft?.x ?? 16.5, z: this.craftingStation?.position?.z ?? this.craftingStation?.group?.position?.z ?? reserved.craft?.z ?? 24.5, color: '#e67e22' },
       { name: 'Dealer', icon: '💀', x: this.dealer?.position?.x ?? this.dealer?.group?.position?.x ?? reserved.dealer?.x ?? 56, z: this.dealer?.position?.z ?? this.dealer?.group?.position?.z ?? reserved.dealer?.z ?? 56, color: '#9b59b6' },
-      ...(this.dog?.isFriend ? [{ name: 'El Chato', icon: '🐕', x: this.dog.position.x, z: this.dog.position.z, color: '#e67e22' }] : [])
+      ...(this._dogPOI ? [this._dogPOI] : [])
     ];
+    return this._lastPOIs;
   }
 
   _registerRenderGroups() {
@@ -712,6 +723,11 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
   setGraphicsQuality(level) {
     this.renderer.setQuality(level);
     this.sceneMgr.setQuality(level);
+    if (level === 'baja') {
+      this.world.active?.setWetness?.(0);
+    } else if (this.weather) {
+      this.world.active?.setWetness?.(this.weather.wetness);
+    }
     window.dispatchEvent(new CustomEvent('toast', {
       detail: { text: `⚡ Calidad gráfica cambiada a: ${level.toUpperCase()}`, type: 'info' }
     }));

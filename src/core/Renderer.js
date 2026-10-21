@@ -39,9 +39,11 @@ export class Renderer {
       this.instance.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.0));
     } else if (level === 'media') {
       this.instance.shadowMap.enabled = true;
+      this.instance.shadowMap.type = THREE.PCFShadowMap;
       this.instance.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
     } else {
       this.instance.shadowMap.enabled = true;
+      this.instance.shadowMap.type = THREE.PCFShadowMap;
       this.instance.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     }
   }

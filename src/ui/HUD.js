@@ -95,7 +95,10 @@ export class HUD {
   setCameraMode(mode) {
     const thirdPerson = mode === 'third-person';
     if (this.cameraButton) {
-      this.cameraButton.textContent = `${thirdPerson ? 'Tercera persona' : 'Isométrica'} · V`;
+      const action = thirdPerson ? 'Cambiar a vista isométrica' : 'Cambiar a tercera persona';
+      this.cameraButton.textContent = `⇄ ${action} · V`;
+      this.cameraButton.dataset.targetView = thirdPerson ? 'isometric' : 'third-person';
+      this.cameraButton.title = `Vista actual: ${thirdPerson ? 'tercera persona' : 'isométrica'}. Haz clic o pulsa V para cambiar.`;
       this.cameraButton.setAttribute('aria-pressed', String(thirdPerson));
       this.cameraButton.setAttribute('aria-label', `Cambiar a vista ${thirdPerson ? 'isométrica' : 'en tercera persona'} (V)`);
     }
@@ -170,6 +173,10 @@ export class HUD {
     window.__game?.cameraRig?.releaseControls?.();
     this._craftOpen = !this._craftOpen;
     this.craftPanel?.classList.toggle('open', this._craftOpen);
+    if (this._craftOpen) {
+      const game = window.__game;
+      if (game?.crafting && game.inventory) this.renderCrafting(game.crafting, game.inventory, game.talents);
+    }
   }
 
   toggleDealerPanel(dealer = null) {

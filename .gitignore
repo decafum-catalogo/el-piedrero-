@@ -4,3 +4,5 @@
 /dist
 # Archivos temporales de desarrollo y comprobación
 /work/
+/playwright-report/
+/test-results/

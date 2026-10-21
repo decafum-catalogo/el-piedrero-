@@ -225,11 +225,18 @@ canvas { display: block; width: 100vw; height: 100vh; }
   pointer-events: none;
 }
 #camera-toggle {
-  padding: 8px 12px; border: 1px solid #bba35b; border-radius: 5px;
-  background: rgba(18, 22, 24, 0.9); color: #ffe199; font: inherit;
+  --camera-bg: #51318c; --camera-border: #c2a4ff; --camera-hover: #6841ac;
+  padding: 9px 14px; border: 1px solid var(--camera-border); border-radius: 7px;
+  background: var(--camera-bg); color: #fff; font: inherit; font-weight: 800;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .3);
+  transition: background-color .15s ease, box-shadow .15s ease;
   cursor: pointer; pointer-events: auto;
 }
-#camera-toggle:hover, #camera-toggle:focus-visible { background: #3a3523; outline: 2px solid #ffe199; }
+#camera-toggle[data-target-view="third-person"] {
+  --camera-bg: #145388; --camera-border: #82ceff; --camera-hover: #1c6caa;
+}
+#camera-toggle:hover { background: var(--camera-hover); }
+#camera-toggle:focus-visible { background: var(--camera-hover); outline: 2px solid #fff; outline-offset: 3px; }
 #camera-hint { padding: 4px 6px; background: rgba(0, 0, 0, 0.65); border-radius: 3px; line-height: 1.5; }
 #controls-help {
   position: fixed; bottom: 12px; left: 50%; z-index: 15;

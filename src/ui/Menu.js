@@ -22,7 +22,7 @@ export class Menu {
       if (e.target === this.root) this.dismiss();
     });
     window.addEventListener('keydown', (e) => {
-      if (this.isOpen && e.code === 'Escape') this.dismiss();
+      if (this.isOpen && e.code === 'Escape' && !e._pauseMenuOpened) this.dismiss();
     }, true);
   }
 

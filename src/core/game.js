@@ -37,6 +37,9 @@ import { el, button } from '../ui/dom.js';
 import { Menu } from '../ui/Menu.js';
 import { createCreator } from '../ui/Creator.js';
 import { openRecycler, openShop, openCambuche } from '../ui/placeMenus.js';
+import { openPauseMenu } from '../ui/PauseMenu.js';
+import { Minimap } from '../ui/Minimap.js';
+import { WeatherSystem } from '../world/WeatherSystem.js';
 import { DEFAULT_LOOK, normalizeLook } from '../character/look.js';
 import { ITEMS, COSTAL_BONUS, isRecyclable } from '../data/items.js';
 import { SLEEP } from '../data/cambuche.js';
@@ -82,6 +85,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.performanceHUD = new PerformanceHUD();
     this.localLights = new LocalLights(this.sceneMgr.scene);
     this.menu = new Menu();
+    this.minimap = new Minimap();
+    this.weather = new WeatherSystem(this.sceneMgr.scene);
     this.creator = createCreator({ audio: null });
     this.cameraRig.canControl = () => !this.paused && !this.isSleeping &&
       !this.hud._talentOpen && !this.hud._craftOpen && !this.hud._dealerOpen;
@@ -90,11 +95,18 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     window.addEventListener('open-recycler', () => openRecycler(this));
     window.addEventListener('open-shop', (e) => openShop(this, e.detail?.target));
     window.addEventListener('open-cambuche', () => openCambuche(this));
+    window.addEventListener('open-pause-menu', () => openPauseMenu(this));
+    window.addEventListener('audio-toggle', () => this.audio?.toggleMute());
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
       if (e.code === 'KeyV') this._toggleCamera();
       if (e.code === 'KeyP' && !this.paused && this.look) this.editLook();
       if (e.code === 'KeyM' && !this.paused) this._toggleModel();
+      if (e.code === 'KeyN' && !this.paused) this.minimap?.toggle();
+      if (e.code === 'Escape' && !e._panelHandled && !this.paused && !this.isSleeping) {
+        e._pauseMenuOpened = true;
+        openPauseMenu(this);
+      }
     });
 
     // Entidades
@@ -200,6 +212,14 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
   /** Tecla P: cambiar apariencia en cualquier momento */
   async editLook() {
+    this.hud?.talentPanel?.classList.remove('open');
+    this.hud?.craftPanel?.classList.remove('open');
+    this.hud?.dealerPanel?.classList.remove('open');
+    if (this.hud) {
+      this.hud._talentOpen = false;
+      this.hud._craftOpen = false;
+      this.hud._dealerOpen = false;
+    }
     const look = await this.creator.open(this.look, { doneLabel: 'Guardar' });
     if (look) {
       await this._applyLook(look);
@@ -597,6 +617,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.cameraRig.follow(this.player.position, dt, this.collisions);
     this.world.update(dt, this.player.position, this.cameraRig.camera);
     this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.npcs ?? [] });
+    this.weather?.update?.(dt, this.player.position);
 
     // 9. Entidades
     for (const p of this.pickups) p.update(dt);
@@ -613,6 +634,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this._renderFrame(now, true);
 
     // 13. UI
+    this.minimap?.update?.(this.player.position, this.player.root?.rotation?.y ?? 0, this._getPOIs(), now);
     this.hud.update(
       this.stats, this.clock, this.interaction, this.inventory,
       this.diseases, this.talents, this.crafting, dt
@@ -630,6 +652,19 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     if (this.performanceHUD.update(now, this.player.position, this.renderer, active, this.localLights)) {
       this.renderer.adaptResolution(this.performanceHUD.metrics.frameMs);
     } else this.renderer.resolution.resetWindow();
+  }
+
+  _getPOIs() {
+    const district = this.world?.active;
+    const reserved = district?.reserved;
+    if (!reserved) return [];
+    return [
+      { name: 'Cambuche', icon: '⛺', x: reserved.bed.x, z: reserved.bed.z, color: '#ffd166' },
+      { name: 'Recicladora', icon: '♻️', x: reserved.sell.x, z: reserved.sell.z, color: '#2ab7ca' },
+      { name: 'Tienda', icon: '🏪', x: reserved.shop?.x ?? 34, z: reserved.shop?.z ?? 29, color: '#2ecc71' },
+      { name: 'Crafteo', icon: '🔨', x: reserved.craft?.x ?? 16.5, z: reserved.craft?.z ?? 24.5, color: '#e67e22' },
+      { name: 'Dealer', icon: '💀', x: reserved.dealer?.x ?? 56, z: reserved.dealer?.z ?? 56, color: '#9b59b6' }
+    ];
   }
 
   _registerRenderGroups() {

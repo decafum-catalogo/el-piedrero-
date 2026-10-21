@@ -3,8 +3,19 @@ import { Howl, Howler } from 'howler';
 
 export class AudioSystem {
   constructor() {
-    // Volumen maestro (0.0 a 1.0)
-    Howler.volume(0.7);
+    let savedVolume = 0.7;
+    let savedMuted = false;
+    try {
+      const v = typeof localStorage !== 'undefined' ? localStorage.getItem('bazuko.audio_volume') : null;
+      if (v !== null) savedVolume = Math.max(0, Math.min(1, parseFloat(v)));
+      savedMuted = typeof localStorage !== 'undefined' && localStorage.getItem('bazuko.audio_muted') === 'true';
+    } catch { /* sin almacenamiento */ }
+
+    this._masterVolume = savedVolume;
+    this.muted = savedMuted;
+
+    // Volumen maestro inicial (0.0 a 1.0)
+    Howler.volume(this.muted ? 0 : this._masterVolume);
 
     // Definir sonidos. Si el archivo no existe, Howl queda en silencio
     // pero NO crashea (maneja el error internamente).
@@ -45,8 +56,53 @@ export class AudioSystem {
       window.removeEventListener('click', unlock);
       window.removeEventListener('keydown', unlock);
     };
-    window.addEventListener('click', unlock);
-    window.addEventListener('keydown', unlock);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('click', unlock);
+      window.addEventListener('keydown', unlock);
+    }
+  }
+
+  get volume() {
+    return this._masterVolume;
+  }
+
+  setVolume(vol) {
+    const clamped = Math.max(0, Math.min(1, Number(vol) || 0));
+    this._masterVolume = clamped;
+    if (!this.muted) {
+      Howler.volume(clamped);
+    }
+    try {
+      localStorage?.setItem('bazuko.audio_volume', String(clamped));
+    } catch { /* sin almacenamiento */ }
+    this._emitChange();
+    return this._masterVolume;
+  }
+
+  setMuted(muted) {
+    this.muted = !!muted;
+    Howler.volume(this.muted ? 0 : this._masterVolume);
+    try {
+      localStorage?.setItem('bazuko.audio_muted', String(this.muted));
+    } catch { /* sin almacenamiento */ }
+    this._emitChange();
+    return this.muted;
+  }
+
+  toggleMute() {
+    return this.setMuted(!this.muted);
+  }
+
+  isMuted() {
+    return this.muted;
+  }
+
+  _emitChange() {
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('audio-settings-change', {
+        detail: { volume: this._masterVolume, muted: this.muted }
+      }));
+    }
   }
 
   play(name) {

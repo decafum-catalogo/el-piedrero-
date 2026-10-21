@@ -72,7 +72,7 @@ canvas { display: block; width: 100vw; height: 100vh; }
 
 /* === Inventario mini === */
 #inventory-panel {
-  position: fixed; top: 60px; right: 12px;
+  position: fixed; top: 200px; right: 12px;
   width: 180px; padding: 8px;
   background: rgba(0,0,0,0.6);
   border: 1px solid #333;
@@ -224,6 +224,13 @@ canvas { display: block; width: 100vw; height: 100vh; }
   max-width: calc(100vw - 220px); font: 12px monospace; color: #eee;
   pointer-events: none;
 }
+.controls-top-row { display: flex; gap: 6px; align-items: center; pointer-events: auto; }
+.icon-toggle-btn {
+  padding: 8px 10px; border: 1px solid #bba35b; border-radius: 5px;
+  background: rgba(18, 22, 24, 0.9); color: #ffe199; font: inherit;
+  cursor: pointer; pointer-events: auto;
+}
+.icon-toggle-btn:hover, .icon-toggle-btn:focus-visible { background: #3a3523; outline: 2px solid #ffe199; }
 #camera-toggle {
   padding: 8px 12px; border: 1px solid #bba35b; border-radius: 5px;
   background: rgba(18, 22, 24, 0.9); color: #ffe199; font: inherit;
@@ -329,3 +336,76 @@ body.is-loading #creator-modal { visibility: visible; }
 #loading-progress { width: 100%; height: 12px; accent-color: #edc55e; }
 .loading-hint { color: #afa99d; font-size: 14px; line-height: 1.6; }
 #loading-retry { padding: 10px 24px; cursor: pointer; }
+
+/* === Minimapa y Radar === */
+#minimap-container {
+  position: fixed; top: 12px; right: 12px;
+  width: 140px; padding: 5px;
+  background: rgba(10, 16, 20, 0.88);
+  border: 1px solid #54776a; border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center;
+  z-index: 25; font-family: monospace;
+}
+#minimap-container.hidden { display: none; }
+.minimap-header {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  padding: 0 2px 4px 2px; border-bottom: 1px solid #233830;
+}
+.minimap-title { color: #d9f9e6; font-size: 11px; font-weight: bold; }
+.minimap-toggle-btn {
+  background: #1e332a; color: #ffe199; border: 1px solid #54776a;
+  border-radius: 3px; padding: 1px 5px; font-size: 10px; cursor: pointer;
+}
+.minimap-toggle-btn:hover { background: #2f4f41; }
+#minimap-canvas { display: block; border-radius: 50%; margin: 4px 0; }
+.minimap-info {
+  color: #eed688; font-size: 10px; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;
+}
+
+/* === Menú de Pausa === */
+.pause-menu-body {
+  display: flex; flex-direction: column; gap: 14px;
+  font-family: monospace; color: #ddd; max-height: 65vh; overflow-y: auto; padding-right: 4px;
+}
+.pause-section {
+  background: rgba(0, 0, 0, 0.35); border: 1px solid #3d4a41;
+  border-radius: 5px; padding: 10px 12px;
+}
+.pause-section-title {
+  color: #eed688; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid #2d3b32; padding-bottom: 4px;
+}
+.pause-row {
+  display: flex; align-items: center; gap: 10px; font-size: 12px; flex-wrap: wrap;
+}
+.pause-slider {
+  flex: 1; min-width: 100px; accent-color: #27ae60; cursor: pointer;
+}
+.pause-vol-label {
+  min-width: 38px; color: #eed688; font-weight: bold;
+}
+.pause-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; font-size: 12px;
+}
+.pause-grid strong { color: #aaa; }
+.pause-grid span { color: #fff; }
+.pause-actions {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.pause-actions button {
+  padding: 6px 10px; font-size: 12px; border-radius: 4px;
+  background: #1c2b24; color: #d9f9e6; border: 1px solid #54776a; cursor: pointer;
+}
+.pause-actions button:hover { background: #2b4238; }
+.pause-details {
+  font-size: 11px; color: #aaa; cursor: pointer;
+}
+.pause-details summary {
+  color: #ffe199; font-weight: bold; margin-bottom: 6px;
+}
+.pause-controls-list {
+  list-style: none; padding-left: 4px; line-height: 1.8;
+}
+.pause-controls-list kbd {
+  background: #333; color: #ffd166; padding: 1px 5px; border-radius: 3px; border: 1px solid #555;
+}

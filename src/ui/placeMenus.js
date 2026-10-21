@@ -8,6 +8,7 @@ import { cop } from '../utils/money.js';
 import { el, button } from './dom.js';
 import { icon } from './icons.js';
 import { rowEl } from './Menu.js';
+import { shelterPreview } from './ShelterPreview.js';
 
 const toast = (text, type = 'info') => window.dispatchEvent(new CustomEvent('toast', { detail: { text, type } }));
 const moneyFoot = (game) => el('span', { class: 'menu__money' }, 'Tienes ', el('span', { text: cop(game.stats.dinero) }));
@@ -102,7 +103,7 @@ function describe(it) {
 export function openCambuche(game) {
   const { inventory } = game;
   const render = () => {
-    const body = el('ul', { class: 'rows' }, CAMBUCHE.map((p) => {
+    const rows = el('ul', { class: 'rows' }, CAMBUCHE.map((p) => {
       const done = !!game.built[p.id];
       const locked = p.needs && !game.built[p.needs];
       const ok = Object.entries(p.req).every(([id, q]) => inventory.count(id) >= q);
@@ -124,6 +125,7 @@ export function openCambuche(game) {
         })
       );
     }));
+    const body = el('div', { class: 'shelter-menu' }, shelterPreview(game), rows);
     const night = game.clock.isNight;
     const foot = [
       el('span', { class: 'menu__money', text: game.built.base ? 'Dormir guarda la partida.' : 'Sin base no se puede dormir.' }),

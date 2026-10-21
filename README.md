@@ -86,7 +86,7 @@ Los materiales del cambuche aparecen en bolsas de basura repartidas por nueve zo
 1. Recorre los andenes y acércate a los objetos para ver las acciones disponibles.
 2. Recoge materiales y véndelos en la recicladora para conseguir dinero.
 3. Compra comida y agua y consúmelas desde el inventario.
-4. Construye y mejora el cambuche para poder descansar.
+4. Construye y mejora el cambuche para poder descansar. Su menú muestra una vista previa del modelo terminado, incluso antes de reunir los materiales.
 
 La partida guarda datos localmente en el navegador al crear o editar el personaje, al dormir y con **Guardar partida ahora** en el menú de pausa. También conserva la amistad de El Chato, las preferencias de cámara, radar, calidad y volumen. Los datos dependen del navegador y de la dirección desde la que juegas; no hay sincronización entre dispositivos.
 
@@ -143,7 +143,7 @@ Para ejecutar las pruebas con el runner de Node.js:
 npm test
 ```
 
-Las 152 pruebas actuales cubren colisiones, cámaras, visibilidad de edificios, suelos, navegación de peatones, tráfico, bus, supervivencia, migración de partidas guardadas, ampliación de la ciudad, rendimiento y carga inicial. Los carros circulan a 10–14 m/s en rectas libres (el doble que antes); el bus conserva sus 5 m/s y los semáforos completan su ciclo en 36 segundos, con 14 segundos de verde por eje, 3 de amarillo y 1 de despeje. El tráfico permite cruces simultáneos compatibles, mantiene la prioridad entre giros que se cortan y usa aceleración, frenado y reacción progresivos. Se comprueba su circulación durante diez minutos simulados, además del paso compartido con el bus y la carrocería dentro de la calzada al girar. Las pruebas de arranque verifican que la partida espere modelos, shaders y GPU, que un fallo impida comenzar una partida incompleta y que la espera no contamine las estadísticas de FPS. Las pruebas de modelos importados comprueban las dimensiones de los nueve GLB reales, el uso compartido de recursos, el desvanecimiento del bus y los estados de construcción del cambuche. La reserva de materiales se comprueba contra todas las recetas, también tras reponerse las bolsas, con protección de objetos cuando el costal está lleno.
+Las 154 pruebas actuales cubren colisiones, cámaras, visibilidad de edificios, suelos, navegación de peatones, tráfico, bus, supervivencia, migración de partidas guardadas, ampliación de la ciudad, rendimiento y carga inicial. Los carros circulan a 10–14 m/s en rectas libres (el doble que antes); el bus conserva sus 5 m/s y los semáforos completan su ciclo en 36 segundos, con 14 segundos de verde por eje, 3 de amarillo y 1 de despeje. El tráfico permite cruces simultáneos compatibles, mantiene la prioridad entre giros que se cortan y usa aceleración, frenado y reacción progresivos. Se comprueba su circulación durante diez minutos simulados, además del paso compartido con el bus y la carrocería dentro de la calzada al girar. Las pruebas de arranque verifican que la partida espere modelos, shaders y GPU, que un fallo impida comenzar una partida incompleta y que la espera no contamine las estadísticas de FPS. Las pruebas de modelos importados comprueban las dimensiones de los nueve GLB reales, el uso compartido de recursos, el desvanecimiento del bus y los estados de construcción del cambuche. La reserva de materiales se comprueba contra todas las recetas, también tras reponerse las bolsas, con protección de objetos cuando el costal está lleno.
 
 ## Estructura
 

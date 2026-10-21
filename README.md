@@ -4,7 +4,7 @@ Juego de supervivencia urbana en 3D para el navegador, ambientado en un barrio i
 
 Este proyecto es un fork de [juanagogo/bazuko](https://github.com/juanagogo/bazuko), con mejoras de cámara, visibilidad, circulación y equilibrio de supervivencia.
 
-![Vista isométrica del barrio, con calles amplias, andenes y pasos peatonales](docs/images/barrio-isometrico.jpg)
+![Parque en vista isométrica con palomas, El Chato, radar, peatones y carros junto a los carriles de SOLO BUS](docs/images/parque-palomas-y-chato.png)
 
 ## Características
 
@@ -24,6 +24,20 @@ Este proyecto es un fork de [juanagogo/bazuko](https://github.com/juanagogo/bazu
 - Descarte de sectores fuera de cámara, geometría agrupada, iluminación limitada y resolución adaptable para reducir el trabajo de renderizado.
 
 ## Capturas
+
+### Parque, palomas y El Chato
+
+La captura de portada muestra el parque junto al punto de inicio: palomas en el suelo, El Chato, el sitio para construir el cambuche y el tráfico del barrio. El radar orienta hacia los lugares cercanos y la ayuda se consulta con el botón «!».
+
+### El Chato y TransMilenio en tercera persona
+
+![Vista de desarrollo en tercera persona con El Chato junto al cambuche y un TransMilenio al fondo](docs/images/tercera-persona-chato-y-transmilenio.png)
+
+El Chato puede acompañarte al darle pan o una lata de atún. Las capturas compartidas durante el desarrollo pueden mostrar diferencias en la distribución de la interfaz.
+
+### Vista general del barrio
+
+![Vista isométrica del barrio con calles amplias, andenes y pasos peatonales](docs/images/barrio-isometrico.jpg)
 
 ### Carros, taxis y bus articulado
 
@@ -149,6 +163,8 @@ npm test
 Las 171 pruebas actuales cubren colisiones, cámaras, visibilidad de edificios, suelos, navegación de peatones, tráfico, bus, supervivencia, migración de partidas guardadas, ampliación de la ciudad, rendimiento y carga inicial. Los carros circulan a 10–14 m/s en rectas libres (el doble que antes); el bus conserva sus 5 m/s y los semáforos completan su ciclo en 36 segundos, con 14 segundos de verde por eje, 3 de amarillo y 1 de despeje. El tráfico permite cruces simultáneos compatibles, mantiene la prioridad entre giros que se cortan y usa aceleración, frenado y reacción progresivos. Se comprueba su circulación durante diez minutos simulados, además del paso compartido con el bus y la carrocería dentro de la calzada al girar. Las pruebas de arranque verifican que la partida espere modelos, shaders y GPU, que un fallo impida comenzar una partida incompleta y que la espera no contamine las estadísticas de FPS. Las pruebas de modelos importados comprueban las dimensiones de los nueve GLB reales, el uso compartido de recursos, el desvanecimiento del bus y los estados de construcción del cambuche. La reserva de materiales se comprueba contra todas las recetas, también tras reponerse las bolsas, con protección de objetos cuando el costal está lleno.
 
 ## Estructura
+
+El archivo [AGENTS.md](AGENTS.md) reúne el contexto técnico, los comandos de trabajo, los puntos de entrada y las decisiones que deben conservarse al continuar el desarrollo. La procedencia de las integraciones está documentada en [modelos importados](docs/modelos-importados.md) e [integración de funcionalidades](docs/integracion-cristian.md).
 
 ```text
 src/

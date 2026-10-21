@@ -9,6 +9,13 @@ export class AdaptiveResolution {
 
   resetWindow() { this.elapsed = 0; this.frames = 0; this.fastWindows = 0; }
 
+  setLimit(max) {
+    this.max = max;
+    this.min = Math.min(max, .75);
+    this.ratio = max;
+    this.resetWindow();
+  }
+
   sample(frameMs) {
     if (!Number.isFinite(frameMs) || frameMs <= 0) return false;
     this.elapsed += frameMs;

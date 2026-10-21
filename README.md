@@ -9,6 +9,7 @@ Este proyecto es un fork de [juanagogo/bazuko](https://github.com/juanagogo/bazu
 ## Características
 
 - Integración experimental en `pruebas-integracion`: carriles rojos con SOLO BUS, estación, semáforos que regulan el tráfico, inventario por casillas y modelos de bolsas, canecas, lámparas, carros, taxi, TransMilenio y cambuche del fork de [mreyeswilson](https://github.com/mreyeswilson/bazuko). [Detalles de integración y procedencia](docs/modelos-importados.md).
+- Radar relativo a la cámara, pausa con volumen y calidad gráfica, llovizna y compañero canino El Chato, adaptados de [Cristianlv11/bazuko](https://github.com/Cristianlv11/bazuko/tree/feature/mejoras-navegacion-audio-pausa-clima). [Detalles de compatibilidad](docs/integracion-cristian.md).
 - Cámaras en tercera persona e isométrica, intercambiables durante la partida.
 - Techos y paredes que se ocultan cuando tapan al personaje en vista isométrica, con muros bajos y silueta del jugador.
 - Peatones que caminan por los andenes y cruzan las calles.
@@ -59,7 +60,8 @@ En PowerShell, si una política de ejecución impide usar `npm`, ejecuta los mis
 | `W`, `A`, `S`, `D` | Moverse. En tercera persona, el movimiento sigue el rumbo de la cámara. |
 | `Shift` | Correr. |
 | `V` o botón de cámara | Alternar entre tercera persona e isométrica. |
-| Botón derecho + arrastrar o flechas | Girar la cámara en tercera persona. |
+| Clic izquierdo en la calle | Fijar el ratón para girar la cámara en tercera persona. |
+| Arrastrar con botón izquierdo/derecho o flechas | Girar la cámara sin fijar el ratón. |
 | Rueda del ratón | Ajustar la distancia de la cámara en tercera persona. |
 | `I` / `Tab` o botón Inventario | Abrir el inventario por casillas; el mundo queda en pausa. |
 | `1`–`5` | Asignar el objeto seleccionado a acceso rápido mientras el inventario está abierto; usarlo cuando está cerrado. |
@@ -73,7 +75,8 @@ En PowerShell, si una política de ejecución impide usar `npm`, ejecuta los mis
 | `C` | Abrir fabricación. |
 | `P` | Editar el personaje. |
 | `M` | Alternar entre el personaje realista y el modelo liviano. |
-| `Esc` | Cerrar paneles y menús que permitan salir. |
+| `Esc` o botón Pausa | Abrir ajustes de pausa; cerrar primero el panel activo y liberar el cursor. |
+| `N` | Mostrar u ocultar el radar. |
 | Clic en comida o bebida del inventario | Consumir el objeto. |
 
 ## Cómo empezar
@@ -85,13 +88,25 @@ Los materiales del cambuche aparecen en bolsas de basura repartidas por nueve zo
 3. Compra comida y agua y consúmelas desde el inventario.
 4. Construye y mejora el cambuche para poder descansar.
 
-La partida guarda datos localmente en el navegador al crear o editar el personaje y al dormir. La preferencia de cámara también se conserva. Los datos dependen del navegador y de la dirección desde la que juegas; no hay sincronización entre dispositivos.
+La partida guarda datos localmente en el navegador al crear o editar el personaje, al dormir y con **Guardar partida ahora** en el menú de pausa. También conserva la amistad de El Chato, las preferencias de cámara, radar, calidad y volumen. Los datos dependen del navegador y de la dirección desde la que juegas; no hay sincronización entre dispositivos.
 
 Al cruzar delante de un carro, este intenta frenar progresivamente. Si te atraviesas demasiado cerca, puede atropellarte: el daño depende de la velocidad y puede ser mortal. El golpe activa un ragdoll articulado y lanza al personaje hacia arriba y hacia delante según la velocidad. Si sobrevive, se levanta después de caer; si muere, la pantalla de recuperación espera a que termine la caída. El conductor sigue frenando hasta detenerse y espera brevemente antes de continuar. Los vehículos en movimiento y estacionados tienen colisiones mediante cajas invisibles simples, sin calcular los triángulos de sus modelos.
 
 Si la salud llega a cero, el juego se pausa y muestra una pantalla de recuperación. El regreso al cambuche ocurre al pulsar **Volver al cambuche**.
 
+## Radar, pausa y El Chato
+
+El radar gira con la cámara en las dos vistas: arriba representa el frente de la pantalla. La brújula y los puntos de interés se orientan en consecuencia; debajo aparecen la distancia y dirección al lugar más cercano. Es una guía de orientación, no un navegador que calcule el camino entre edificios. Usa **N** para ocultarlo o mostrarlo.
+
+**Esc** o **Pausa** abren los ajustes: volumen maestro, silencio, calidad gráfica y guardado manual. Cerrar una tienda o el inventario con Esc no abre a la vez la pausa. Abrir cualquier panel libera el cursor. El volumen afecta también a los motores y claxones actuales, que mantienen su reproducción normal y sus voces independientes.
+
+El Chato aparece junto al cambuche. Acércate y pulsa **E**: si llevas pan o una lata de atún, lo alimentas y se vuelve compañero; también puedes acariciarlo para recuperar 5 de ánimo, con 20 segundos entre caricias. Te sigue por lugares transitables, rodea paredes y respeta las cajas de los vehículos. Avisa de basura cercana que aún no se haya vaciado, con un ladrido breve sintetizado y un mensaje. Dormir con él aporta 15 de ánimo adicional y lo muestra acostado a tu lado. La amistad se guarda sin invalidar partidas anteriores.
+
+El cielo usa tonos de amanecer andino y cambia entre nublado y llovizna con 350 partículas cercanas al jugador. El clima y El Chato se detienen durante la pausa; el material de lluvia se prepara en la pantalla de carga.
+
 ## Rendimiento
+
+**Pausa → Calidad** permite elegir Baja (sin sombras, hasta 1× de resolución), Media (sombras de 1024 px, hasta 1.25×) y Alta (sombras de 2048 px, hasta 1.5×). La resolución automática respeta el límite seleccionado, también al recuperar FPS. La niebla mantiene el alcance de cada perfil durante el ciclo de luz. La mejora de FPS depende del equipo y de la zona; no se garantiza una cantidad fija.
 
 Al abrir el juego aparece una pantalla de carga por etapas. Espera el mapa, los modelos de jugador y NPC (incluidas sus versiones de detalle), sube las texturas a la GPU y precompila los materiales. Prepara también las sombras y la silueta de la vista inicial antes de mostrar la partida. El creador de personaje sigue disponible en la primera partida. Durante la carga no avanzan el reloj ni las necesidades; la medición de FPS comienza desde cero al entrar a jugar. Si falla un recurso imprescindible, aparece **Reintentar**; los sonidos ausentes no bloquean el inicio. Esta preparación aumenta la espera inicial y el uso de memoria al adelantar la carga de los NPC completos.
 
@@ -125,10 +140,10 @@ La compilación se genera en `dist/`. Abre la dirección que muestre el comando 
 Para ejecutar las pruebas con el runner de Node.js:
 
 ```sh
-node --experimental-test-module-mocks --test tests/*.test.js
+npm test
 ```
 
-Las 134 pruebas actuales cubren colisiones, cámaras, visibilidad de edificios, suelos, navegación de peatones, tráfico, bus, supervivencia, migración de partidas guardadas, ampliación de la ciudad, rendimiento y carga inicial. Los carros circulan a 10–14 m/s en rectas libres (el doble que antes); el bus conserva sus 5 m/s y los semáforos completan su ciclo en 36 segundos, con 14 segundos de verde por eje, 3 de amarillo y 1 de despeje. El tráfico permite cruces simultáneos compatibles, mantiene la prioridad entre giros que se cortan y usa aceleración, frenado y reacción progresivos. Se comprueba su circulación durante diez minutos simulados, además del paso compartido con el bus y la carrocería dentro de la calzada al girar. Las pruebas de arranque verifican que la partida espere modelos, shaders y GPU, que un fallo impida comenzar una partida incompleta y que la espera no contamine las estadísticas de FPS. Las pruebas de modelos importados comprueban las dimensiones de los nueve GLB reales, el uso compartido de recursos, el desvanecimiento del bus y los estados de construcción del cambuche. La reserva de materiales se comprueba contra todas las recetas, también tras reponerse las bolsas, con protección de objetos cuando el costal está lleno.
+Las 152 pruebas actuales cubren colisiones, cámaras, visibilidad de edificios, suelos, navegación de peatones, tráfico, bus, supervivencia, migración de partidas guardadas, ampliación de la ciudad, rendimiento y carga inicial. Los carros circulan a 10–14 m/s en rectas libres (el doble que antes); el bus conserva sus 5 m/s y los semáforos completan su ciclo en 36 segundos, con 14 segundos de verde por eje, 3 de amarillo y 1 de despeje. El tráfico permite cruces simultáneos compatibles, mantiene la prioridad entre giros que se cortan y usa aceleración, frenado y reacción progresivos. Se comprueba su circulación durante diez minutos simulados, además del paso compartido con el bus y la carrocería dentro de la calzada al girar. Las pruebas de arranque verifican que la partida espere modelos, shaders y GPU, que un fallo impida comenzar una partida incompleta y que la espera no contamine las estadísticas de FPS. Las pruebas de modelos importados comprueban las dimensiones de los nueve GLB reales, el uso compartido de recursos, el desvanecimiento del bus y los estados de construcción del cambuche. La reserva de materiales se comprueba contra todas las recetas, también tras reponerse las bolsas, con protección de objetos cuando el costal está lleno.
 
 ## Estructura
 

@@ -35,6 +35,24 @@ function fixture() {
   audio.vehicles.random = () => .5;
   return { audio, howler, bank: audio.vehicleSounds };
 }
+
+test('volumen y silencio persistentes controlan el maestro sin reemplazar motores ni claxones', async () => {
+  const store = new Map([['bazuko.audio_volume', '.45'], ['bazuko.audio_muted', 'true']]);
+  globalThis.localStorage = { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) };
+  const volumes = [], target = new EventTarget(); let changes = 0;
+  target.addEventListener('audio-settings-change', () => changes++);
+  const audio = new AudioSystem({ HowlClass: FakeHowl, howler: { volume: value => volumes.push(value) }, eventTarget: target });
+  await audio.ready;
+  assert.equal(audio.volume, .45); assert.equal(audio.isMuted(), true); assert.equal(volumes.at(-1), 0);
+  const horn = audio.vehicleSounds.horn1;
+  audio.setVolume(.8); assert.equal(volumes.at(-1), 0);
+  audio.toggleMute(); assert.equal(volumes.at(-1), .8);
+  audio.setPaused(true); audio.setPaused(false);
+  assert.equal(audio.volume, .8); assert.equal(store.get('bazuko.audio_muted'), 'false');
+  assert.equal(store.get('bazuko.audio_volume'), '.8'.replace(/^\./, '0.'));
+  assert.equal(audio.vehicleSounds.horn1, horn); assert.equal(changes, 2);
+  audio.dispose(); delete globalThis.localStorage;
+});
 const car = (x, z = 0) => ({ car: { position: new THREE.Vector3(x, 0, z), group: new THREE.Group() }, speed: 0 });
 const origin = new THREE.Vector3();
 

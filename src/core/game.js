@@ -7,6 +7,11 @@ import { Clock } from './Clock.js';
 import { Input } from './Input.js';
 
 import { World } from '../world/World.js';
+import { Dog } from '../entities/Dog.js';
+import { CompanionNavigation } from '../systems/CompanionNavigation.js';
+import { Minimap } from '../ui/Minimap.js';
+import { WeatherSystem } from '../world/WeatherSystem.js';
+import { openPauseMenu } from '../ui/PauseMenu.js';
 import { Player } from '../entities/Player.js';
 import { Pickup } from '../entities/Pickup.js';
 import { TrashContainer } from '../entities/TrashContainer.js';
@@ -85,17 +90,28 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.performanceHUD = new PerformanceHUD();
     this.localLights = new LocalLights(this.sceneMgr.scene);
     this.menu = new Menu();
+    this.minimap = new Minimap();
+    this.weather = new WeatherSystem(this.sceneMgr.scene);
+    let quality = 'alta';
+    try { quality = localStorage.getItem('bazuko.graphics_quality') || quality; } catch { /* sin almacenamiento */ }
+    this.setGraphicsQuality(quality, false);
+    this.hud.audioBtn?.setAttribute('aria-label', this.audio.isMuted() ? 'Activar sonido' : 'Silenciar sonido');
+    if (this.hud.audioBtn) this.hud.audioBtn.textContent = this.audio.isMuted() ? '🔇' : '🔊';
     this.creator = createCreator({ audio: null });
     this.inventoryUI = new InventoryUI(this.inventory, this);
     this.cameraRig.canControl = () => !this.paused && !this.isSleeping &&
       !this.hud._talentOpen && !this.hud._craftOpen && !this.hud._dealerOpen;
     this.hud.setCameraMode(this.cameraRig.mode);
+    window.addEventListener('open-pause-menu', () => openPauseMenu(this));
+    window.addEventListener('audio-toggle', () => this.audio.toggleMute());
     window.addEventListener('camera-toggle', () => this._toggleCamera());
     window.addEventListener('open-recycler', () => openRecycler(this));
     window.addEventListener('open-shop', (e) => openShop(this, e.detail?.target));
     window.addEventListener('open-cambuche', () => openCambuche(this));
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      if (e.code === 'KeyN' && !this.paused) this.minimap.toggle();
+      if (e.code === 'Escape' && !e._panelHandled && !this.paused && !this.isSleeping) openPauseMenu(this);
       if (e.code === 'KeyV') this._toggleCamera();
       if (e.code === 'KeyP' && !this.paused && this.look) this.editLook();
       if (e.code === 'KeyM' && !this.paused) this._toggleModel();
@@ -190,7 +206,11 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.localLights.update(0, this.player.position, (x, z) => district?.getGroundHeight?.(x, z) ?? 0, this.cameraRig.camera);
     await loading.stage('Preparando texturas, luces y shaders…', 4);
     const extraModels = (district?.npcs ?? []).flatMap(npc => [npc.lodChar?.group, npc.fullChar?.group]).filter(Boolean);
-    await withLoadTimeout(this.renderer.prepare(this.sceneMgr.scene, this.cameraRig.camera, extraModels), 'La preparación gráfica tardó demasiado.');
+    const rain = this.weather?.rainParticles;
+    if (rain) rain.visible = true;
+    try {
+      await withLoadTimeout(this.renderer.prepare(this.sceneMgr.scene, this.cameraRig.camera, extraModels), 'La preparación gráfica tardó demasiado.');
+    } finally { if (rain) rain.visible = this.weather.isRaining; }
     await loading.stage('Preparando el primer fotograma…', 4.8);
     // Estas pasadas preparan sombras, geometría y silueta sin simular ni medir FPS.
     for (let frame = 0; frame < 3; frame++) {
@@ -257,10 +277,11 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
   /** El mundo se congela mientras hay un menú o el creador abierto */
   get paused() {
-    return this._loading || this._deathPending || this.menu.isOpen || this.creator.isOpen || !!this.inventoryUI?.isOpen;
+    return this._loading || this._deathPending || this.menu.isOpen || this.creator.isOpen || !!this.inventoryUI?.isOpen || !!this.hud?._talentOpen || !!this.hud?._craftOpen || !!this.hud?._dealerOpen;
   }
 
   _spawnEntities() {
+    this.dog?.destroy();
     this.audio.vehicles?.clear();
     this.traffic?.dispose();
     this.traffic = null;
@@ -403,6 +424,11 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       ?? district.getGroundHeight?.(bedX, bedZ) ?? 0;
     this.cambuche.setBuilt(this.built);
     this.interaction.register(this.cambuche);
+    this.dog = new Dog(this.sceneMgr.scene, new THREE.Vector3(bedX + 2, 0, bedZ + 3));
+    this.dog.navigation = new CompanionNavigation(district, this.collisions);
+    this.dog.resetNear(this.dog.position);
+    this.interaction.register(this.dog);
+    district.trafficPedestrians = [...(district.npcs ?? []), this.dog];
 
     // ===== Tienda La Esquinita =====
     this.shop = new Shop(
@@ -440,6 +466,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       }
       this.built = data.built ?? {};
       this.costal = !!data.costal;
+      if (this.dog && data.dog?.isFriend) this.dog.befriend();
       this.cambuche?.setBuilt(this.built);
       if (data.look) this._applyLook(data.look);
     }
@@ -456,7 +483,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       worldLayoutVersion: this.world.active?.layoutVersion ?? 0,
       look: this.look,
       built: this.built,
-      costal: this.costal
+      costal: this.costal,
+      dog: { isFriend: !!this.dog?.isFriend }
     });
   }
 
@@ -470,6 +498,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     this.isSleeping = true;
     window.dispatchEvent(new CustomEvent('sleep-start'));
+    this.dog?.restAt(this.player.position);
     this.player.playAction('dormir', 1.6);
 
     const night = this.clock.isNight;
@@ -485,6 +514,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     st.energia = Math.min(100, st.energia + (SLEEP.energia + (b.cama ? SLEEP.energiaCama : 0)) * factor);
     st.salud = Math.min(100, st.salud + (SLEEP.salud + (b.techo ? SLEEP.saludTecho : 0)) * factor);
     st.saludMental = Math.min(100, st.saludMental + (MENTAL_RESTORE_SLEEP + (b.fogon ? SLEEP.animoFogon : 0)) * factor);
+    if (this.dog?.isFriend) st.saludMental = Math.min(100, st.saludMental + 15);
     st.vicio = b.vela
       ? Math.min(100, st.vicio + SLEEP.vicioVela)
       : Math.max(0, st.vicio - WITHDRAWAL.vicioDormir * factor);
@@ -505,6 +535,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     setTimeout(() => {
       this.isSleeping = false;
+      this.dog?.wake();
       window.dispatchEvent(new CustomEvent('sleep-end', { detail: { hours: Math.round(hours) } }));
       if (robbed !== null) {
         window.dispatchEvent(new CustomEvent('toast', {
@@ -586,6 +617,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }
     this.player.root.position.copy(this.player.position);
     this.player.clearVehicleImpact?.();
+    if (this.dog?.isFriend) { this.dog.wake(); this.dog.resetNear(this.player.position); }
     this._vehicleImpactCooldown = 1.5;
     this._deathCause = null;
     this.cameraRig._snap = true;
@@ -614,7 +646,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this._lastTime = now;
 
     if (this.isSleeping || this.paused || globalThis.document?.hidden) {
-      this.cameraRig.cancelDrag();
+      this.cameraRig.releaseControls();
       this.audio.setPaused(true);
       this.audio.updateSteps(false, false);
       this._renderFrame(now, false);
@@ -626,7 +658,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       this._syncVehicleColliders();
       this.player.update(dt, this.cameraRig.camera, this.collisions);
       this.world.update(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? []);
-      this.traffic?.update(dt, { pedestrians: this.world.active?.npcs ?? [] });
+      this.traffic?.update(dt, { pedestrians: this.world.active?.trafficPedestrians ?? this.world.active?.npcs ?? [] });
       this.cameraRig.follow(this.player.position, dt, this.collisions);
       this.audio.updateSteps(false, false);
       this.audio.updateWorld(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? [], this.world.active?.busService);
@@ -686,8 +718,11 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     // La visibilidad de edificios usa la cámara del mismo cuadro.
     this.cameraRig.follow(this.player.position, dt, this.collisions);
     this.world.update(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? []);
-    this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.npcs ?? [], onPlayerHit: this._onVehicleImpact });
+    this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.trafficPedestrians ?? this.world.active?.npcs ?? [], onPlayerHit: this._onVehicleImpact });
     if (this._handleDeath()) return;
+
+    this.weather?.update(dt, this.player.position);
+    this.dog?.update(dt, this.player.position, this.pickups);
 
     // 9. Entidades
     for (const p of this.pickups) p.update(dt);
@@ -703,6 +738,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     // 12. Render
     this._renderFrame(now, true);
+
+    this.minimap?.update(this.player.position, Math.atan2(this.cameraRig.camera.matrixWorld.elements[8], this.cameraRig.camera.matrixWorld.elements[10]), this._getPOIs(), now);
 
     // 13. UI
     this.hud.update(
@@ -724,9 +761,24 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     } else this.renderer.resolution.resetWindow();
   }
 
+  _getPOIs() {
+    return [[this.cambuche, 'Cambuche', '⛺', '#ffd166'], [this.sellPoint, 'Recicladora', '♻️', '#2ab7ca'],
+      [this.shop, 'Tienda', '🏪', '#2ecc71'], [this.craftingStation, 'Crafteo', '🔨', '#e67e22'],
+      [this.dealer, 'Dealer', '💀', '#9b59b6']].filter(([entity]) => entity).map(([entity, name, icon, color]) =>
+        ({ name, icon, color, x: entity.position.x, z: entity.position.z }));
+  }
+
+  setGraphicsQuality(level, notify = true) {
+    const quality = ['baja', 'media', 'alta'].includes(level) ? level : 'alta';
+    this.renderer.setQuality(quality);
+    this.sceneMgr.setQuality(quality);
+    if (notify) window.dispatchEvent(new CustomEvent('toast', { detail: { text: 'Calidad gráfica: ' + quality, type: 'info' } }));
+  }
+
   _registerRenderGroups() {
     const culling = this.renderer.culling, district = this.world.active;
     culling.clear();
+    if (this.dog) culling.register(this.dog.group, { dynamic: true, margin: 1 });
     for (const sector of district?.renderSectors ?? []) culling.register(sector);
     if (district?.signals) culling.register(district.signals.group);
     for (const pickup of this.pickups) culling.register(pickup.group, { dynamic: true, margin: .2 });

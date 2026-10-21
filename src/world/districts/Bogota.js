@@ -814,7 +814,7 @@ export class Bogota {
   update(dt, playerPos, camera, trafficVehicles = []) {
     this.t += dt;
     this.signals?.update(this.t);
-    this.busService?.update(dt, { player: playerPos, pedestrians: this.npcs, vehicles: trafficVehicles });
+    this.busService?.update(dt, { player: playerPos, pedestrians: this.trafficPedestrians ?? this.npcs, vehicles: trafficVehicles });
     for (const o of this.animated) o.userData.update(dt, this.t);
     // vista de la cámara una vez por cuadro: los NPC fuera de ella no se dibujan ni se animan
     let frustum = null;

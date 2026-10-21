@@ -89,6 +89,7 @@ export class InteractionSystem {
         // Determinar tipo por `kind` o por métodos disponibles
         if (t.kind === 'shop') nearestType = 'shop';
         else if (t.kind === 'cambuche') nearestType = 'cambuche';
+        else if (t.kind === 'dog') nearestType = 'dog';
         else if (t.kind === 'recycler') nearestType = 'sell';
         else if (typeof t.harvest === 'function') nearestType = 'pickup';
         else if (typeof t.steal === 'function') nearestType = 'car';
@@ -146,6 +147,9 @@ export class InteractionSystem {
         case 'cambuche':
           window.dispatchEvent(new CustomEvent('open-cambuche'));
           break;
+        case 'dog':
+          this._interactDog(nearest);
+          break;
         case 'car':
           this._stealCar(nearest);
           break;
@@ -176,6 +180,26 @@ export class InteractionSystem {
     if (input.consumePress('KeyF')) {
       const ok = this.toggleBoost();
       if (!ok) this.audio?.play('empty');
+    }
+  }
+
+  _interactDog(dog) {
+    if (!dog) return;
+    const foodItem = this.inventory.items.find(i => ['pan', 'lataComida', 'carne', 'hueso'].includes(i.id));
+
+    if (!dog.isFriend && foodItem) {
+      this.inventory.remove(foodItem.id, 1);
+      dog.befriend();
+      this.stats.saludMental = Math.min(100, this.stats.saludMental + 15);
+      window.dispatchEvent(new CustomEvent('toast', {
+        detail: { text: `🐕 ¡Le diste ${ITEMS[foodItem.id]?.name ?? 'comida'} a El Chato! Ahora te acompaña.`, type: 'rare' }
+      }));
+    } else {
+      if (!dog.pet()) return;
+      this.stats.saludMental = Math.min(100, this.stats.saludMental + 5);
+      window.dispatchEvent(new CustomEvent('toast', {
+        detail: { text: '🐕 Acariciaste a El Chato (+5 salud mental).', type: 'info' }
+      }));
     }
   }
 

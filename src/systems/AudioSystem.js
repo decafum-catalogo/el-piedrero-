@@ -16,7 +16,14 @@ export class AudioSystem {
       onplayerror(id) { this.once('unlock', () => this.play(id)); }
     });
     // Volumen maestro (0.0 a 1.0)
-    howler.volume(0.7);
+    this.eventTarget = eventTarget;
+    this._masterVolume = .7; this.muted = false;
+    try {
+      const saved = globalThis.localStorage?.getItem('bazuko.audio_volume');
+      if (saved !== null && saved !== undefined && Number.isFinite(Number(saved))) this._masterVolume = Math.max(0, Math.min(1, Number(saved)));
+      this.muted = globalThis.localStorage?.getItem('bazuko.audio_muted') === 'true';
+    } catch { /* sin almacenamiento */ }
+    howler.volume(this.muted ? 0 : this._masterVolume);
 
     // Definir sonidos. Si el archivo no existe, Howl queda en silencio
     // pero NO crashea (maneja el error internamente).
@@ -76,12 +83,52 @@ export class AudioSystem {
       if (globalThis.document?.hidden) this.setPaused(true);
     };
     globalThis.document?.addEventListener('visibilitychange', this._visibilityChanged);
+    this._dogBark = () => this.barkDog();
+    eventTarget?.addEventListener('dog-bark', this._dogBark);
+  }
+
+  get volume() { return this._masterVolume; }
+  setVolume(value) {
+    this._masterVolume = Math.max(0, Math.min(1, Number(value) || 0));
+    this._applySettings(); return this.volume;
+  }
+  setMuted(value) { this.muted = !!value; this._applySettings(); return this.muted; }
+  toggleMute() { return this.setMuted(!this.muted); }
+  isMuted() { return this.muted; }
+  _applySettings() {
+    this.howler.volume(this.muted ? 0 : this.volume);
+    try {
+      globalThis.localStorage?.setItem('bazuko.audio_volume', String(this.volume));
+      globalThis.localStorage?.setItem('bazuko.audio_muted', String(this.muted));
+    } catch { /* sin almacenamiento */ }
+    this.eventTarget?.dispatchEvent(new CustomEvent('audio-settings-change', { detail: { volume: this.volume, muted: this.muted } }));
   }
 
   play(name) {
     const s = this.sounds[name];
     if (!s || s.playing()) return;
     s.play();
+  }
+
+  /** Ladrido breve sintetizado; usa el mismo volumen maestro y silencio que los vehículos. */
+  barkDog() {
+    const ctx = this.howler.ctx;
+    if (this._paused || !ctx || ctx.state !== 'running' || !ctx.createBuffer || !this.howler.masterGain) return;
+    if (!this._barkBuffer) {
+      this._barkBuffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * .18), ctx.sampleRate);
+      const data = this._barkBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        const t = i / ctx.sampleRate;
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 24) * Math.min(1, t * 250)
+          * (.5 + .5 * Math.sin(t * 2 * Math.PI * 140));
+      }
+    }
+    const source = ctx.createBufferSource(), filter = ctx.createBiquadFilter(), gain = ctx.createGain();
+    source.buffer = this._barkBuffer; filter.type = 'bandpass'; filter.frequency.value = 700; filter.Q.value = .7;
+    gain.gain.value = .5;
+    source.connect(filter); filter.connect(gain); gain.connect(this.howler.masterGain);
+    source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
+    source.start();
   }
 
   stop(name) {
@@ -139,6 +186,7 @@ export class AudioSystem {
   }
 
   dispose() {
+    this.eventTarget?.removeEventListener('dog-bark', this._dogBark);
     this.vehicles.clear();
     this._removeUnlock();
     globalThis.document?.removeEventListener('visibilitychange', this._visibilityChanged);

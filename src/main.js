@@ -2,6 +2,7 @@ import '@fontsource/overpass/600.css';
 import '@fontsource/overpass/800.css';
 import '@fontsource/overpass/900.css';
 import { LoadingScreen } from './ui/LoadingScreen.js';
+import { startControlsHelp } from './ui/ControlsHelp.js';
 
 const loading = new LoadingScreen();
 try {
@@ -9,4 +10,5 @@ try {
   const { Game } = await import('./core/game.js');
   const game = new Game(document.getElementById('game-canvas'));
   await game.start(loading);
+  startControlsHelp();
 } catch (error) { loading.error(error); }

@@ -27,6 +27,23 @@ export class HUD {
     this.nameEl = document.getElementById('player-name');
     this.cameraButton = document.getElementById('camera-toggle');
     this.cameraHint = document.getElementById('camera-hint');
+    this.audioBtn = document.getElementById('audio-toggle');
+    this.pauseBtn = document.getElementById('pause-toggle');
+    this.audioBtn?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('audio-toggle'));
+      this.audioBtn.blur();
+    });
+    this.pauseBtn?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('open-pause-menu'));
+      this.pauseBtn.blur();
+    });
+    window.addEventListener('audio-settings-change', (e) => {
+      if (this.audioBtn) {
+        this.audioBtn.textContent = e.detail?.muted ? '🔇' : '🔊';
+        this.audioBtn.setAttribute('title', e.detail?.muted ? 'Activar sonido' : 'Silenciar sonido');
+        this.audioBtn.setAttribute('aria-label', e.detail?.muted ? 'Activar sonido' : 'Silenciar sonido');
+      }
+    });
     this.cameraButton?.addEventListener('click', () => {
       window.dispatchEvent(new CustomEvent('camera-toggle'));
       this.cameraButton.blur();
@@ -49,10 +66,12 @@ export class HUD {
     // Controles de paneles
     window.addEventListener('keydown', (e) => {
       // No abrir paneles mientras se escribe (nombre) o hay un menú/creador abierto
-      if (e.target instanceof HTMLInputElement || window.__game?.paused) return;
+      if (e.target instanceof HTMLInputElement) return;
+      if (e.code !== 'Escape' && window.__game?.paused) return;
       if (e.code === 'KeyT') this.toggleTalentPanel();
       if (e.code === 'KeyC') this.toggleCraftPanel();
       if (e.code === 'Escape') {
+        if (this._talentOpen || this._craftOpen || this._dealerOpen) e._panelHandled = true;
         this.talentPanel?.classList.remove('open');
         this.craftPanel?.classList.remove('open');
         this.dealerPanel?.classList.remove('open');
@@ -81,7 +100,7 @@ export class HUD {
       this.cameraButton.setAttribute('aria-label', `Cambiar a vista ${thirdPerson ? 'isométrica' : 'en tercera persona'} (V)`);
     }
     if (this.cameraHint) this.cameraHint.textContent = thirdPerson
-      ? 'Botón derecho + arrastrar o flechas: girar · Rueda: distancia'
+      ? 'Clic: fijar ratón · Arrastrar o flechas: girar · Rueda: distancia · Esc: liberar'
       : 'V: cambiar a tercera persona';
   }
 
@@ -141,17 +160,20 @@ export class HUD {
   }
 
   toggleTalentPanel() {
+    window.__game?.cameraRig?.releaseControls?.();
     this._talentOpen = !this._talentOpen;
     this.talentPanel?.classList.toggle('open', this._talentOpen);
     if (this._talentOpen) this.renderTalents();
   }
 
   toggleCraftPanel() {
+    window.__game?.cameraRig?.releaseControls?.();
     this._craftOpen = !this._craftOpen;
     this.craftPanel?.classList.toggle('open', this._craftOpen);
   }
 
   toggleDealerPanel(dealer = null) {
+    window.__game?.cameraRig?.releaseControls?.();
     this._dealerOpen = !this._dealerOpen;
     this.dealerPanel?.classList.toggle('open', this._dealerOpen);
     if (this._dealerOpen) {
@@ -201,6 +223,14 @@ export class HUD {
         else if (type === 'car') text = '[E] Robar retrovisor de auto';
         else if (type === 'sell') text = '[E] Recicladora El Progreso · Vender material';
         else if (type === 'shop') text = `[E] ${interaction.currentTarget.title ?? 'Tienda La Esquinita'} · Comprar`;
+        else if (type === 'dog') {
+          const hasFood = inventory?.items.some(item => item.qty > 0 && ['pan', 'lataComida', 'carne', 'hueso'].includes(item.id));
+          text = interaction.currentTarget?.isFriend
+            ? '🐕 El Chato ya te sigue · [E] Acariciar (+5 ánimo)'
+            : hasFood
+              ? '🐕 [E] Darle 1 pan o 1 lata de atún para que te siga (consume una unidad)'
+              : '🐕 Para que El Chato te siga, trae pan o una lata de atún y pulsa E · Ahora: [E] acariciar';
+        }
         else if (type === 'cambuche') text = '[E] Tu cambuche · Armar / Dormir';
         else if (type === 'dealer') text = '[Q / E] Tienda del Dealer · Comprar / Vender';
 
@@ -295,8 +325,10 @@ export class HUD {
       }
       inv.remove(itemId, 1);
       game.audio?.play('pickup');
-      game.player?.playAction?.('comer', 1.2);
-      this._toast(`🍴 Consumiste: ${item.name}`, 'info');
+      const isDrink = item.consumable === 'sed' || item.id === 'cafe' || item.id === 'refresco';
+      const verb = isDrink ? '🥤 Bebiste' : item.substance ? '🚬 Consumiste' : item.consumable === 'salud' ? '🩹 Te aplicaste' : '🍴 Comiste';
+      game.player?.playAction?.(isDrink ? 'beber' : 'comer', 1.2);
+      this._toast(`${verb}: ${item.name}`, 'info');
       this._renderInventory(inv);
     } else if (item.cure) {
       game.diseases?.cure?.(item.cure);

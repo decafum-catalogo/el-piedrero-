@@ -142,6 +142,7 @@ export class InventoryUI {
 
   open() {
     if (this.isOpen || this.game.isSleeping || this.game.paused || this.game.hud?._talentOpen || this.game.hud?._craftOpen || this.game.hud?._dealerOpen) return;
+    this.game.cameraRig?.releaseControls?.();
     this.isOpen = true;
     this.root.classList.add('open');
     if (this.game.input) this.game.input.locked = true; // WASD/E dejan de afectar al personaje

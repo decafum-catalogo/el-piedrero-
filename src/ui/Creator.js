@@ -308,6 +308,7 @@ export function createCreator({ audio }) {
   return {
     /** Abre el editor. Devuelve una promesa con la apariencia elegida (o null si se cancela). */
     async open(current, { doneLabel = 'Listo', onReady = () => {} } = {}) {
+      window.__game?.cameraRig?.releaseControls?.();
       catalog ??= await loadCatalog();
       look = normalizeLook(current);
       look.real = normalizeReal(catalog, look.real);

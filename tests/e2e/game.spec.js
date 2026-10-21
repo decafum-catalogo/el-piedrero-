@@ -11,6 +11,10 @@ async function startNewGame(page) {
   await page.locator('#cr-name').fill('Parcero QA');
   await page.locator('#creator-done').click();
   await expect(page.locator('#loading-screen')).toBeHidden({ timeout: 120_000 });
+  await expect(page.locator('#menu-title')).toHaveText('Nota del desarrollador');
+  await expect(page.locator('#menu')).toContainText('Cristianlv11');
+  await expect(page.locator('#menu')).toContainText('issues abiertos al público');
+  await page.getByRole('button', { name: 'Continuar jugando', exact: true }).click();
   await expect(page.locator('#creator-modal')).toBeHidden();
   await expect(page.locator('#game-canvas')).toBeVisible();
   await expect(page.locator('#player-name')).toHaveText('Parcero QA');

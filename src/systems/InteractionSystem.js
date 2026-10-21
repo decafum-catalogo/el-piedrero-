@@ -134,6 +134,9 @@ export class InteractionSystem {
 
     // === Interacción principal (E) ===
     if (input.consumePress('KeyE') && nearest) {
+      if (typeof document !== 'undefined' && document.pointerLockElement) {
+        try { document.exitPointerLock(); } catch {}
+      }
       switch (nearestType) {
         case 'pickup':
           this._harvestTrash(nearest, false);

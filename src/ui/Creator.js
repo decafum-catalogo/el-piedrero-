@@ -308,6 +308,9 @@ export function createCreator({ audio }) {
   return {
     /** Abre el editor. Devuelve una promesa con la apariencia elegida (o null si se cancela). */
     async open(current, { doneLabel = 'Listo', onReady = () => {} } = {}) {
+      if (typeof document !== 'undefined' && document.pointerLockElement) {
+        try { document.exitPointerLock(); } catch {}
+      }
       catalog ??= await loadCatalog();
       look = normalizeLook(current);
       look.real = normalizeReal(catalog, look.real);

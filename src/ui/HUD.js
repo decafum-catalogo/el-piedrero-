@@ -158,12 +158,18 @@ export class HUD {
   }
 
   toggleTalentPanel() {
+    if (typeof document !== 'undefined' && document.pointerLockElement) {
+      try { document.exitPointerLock(); } catch {}
+    }
     this._talentOpen = !this._talentOpen;
     this.talentPanel?.classList.toggle('open', this._talentOpen);
     if (this._talentOpen) this.renderTalents();
   }
 
   toggleCraftPanel() {
+    if (typeof document !== 'undefined' && document.pointerLockElement) {
+      try { document.exitPointerLock(); } catch {}
+    }
     this._craftOpen = !this._craftOpen;
     this.craftPanel?.classList.toggle('open', this._craftOpen);
     if (this._craftOpen) {
@@ -175,6 +181,9 @@ export class HUD {
   }
 
   toggleDealerPanel(dealer = null) {
+    if (typeof document !== 'undefined' && document.pointerLockElement) {
+      try { document.exitPointerLock(); } catch {}
+    }
     this._dealerOpen = !this._dealerOpen;
     this.dealerPanel?.classList.toggle('open', this._dealerOpen);
     if (this._dealerOpen) {

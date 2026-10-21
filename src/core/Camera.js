@@ -117,6 +117,13 @@ export class CameraRig {
     canvas.addEventListener('pointercancel', onRelease);
     canvas.addEventListener('lostpointercapture', onRelease);
     window.addEventListener('blur', onRelease);
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      document.addEventListener('pointerlockchange', () => {
+        if (document.pointerLockElement !== canvas) {
+          this.cancelDrag();
+        }
+      });
+    }
 
     canvas.addEventListener('wheel', (e) => {
       if (!active()) return;

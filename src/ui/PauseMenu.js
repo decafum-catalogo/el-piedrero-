@@ -5,6 +5,9 @@ import { cop } from '../utils/money.js';
 
 export function openPauseMenu(game) {
   if (!game || game._deathPending || game.creator?.isOpen) return;
+  if (typeof document !== 'undefined' && document.pointerLockElement) {
+    try { document.exitPointerLock(); } catch { /* sin pointer lock */ }
+  }
 
   const audio = game.audio;
   const stats = game.stats;

@@ -142,8 +142,17 @@ export class AudioSystem {
     if (!car || car.traffic || this._paused || sound.state() !== 'loaded') return false;
     const current = this._carAlarms.get(car);
     if (current && (current.paused || sound.playing(current.id))) return false;
-    this._carAlarms.set(car, { id: sound.play(), paused: false });
+    const alarm = { id: sound.play(), paused: false, volume: this._alarmVolume(car, this._listenerPosition) };
+    sound.volume(alarm.volume, alarm.id);
+    this._carAlarms.set(car, alarm);
     return true;
+  }
+
+  _alarmVolume(car, listener) {
+    if (!car.position || !listener) return .6;
+    const distance = Math.hypot(car.position.x - listener.x, car.position.y - listener.y, car.position.z - listener.z);
+    // Volumen completo a cinco metros; silencio desde los 41 m, sin panner espacial.
+    return .6 * Math.max(0, Math.min(1, (41 - distance) / 36));
   }
 
   updateSteps(moving, running) {
@@ -200,10 +209,19 @@ export class AudioSystem {
   }
 
   updateWorld(dt, position, _camera, vehicles, bus) {
+    this._listenerPosition = position;
     this.setPaused(false);
     this.vehicles.update(dt, position, vehicles, bus);
     for (const [car, alarm] of this._carAlarms) {
-      if (!alarm.paused && !this.sounds.carAlarm.playing(alarm.id)) this._carAlarms.delete(car);
+      if (!alarm.paused && !this.sounds.carAlarm.playing(alarm.id)) {
+        this._carAlarms.delete(car);
+        continue;
+      }
+      const volume = this._alarmVolume(car, position);
+      if (Math.abs(volume - alarm.volume) > .001 || (volume === 0 && alarm.volume !== 0)) {
+        this.sounds.carAlarm.volume(volume, alarm.id);
+        alarm.volume = volume;
+      }
     }
   }
 

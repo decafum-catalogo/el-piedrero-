@@ -58,6 +58,24 @@ test('volumen y silencio persistentes controlan el maestro sin reemplazar motore
 const car = (x, z = 0) => ({ car: { position: new THREE.Vector3(x, 0, z), group: new THREE.Group() }, speed: 0 });
 const origin = new THREE.Vector3();
 
+test('cada alarma se atenúa según su carro y queda muda desde los 41 metros sin reiniciar', () => {
+  const { audio } = fixture(), car = { position: new THREE.Vector3() }, other = { position: new THREE.Vector3(60, 0, 0) };
+  audio.updateWorld(.1, origin, null, []);
+  audio.playCarAlarm(car); audio.playCarAlarm(other);
+  const sound = audio.sounds.carAlarm, id = audio._carAlarms.get(car).id, otherId = audio._carAlarms.get(other).id;
+  assert.equal(sound.voices.get(id).volume, .6); assert.equal(sound.voices.get(otherId).volume, 0);
+  audio.updateWorld(.1, new THREE.Vector3(23, 0, 0), null, []);
+  assert.equal(sound.voices.get(id).volume, .3);
+  for (const distance of [41, 42, 80]) {
+    audio.updateWorld(.1, new THREE.Vector3(distance, 0, 0), null, []);
+    assert.equal(sound.voices.get(id).volume, 0);
+  }
+  audio.updateWorld(.1, origin, null, []);
+  assert.equal(sound.voices.get(id).volume, .6);
+  assert.equal(sound.starts, 2, 'Volver a acercarse conserva la reproducción original');
+  audio.dispose();
+});
+
 test('la alarma usa una voz por carro estacionado, no se duplica y respeta pausa y volumen maestro', () => {
   const { audio } = fixture(), first = {}, second = {};
   const sound = audio.sounds.carAlarm;

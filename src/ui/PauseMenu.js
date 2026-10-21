@@ -50,7 +50,36 @@ export function openPauseMenu(game) {
       )
     );
 
-    // 2. Estado del jugador
+    // 2. Rendimiento y Calidad Gráfica (FPS)
+    const curQuality = game.renderer?.quality || 'alta';
+    const qualitySection = el('div', { class: 'pause-section' },
+      el('h3', { class: 'pause-section-title', text: '⚡ Rendimiento y Calidad (FPS)' }),
+      el('div', { class: 'pause-actions' },
+        button(curQuality === 'baja' ? '⚡ Baja (Máx FPS) ✔' : '⚡ Baja (Máx FPS)', {
+          class: curQuality === 'baja' ? 'btn btn--primary btn--small' : 'btn btn--ghost btn--small',
+          onClick: () => {
+            game.setGraphicsQuality?.('baja');
+            game.menu?.refresh();
+          }
+        }),
+        button(curQuality === 'media' ? '⚖️ Media ✔' : '⚖️ Media', {
+          class: curQuality === 'media' ? 'btn btn--primary btn--small' : 'btn btn--ghost btn--small',
+          onClick: () => {
+            game.setGraphicsQuality?.('media');
+            game.menu?.refresh();
+          }
+        }),
+        button(curQuality === 'alta' ? '✨ Alta (Detalle) ✔' : '✨ Alta (Detalle)', {
+          class: curQuality === 'alta' ? 'btn btn--primary btn--small' : 'btn btn--ghost btn--small',
+          onClick: () => {
+            game.setGraphicsQuality?.('alta');
+            game.menu?.refresh();
+          }
+        })
+      )
+    );
+
+    // 3. Estado del jugador
     const h = Math.floor(clock.hour).toString().padStart(2, '0');
     const m = Math.floor((clock.hour % 1) * 60).toString().padStart(2, '0');
     const stateSection = el('div', { class: 'pause-section' },
@@ -130,6 +159,7 @@ export function openPauseMenu(game) {
 
     const body = el('div', { class: 'pause-menu-body' },
       audioSection,
+      qualitySection,
       stateSection,
       actionsSection,
       controlsSection

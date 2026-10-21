@@ -15,6 +15,7 @@ import { Shop } from '../entities/Shop.js';
 import { Car } from '../entities/Car.js';
 import { DrugDealer } from '../entities/DrugDealer.js';
 import { CraftingStation } from '../entities/CraftingStation.js';
+import { Dog } from '../entities/Dog.js';
 
 import { StatsSystem, NEEDS } from '../systems/StatsSystem.js';
 import { TimeSystem } from '../systems/TimeSystem.js';
@@ -88,6 +89,13 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.minimap = new Minimap();
     this.weather = new WeatherSystem(this.sceneMgr.scene);
     this.creator = createCreator({ audio: null });
+    try {
+      const savedQ = localStorage.getItem('bazuko.graphics_quality');
+      if (savedQ) {
+        this.renderer.setQuality(savedQ);
+        this.sceneMgr.setQuality(savedQ);
+      }
+    } catch { /* sin almacenamiento */ }
     this.cameraRig.canControl = () => !this.paused && !this.isSleeping &&
       !this.hud._talentOpen && !this.hud._craftOpen && !this.hud._dealerOpen;
     this.hud.setCameraMode(this.cameraRig.mode);
@@ -634,7 +642,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this._renderFrame(now, true);
 
     // 13. UI
-    this.minimap?.update?.(this.player.position, this.player.root?.rotation?.y ?? 0, this._getPOIs(), now);
+    this.minimap?.update?.(this.player.position, this.cameraRig?.yaw ?? 0, this._getPOIs(), now);
     this.hud.update(
       this.stats, this.clock, this.interaction, this.inventory,
       this.diseases, this.talents, this.crafting, dt
@@ -659,11 +667,11 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     const reserved = district?.reserved;
     if (!reserved) return [];
     return [
-      { name: 'Cambuche', icon: '⛺', x: reserved.bed.x, z: reserved.bed.z, color: '#ffd166' },
-      { name: 'Recicladora', icon: '♻️', x: reserved.sell.x, z: reserved.sell.z, color: '#2ab7ca' },
-      { name: 'Tienda', icon: '🏪', x: reserved.shop?.x ?? 34, z: reserved.shop?.z ?? 29, color: '#2ecc71' },
-      { name: 'Crafteo', icon: '🔨', x: reserved.craft?.x ?? 16.5, z: reserved.craft?.z ?? 24.5, color: '#e67e22' },
-      { name: 'Dealer', icon: '💀', x: reserved.dealer?.x ?? 56, z: reserved.dealer?.z ?? 56, color: '#9b59b6' }
+      { name: 'Cambuche', icon: '⛺', x: this.cambuche?.position?.x ?? this.cambuche?.group?.position?.x ?? reserved.bed.x, z: this.cambuche?.position?.z ?? this.cambuche?.group?.position?.z ?? reserved.bed.z, color: '#ffd166' },
+      { name: 'Recicladora', icon: '♻️', x: this.sellPoint?.position?.x ?? this.sellPoint?.group?.position?.x ?? reserved.sell.x, z: this.sellPoint?.position?.z ?? this.sellPoint?.group?.position?.z ?? reserved.sell.z, color: '#2ab7ca' },
+      { name: 'Tienda', icon: '🏪', x: this.shop?.position?.x ?? this.shop?.group?.position?.x ?? reserved.shop?.x ?? 34, z: this.shop?.position?.z ?? this.shop?.group?.position?.z ?? reserved.shop?.z ?? 29, color: '#2ecc71' },
+      { name: 'Crafteo', icon: '🔨', x: this.craftingStation?.position?.x ?? this.craftingStation?.group?.position?.x ?? reserved.craft?.x ?? 16.5, z: this.craftingStation?.position?.z ?? this.craftingStation?.group?.position?.z ?? reserved.craft?.z ?? 24.5, color: '#e67e22' },
+      { name: 'Dealer', icon: '💀', x: this.dealer?.position?.x ?? this.dealer?.group?.position?.x ?? reserved.dealer?.x ?? 56, z: this.dealer?.position?.z ?? this.dealer?.group?.position?.z ?? reserved.dealer?.z ?? 56, color: '#9b59b6' }
     ];
   }
 
@@ -675,6 +683,14 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     if (district?.busService) culling.register(district.busService.group, { dynamic: true, margin: .5 });
     for (const car of this.cars) culling.register(car.group, { dynamic: true, margin: .5 });
     for (const { car } of this.traffic?.vehicles ?? []) culling.register(car.group, { dynamic: true, margin: .5 });
+  }
+
+  setGraphicsQuality(level) {
+    this.renderer.setQuality(level);
+    this.sceneMgr.setQuality(level);
+    window.dispatchEvent(new CustomEvent('toast', {
+      detail: { text: `⚡ Calidad gráfica cambiada a: ${level.toUpperCase()}`, type: 'info' }
+    }));
   }
 
   stop() { this._running = false; }

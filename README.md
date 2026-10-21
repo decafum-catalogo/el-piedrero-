@@ -63,7 +63,7 @@ En PowerShell, si una política de ejecución impide usar `npm`, ejecuta los mis
 | `V` o botón de cámara | Alternar entre tercera persona e isométrica. |
 | Mover el ratón (o arrastrar botón izq/der) o flechas | Girar la cámara libremente en tercera persona (Pointer Lock con clic izquierdo). |
 | Rueda del ratón | Ajustar la distancia/zoom de la cámara en tercera persona. |
-| `E` | Interactuar con el objetivo cercano. |
+| `E` | Interactuar con basura, tiendas, cambuche, autos o El Chato (perro callejero). |
 | Mantener y soltar `Q` junto a basura | Seleccionar materiales y recogerlos al soltar. |
 | `Q` junto al dealer | Abrir su tienda. |
 | `B` o `L` | Pedir limosna. |

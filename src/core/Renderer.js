@@ -31,6 +31,21 @@ export class Renderer {
     document.addEventListener('visibilitychange', () => this.resolution.resetWindow());
   }
 
+  setQuality(level = 'alta') {
+    this.quality = level;
+    try { localStorage.setItem('bazuko.graphics_quality', level); } catch { /* sin almacenamiento */ }
+    if (level === 'baja') {
+      this.instance.shadowMap.enabled = false;
+      this.instance.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.0));
+    } else if (level === 'media') {
+      this.instance.shadowMap.enabled = true;
+      this.instance.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+    } else {
+      this.instance.shadowMap.enabled = true;
+      this.instance.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    }
+  }
+
   /** Mapa de entorno neutro: da reflejos (charcos, vidrios) y luz rebotada a los materiales PBR */
   createEnvironment() {
     const pmrem = new THREE.PMREMGenerator(this.instance);

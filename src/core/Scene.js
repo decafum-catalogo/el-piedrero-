@@ -80,6 +80,26 @@ export class SceneManager {
     }
   }
 
+  setQuality(level = 'alta') {
+    if (level === 'baja') {
+      this.sun.castShadow = false;
+      if (this.scene.fog) {
+        this.scene.fog.near = 40;
+        this.scene.fog.far = 130;
+      }
+    } else if (level === 'media') {
+      this.sun.castShadow = true;
+      this.sun.shadow.mapSize.set(1024, 1024);
+      if (this.scene.fog) {
+        this.scene.fog.near = 45;
+        this.scene.fog.far = 160;
+      }
+    } else {
+      this.sun.castShadow = true;
+      this.sun.shadow.mapSize.set(2048, 2048);
+    }
+  }
+
   /** El sol (y su caja de sombras) sigue al jugador para sombras nítidas en un mapa grande */
   followTarget(pos) {
     this.sun.target.position.copy(pos);

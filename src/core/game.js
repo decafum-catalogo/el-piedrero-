@@ -108,6 +108,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.shop = null;
     this.cars = [];
     this.traffic = null;
+    this._onVehicleImpact = this._onVehicleImpact.bind(this);
     this.dealer = null;
     this.craftingStation = null;
 
@@ -358,6 +359,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }
     if (district.getTrafficRoutes) {
       this.traffic = new TrafficSystem(this.sceneMgr.scene, district.getTrafficRoutes());
+      this.traffic.setParkedCars(this.cars);
     }
 
     // ===== Puesto de venta =====
@@ -512,9 +514,24 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }, 1200);
   }
 
+  _onVehicleImpact({ speed, direction }) {
+    if (this._deathPending || this.stats.salud <= 0 || (this._vehicleImpactCooldown ?? 0) > 0) return;
+    const damage = Math.min(100, Math.max(4, Math.round(.6 * speed ** 2 + 1.5 * speed)));
+    this.stats.salud = Math.max(0, this.stats.salud - damage);
+    this.stats.energia = Math.max(0, this.stats.energia - damage * .25);
+    this._vehicleImpactCooldown = 1.5;
+    this._syncVehicleColliders();
+    this.player.receiveVehicleImpact(direction, speed, { collisions: this.collisions });
+    if (this.stats.salud === 0) this._deathCause = 'atropello';
+    window.dispatchEvent(new CustomEvent('toast', {
+      detail: { text: `Un carro te atropelló: −${damage} de salud.`, type: 'death' }
+    }));
+  }
+
   _handleDeath() {
     if (this._deathPending) return true;
     if (this.stats.salud > 0) return false;
+    if (this.player.isRagdollActive) return false;
 
     this._deathPending = true;
     this.deathCount++;
@@ -524,6 +541,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.audio.setPaused?.(true);
     if (this.interaction.boostActive) this.interaction._endBoost();
     const causes = [];
+    if (this._deathCause) causes.push(this._deathCause);
     for (const [stat, name] of [['sed', 'deshidratación'], ['hambre', 'hambre'],
       ['energia', 'agotamiento'], ['higiene', 'higiene agotada'], ['animo', 'ánimo agotado']]) {
       if (this.stats[stat] <= 0) causes.push(name);
@@ -531,7 +549,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     if (this.stats.inWithdrawal) causes.push('abstinencia');
     if (this.diseases.hasAny) causes.push('enfermedad');
     this.menu.open({
-      title: 'Te quedaste sin salud',
+      title: this._deathCause === 'atropello' ? 'Te atropellaron' : 'Te quedaste sin salud',
       sub: 'La partida está en pausa.',
       ic: 'heart',
       dismissible: false,
@@ -539,7 +557,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
         body: el('div', {},
           el('p', { text: causes.length ? `Estado al caer: ${causes.join(', ')}.` : 'Tu salud llegó a cero.' }),
           el('p', { text: 'Volverás al cambuche con salud y necesidades recuperadas al menos al 60 %. Perderás la mitad de los tipos de objetos del inventario.' }),
-          el('p', { text: 'Come, bebe agua y descansa para mantener tus necesidades. Puedes consumir comida y agua haciendo clic en ellas en el inventario.' })),
+          el('p', { text: this._deathCause === 'atropello'
+            ? 'Mira ambos sentidos y cruza con distancia: los carros necesitan espacio para frenar.'
+            : 'Come, bebe agua y descansa para mantener tus necesidades. Puedes consumir comida y agua haciendo clic en ellas en el inventario.' })),
         foot: [button('Volver al cambuche', { primary: true, onClick: () => this._respawn() })]
       })
     });
@@ -565,6 +585,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       this.player.position.set(spawn.x, district.getGroundHeight?.(spawn.x, spawn.z) ?? 0, spawn.z);
     }
     this.player.root.position.copy(this.player.position);
+    this.player.clearVehicleImpact?.();
+    this._vehicleImpactCooldown = 1.5;
+    this._deathCause = null;
     this.cameraRig._snap = true;
     this.cameraRig.follow(this.player.position, 0, this.collisions);
     this.interaction.currentTarget = null;
@@ -573,6 +596,13 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.input.endFrame();
     this._deathPending = false;
     this.menu.close();
+  }
+
+  _syncVehicleColliders() {
+    if (!this.collisions?.setVehicles) return;
+    const cars = [...(this.cars ?? [])];
+    for (const vehicle of this.traffic?.vehicles ?? []) cars.push(vehicle.car);
+    this.collisions.setVehicles(cars, this.world.active?.busService);
   }
 
   _loop = () => {
@@ -591,9 +621,23 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       this.input.endFrame();
       return;
     }
+    // Deja ver el lanzamiento y la caída antes de abrir la recuperación fatal.
+    if (this.stats.salud <= 0 && this.player.isRagdollActive) {
+      this._syncVehicleColliders();
+      this.player.update(dt, this.cameraRig.camera, this.collisions);
+      this.world.update(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? []);
+      this.traffic?.update(dt, { pedestrians: this.world.active?.npcs ?? [] });
+      this.cameraRig.follow(this.player.position, dt, this.collisions);
+      this.audio.updateSteps(false, false);
+      this.audio.updateWorld(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? [], this.world.active?.busService);
+      this._handleDeath();
+      this._renderFrame(now, false); this.input.endFrame();
+      return;
+    }
     if (this._handleDeath()) return;
 
     // 1. Tiempo
+    this._vehicleImpactCooldown = Math.max(0, (this._vehicleImpactCooldown ?? 0) - dt);
     this.clock.update(dt);
     this.time.update(dt, this.clock);
 
@@ -612,6 +656,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     // Actualiza el rumbo antes de calcular WASD en relación con la cámara.
     this.cameraRig.prepareMovement();
     const previousX = this.player.position.x, previousZ = this.player.position.z;
+    this._syncVehicleColliders();
     this.player.update(dt, this.cameraRig.camera, this.collisions);
 
     // 4. Stats
@@ -634,14 +679,15 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.diseases.update(dt);
 
     // 7. Interacción (basura, autos, recicladora, tienda, cambuche, dealer)
-    this.interaction.update(dt, this.input, this.clock);
+    if (!this.player.isStunned) this.interaction.update(dt, this.input, this.clock);
     if (this._handleDeath()) return;
 
     // 8. Mundo
     // La visibilidad de edificios usa la cámara del mismo cuadro.
     this.cameraRig.follow(this.player.position, dt, this.collisions);
     this.world.update(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? []);
-    this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.npcs ?? [] });
+    this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.npcs ?? [], onPlayerHit: this._onVehicleImpact });
+    if (this._handleDeath()) return;
 
     // 9. Entidades
     for (const p of this.pickups) p.update(dt);
@@ -650,7 +696,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.dealer?.update(dt);
 
     // 10. Audio
-    const moving = Math.hypot(this.player.position.x - previousX, this.player.position.z - previousZ) > .001;
+    const moving = !this.player.isStunned && Math.hypot(this.player.position.x - previousX, this.player.position.z - previousZ) > .001;
     this.audio.updateWorld(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? [], this.world.active?.busService);
     this.audio.updateSteps(moving, this.input.isRunning);
     this.audio.updateBoost(this.interaction.boostActive);

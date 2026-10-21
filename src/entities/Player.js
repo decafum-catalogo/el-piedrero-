@@ -8,6 +8,7 @@ import {
 } from '../utils/constants.js';
 import { createCharacter } from '../character/character.js';
 import { createRealisticCharacter, REALISTIC_SCALE } from '../character/RealisticCharacter.js';
+import { PlayerRagdoll } from '../systems/PlayerRagdoll.js';
 
 export class Player {
   constructor(scene, input, stats=null) {
@@ -24,6 +25,8 @@ export class Player {
     this._right = new THREE.Vector3();
     this._delta = new THREE.Vector3();
     this._before = new THREE.Vector3();
+    this._impactVelocity = new THREE.Vector3();
+    this._impactTime = 0;
 
     // Contenedor raíz (posición + rumbo); el personaje va escalado adentro
     this.root = new THREE.Group();
@@ -39,6 +42,7 @@ export class Player {
     this.procedural = this.character;
     this.modelScale = CHARACTER_SCALE;
     this.modelKind = 'procedural';
+    this.ragdoll = new PlayerRagdoll(this);
 
     this.time = 0;
     this.speed = 0;
@@ -61,6 +65,7 @@ export class Player {
   /** Cambia entre el personaje realista (MakeHuman, por defecto) y el procedural (liviano) */
   async setModel(kind) {
     if (kind === this.modelKind) return;
+    this.clearVehicleImpact();
     this.modelKind = kind;
     if (kind === 'realista') {
       this._realisticPromise ??= createRealisticCharacter(this.look ?? {});
@@ -88,15 +93,39 @@ export class Player {
     this.playAction('pedir', 1.2);
   }
 
+  receiveVehicleImpact(direction, speed, { collisions = this._lastCollisions } = {}) {
+    if (this.ragdoll.start(direction, speed, collisions)) return;
+    this._impactVelocity.copy(direction).setY(0).normalize().multiplyScalar(Math.min(9, speed * .7));
+    this._impactTime = 1;
+    this.root.rotation.z = .85;
+  }
+
+  get isStunned() { return !!this.ragdoll?.active || this._impactTime > 0; }
+  get isRagdollActive() { return !!this.ragdoll?.active; }
+
+  clearVehicleImpact() {
+    this.ragdoll.clear();
+    this._impactVelocity.set(0, 0, 0);
+    this._impactTime = 0;
+    this.root.rotation.z = 0;
+  }
+
   update(dt, camera, collisions) {
     this.time += dt;
+    this._lastCollisions = collisions;
+    if (this.ragdoll?.active) {
+      this.ragdoll.update(dt, collisions);
+      this.speed = 0; this.state = 'ragdoll';
+      return;
+    }
     if (this.actionTimer > 0) {
       this.actionTimer -= dt;
       if (this.actionTimer <= 0) this.action = null;
     }
 
     const { x, z } = this.input.axis;
-    const moving = (x !== 0 || z !== 0);
+    const stunned = this._impactTime > 0;
+    const moving = !stunned && (x !== 0 || z !== 0);
     const running = this.input.isRunning && moving;
     let speed = running ? this.speedRun : this.speedWalk;
     if (this.stats?.getSpeedMultiplier) {
@@ -113,6 +142,12 @@ export class Player {
     }
     if (moving) dir.normalize();
     const delta = this._delta.copy(dir).multiplyScalar(moving ? speed * dt : 0);
+    if (stunned) {
+      delta.addScaledVector(this._impactVelocity, (1 - Math.exp(-4 * dt)) / 4);
+      this._impactVelocity.multiplyScalar(Math.exp(-4 * dt));
+      this._impactTime = Math.max(0, this._impactTime - dt);
+    }
+    this.root.rotation.z = .85 * this._impactTime;
 
     const before = this._before.copy(this.position);
     if (collisions) {
@@ -139,9 +174,9 @@ export class Player {
 
     // Animación del personaje (velocidad en metros del modelo, no del mundo)
     this.character.update(dt, {
-      speed: this.speed / this.modelScale,
+      speed: stunned ? 0 : this.speed / this.modelScale,
       running,
-      action: this.sorting ? 'buscar' : this.action,
+      action: stunned ? null : (this.sorting ? 'buscar' : this.action),
       t: this.time,
       load: this.load,
       dirt: this.stats ? Math.max(0, (40 - this.stats.higiene) / 40) : 0
@@ -149,6 +184,7 @@ export class Player {
   }
 
   dispose() {
+    this.ragdoll.clear();
     this.root.traverse((o) => {
       o.geometry?.dispose?.();
       o.material?.dispose?.();

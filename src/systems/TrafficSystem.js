@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Car } from '../entities/Car.js';
 import { signalState } from '../world/bogota/TrafficSignals.js';
+import { PLAYER_RADIUS } from '../utils/constants.js';
 
 const GAP = 1.8;
 const ACCELERATION = 1.8;
@@ -26,7 +27,7 @@ export class TrafficSystem {
         const distance = (i + 0.4) * route.length / count;
         route.sample(distance, this._position, this._direction);
         const car = new Car(scene, this._position, Math.atan2(-this._direction.z, this._direction.x), { traffic: true });
-        const cruiseSpeed = 5 + random() * 2;
+        const cruiseSpeed = 10 + random() * 4;
         this.vehicles.push({ car, route, distance, speed: 0, cruiseSpeed, nextDistance: distance, nextSpeed: 0,
           acceleration: 0, accelerationLimit: 1.8 + random() * .7, braking: 2.2 + random() * .6,
           reactionTime: .18 + random() * .35, resumeDelay: 0, stopped: false,
@@ -54,6 +55,8 @@ export class TrafficSystem {
   setBus(bus) {
     this.busVehicle = bus ? { car: bus, heading: { x: 0, z: -1 } } : null;
   }
+
+  setParkedCars(cars) { this.parkedCars = cars.map(car => ({ car })); }
 
   _chooseRoute(vehicle) {
     if (vehicle.crossingNode) return false;
@@ -214,6 +217,11 @@ export class TrafficSystem {
   _clearance(vehicle, player, pedestrians) {
     const { route, car, distance, speed } = vehicle;
     vehicle.personBlocked = false;
+    vehicle.playerClearance = Infinity;
+    const finish = hardClearance => {
+      vehicle.hardClearance = hardClearance;
+      return Math.min(hardClearance, vehicle.playerClearance);
+    };
     let clearance = Infinity;
     for (const other of this.vehicles) {
       if (other === vehicle || other.route !== route) continue;
@@ -233,6 +241,9 @@ export class TrafficSystem {
       if (other === vehicle || other.route === route) continue;
       if (other.car.position.distanceToSquared(car.position) <= (radius + other.car.length) ** 2) nearbyCars.push(other);
     }
+    for (const other of this.parkedCars ?? []) {
+      if (other.car.position.distanceToSquared(car.position) <= (radius + other.car.length) ** 2) nearbyCars.push(other);
+    }
     if (this.busVehicle?.car.group.visible && this.busVehicle.car.position.distanceToSquared(car.position) <= (radius + this.busVehicle.car.length) ** 2) nearbyCars.push(this.busVehicle);
     for (const pedestrian of pedestrians) {
       const dx = pedestrian.position.x - car.position.x, dz = pedestrian.position.z - car.position.z;
@@ -247,23 +258,48 @@ export class TrafficSystem {
     if (this.signals) route.sample(distance, this._probePosition, signalDirection);
     for (let ahead = 0; ahead <= Math.min(lookAhead, clearance); ahead += PROBE_STEP) {
       route.sample(distance + ahead, this._probePosition, this._probeDirection);
-      if (this.signals?.blocks(this._probePosition, signalDirection, car.position, car.length, vehicle)) return Math.max(0, ahead - PROBE_STEP);
-      if (player && this._personInCar(player, car)) {
+      if (this.signals?.blocks(this._probePosition, signalDirection, car.position, car.length, vehicle)) return finish(Math.max(0, ahead - PROBE_STEP));
+      if (player && vehicle.playerClearance === Infinity && this._personInCar(player, car)) {
         vehicle.personBlocked ||= ahead <= 10;
-        return Math.max(0, ahead - PROBE_STEP);
+        vehicle.playerClearance = Math.max(0, ahead - PROBE_STEP);
       }
-      for (const other of nearbyCars) if (this._carInPath(other, car)) return Math.max(0, ahead - PROBE_STEP);
+      for (const other of nearbyCars) if (this._carInPath(other, car)) return finish(Math.max(0, ahead - PROBE_STEP));
       for (const pedestrian of nearby) {
         if (this._personInCar(pedestrian.position, car)) {
           vehicle.personBlocked ||= ahead <= 10;
-          return Math.max(0, ahead - PROBE_STEP);
+          return finish(Math.max(0, ahead - PROBE_STEP));
         }
       }
     }
-    return clearance;
+    return finish(clearance);
   }
 
-  update(dt, { player = null, pedestrians = [] } = {}) {
+  _checkPlayerImpact(vehicle, player, startDistance, travel, onPlayerHit) {
+    let contact = false;
+    if (player) {
+      // Muestreo del volumen recorrido, incluso en curvas y cuadros lentos.
+      const samples = Math.max(1, Math.ceil(travel / .2));
+      for (let index = 0; index <= samples; index++) {
+        vehicle.route.sample(startDistance + travel * index / samples, this._probePosition, this._probeDirection);
+        if (Math.abs(player.y - this._probePosition.y) > 1.8) continue;
+        const dx = player.x - this._probePosition.x, dz = player.z - this._probePosition.z;
+        const front = dx * this._probeDirection.x + dz * this._probeDirection.z;
+        const side = -dx * this._probeDirection.z + dz * this._probeDirection.x;
+        const outsideFront = Math.max(0, Math.abs(front) - vehicle.car.length / 2);
+        const outsideSide = Math.max(0, Math.abs(side) - vehicle.car.width / 2);
+        if (outsideFront ** 2 + outsideSide ** 2 > PLAYER_RADIUS ** 2) continue;
+        contact = true;
+        if (!vehicle.playerContact && travel > 0 && vehicle.speed >= 1.2) {
+          vehicle.impactStop = true;
+          onPlayerHit?.({ vehicle: vehicle.car, speed: vehicle.speed, direction: this._probeDirection.clone() });
+        }
+        break;
+      }
+    }
+    vehicle.playerContact = contact;
+  }
+
+  update(dt, { player = null, pedestrians = [], onPlayerHit = null } = {}) {
     if (dt <= 0) return;
     this._coordinateIntersections();
     for (const vehicle of this.vehicles) {
@@ -280,7 +316,17 @@ export class TrafficSystem {
       for (const vehicle of this.vehicles) {
         const clearance = this._clearance(vehicle, player, pedestrians);
         const braking = vehicle.braking ?? BRAKING;
-        let desiredSpeed = Math.min(vehicle.cruiseSpeed, Math.sqrt(2 * braking * clearance));
+        // Anticipa la respuesta gradual del conductor; el peatón no es una pared
+        // capaz de eliminar la velocidad restante en un solo subpaso.
+        const brakingClearance = Math.min(clearance, Math.max(0, vehicle.playerClearance - vehicle.speed));
+        let desiredSpeed = Math.min(vehicle.cruiseSpeed, Math.sqrt(2 * braking * brakingClearance));
+        if (vehicle.impactStop) {
+          desiredSpeed = 0;
+          if (vehicle.speed < .1) {
+            vehicle.impactWait = (vehicle.impactWait ?? 2) - stepTime;
+            if (vehicle.impactWait <= 0) { vehicle.impactStop = false; vehicle.impactWait = undefined; }
+          }
+        }
         // Anticipa las curvas y reduce la velocidad antes de girar.
         let start = 0;
         for (const segment of vehicle.route.segments) {
@@ -299,15 +345,20 @@ export class TrafficSystem {
         if (vehicle.resumeDelay > 0) { vehicle.resumeDelay -= stepTime; desiredSpeed = 0; }
         const targetAcceleration = THREE.MathUtils.clamp((desiredSpeed - vehicle.speed) / .65, -braking, vehicle.accelerationLimit ?? ACCELERATION);
         vehicle.acceleration = THREE.MathUtils.clamp(targetAcceleration, vehicle.acceleration - 3 * stepTime, vehicle.acceleration + 3 * stepTime);
-        const speed = THREE.MathUtils.clamp(vehicle.speed + vehicle.acceleration * stepTime, 0, vehicle.cruiseSpeed);
-        const travel = Math.min(Math.max(0, speed * stepTime), clearance);
+        const candidateSpeed = THREE.MathUtils.clamp(vehicle.speed + vehicle.acceleration * stepTime, 0, vehicle.cruiseSpeed);
+        const speed = desiredSpeed === 0 && candidateSpeed < .01 ? 0 : candidateSpeed;
+        const travel = Math.min(Math.max(0, speed * stepTime), vehicle.hardClearance);
         vehicle.nextDistance = (vehicle.distance + travel) % vehicle.route.length;
         vehicle.nextSpeed = travel / stepTime;
+        vehicle.nextTravel = travel;
       }
       // Todos consultan las mismas posiciones antes de aplicar el movimiento.
       for (const vehicle of this.vehicles) {
+        const startDistance = vehicle.distance;
+        const travel = vehicle.nextTravel;
         vehicle.distance = vehicle.nextDistance;
         vehicle.speed = vehicle.nextSpeed;
+        this._checkPlayerImpact(vehicle, player, startDistance, travel, onPlayerHit);
         vehicle.route.sample(vehicle.distance, this._position, this._direction);
         vehicle.car.position.copy(this._position);
         vehicle.car.group.rotation.y = Math.atan2(-this._direction.z, this._direction.x);

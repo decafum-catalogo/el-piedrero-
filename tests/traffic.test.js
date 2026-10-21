@@ -95,16 +95,16 @@ test('el tráfico recorre vueltas completas, gira las ruedas y mantiene la dista
   traffic.dispose();
 });
 
-test('los carros frenan ante el jugador o un peatón y reanudan la marcha', () => {
+test('con distancia suficiente los carros frenan ante el jugador o un peatón y reanudan la marcha', () => {
   for (const type of ['player', 'pedestrian']) {
-    const traffic = new TrafficSystem(new THREE.Scene(), [new TrafficRoute(0, 30, 0, 34)], { carsPerRoute: 1, random: () => 0.5 });
+    const traffic = new TrafficSystem(new THREE.Scene(), [new TrafficRoute(0, 240, 0, 240)], { carsPerRoute: 1, random: () => 0.5 });
     const vehicle = traffic.vehicles[0];
     vehicle.distance = 2;
     vehicle.speed = vehicle.cruiseSpeed;
     const actor = new THREE.Vector3(), direction = new THREE.Vector3();
-    vehicle.route.sample(vehicle.distance + 9, actor, direction);
+    vehicle.route.sample(vehicle.distance + 60, actor, direction);
     const context = type === 'player' ? { player: actor } : { pedestrians: [{ position: actor }] };
-    for (let frame = 0; frame < 200; frame++) traffic.update(0.1, context);
+    for (let frame = 0; frame < 500; frame++) traffic.update(0.1, context);
     assert.equal(vehicle.speed, 0);
     assert.ok(vehicle.car.position.distanceTo(actor) >= vehicle.car.length / 2 + 0.55);
     const stopped = vehicle.distance;
@@ -201,6 +201,23 @@ test('los carros que comparten tramo se frenan aunque pertenezcan a recorridos d
   traffic.dispose();
 });
 
+test('los carros del tráfico respetan la caja de un carro estacionado y no lo atraviesan', () => {
+  const route = new TrafficRoute(0, 240, 0, 240, 3.2);
+  const traffic = new TrafficSystem(new THREE.Scene(), [route], { carsPerRoute: 1, random: () => .5 });
+  const vehicle = traffic.vehicles[0]; placeOnStraight(vehicle, 10, 0, 1, 0);
+  const parked = new Car(new THREE.Scene(), new THREE.Vector3(35, 0, 0));
+  traffic.setParkedCars([parked]);
+  for (let frame = 0; frame < 200; frame++) {
+    traffic.update(.1);
+    assert.ok(vehicle.car.position.x + vehicle.car.length / 2 < parked.position.x - parked.length / 2);
+  }
+  assert.equal(vehicle.speed, 0);
+  const stopped = vehicle.distance; parked.position.z = 20;
+  for (let frame = 0; frame < 50; frame++) traffic.update(.1);
+  assert.ok(vehicle.distance > stopped + 5);
+  traffic.dispose(); parked.dispose();
+});
+
 test('cuatro carros que llegan desde vías distintas despejan un cruce del barrio nuevo sin bloquearse', () => {
   const city = new Bogota(), signals = new TrafficSignals();
   const node = signals.nodes.find(node => node.x0 === 167 && node.z0 === 143);
@@ -268,7 +285,8 @@ test('los sentidos opuestos y los seguidores del mismo carril cruzan juntos con 
   for (let frame = 0; frame < 100; frame++) {
     traffic.update(.1);
     const [leader, follower, opposite] = traffic.vehicles;
-    assert.ok(leader.car.position.x - follower.car.position.x >= leader.car.length + 1.8 - 1e-6);
+    const routeGap = (leader.distance - follower.distance + east.length) % east.length;
+    assert.ok(routeGap >= leader.car.length + 1.8 - 1e-6);
     if (traffic._overlapsNode(leader.car, node) && traffic._overlapsNode(opposite.car, node)) simultaneous = true;
   }
   assert.ok(simultaneous, 'No debe esperar a que salga todo el carro del carril contrario');
@@ -299,7 +317,7 @@ test('los giros que cortan otra trayectoria esperan y luego despejan sin atascar
 });
 
 test('la salida y el frenado son progresivos y el conductor tarda en reaccionar al despejarse', () => {
-  const traffic = new TrafficSystem(new THREE.Scene(), [new TrafficRoute(0, 80, 0, 80, 3.2)], { carsPerRoute: 1, random: () => .5 });
+  const traffic = new TrafficSystem(new THREE.Scene(), [new TrafficRoute(0, 240, 0, 240, 3.2)], { carsPerRoute: 1, random: () => .5 });
   const vehicle = traffic.vehicles[0];
   placeOnStraight(vehicle, 10, 0, 1, 0);
   for (let frame = 0; frame < 80; frame++) {
@@ -308,8 +326,8 @@ test('la salida y el frenado son progresivos y el conductor tarda en reaccionar 
     assert.ok(Math.abs(vehicle.acceleration - acceleration) <= 3 * .05 + 1e-6);
     assert.ok(vehicle.acceleration <= vehicle.accelerationLimit + 1e-6);
   }
-  const player = vehicle.car.position.clone().add(new THREE.Vector3(15, 0, 0));
-  for (let frame = 0; frame < 200; frame++) {
+  const player = vehicle.car.position.clone().add(new THREE.Vector3(60, 0, 0));
+  for (let frame = 0; frame < 500; frame++) {
     const acceleration = vehicle.acceleration;
     traffic.update(.05, { player });
     assert.ok(Math.abs(vehicle.acceleration - acceleration) <= 3 * .05 + 1e-6);
@@ -321,6 +339,58 @@ test('la salida y el frenado son progresivos y el conductor tarda en reaccionar 
   assert.equal(vehicle.distance, stopped, 'La salida no es instantánea al quitar el obstáculo');
   for (let frame = 0; frame < 50; frame++) traffic.update(.05);
   assert.ok(vehicle.distance > stopped + 1);
+  traffic.dispose();
+});
+
+test('un cruce repentino provoca atropello sin eliminar la velocidad de frenado', () => {
+  const traffic = new TrafficSystem(new THREE.Scene(), [new TrafficRoute(0, 240, 0, 240, 3.2)], { carsPerRoute: 1, random: () => .5 });
+  const vehicle = traffic.vehicles[0]; placeOnStraight(vehicle, 20, 0, 1, 0); vehicle.speed = 12;
+  const player = new THREE.Vector3(20 + vehicle.car.length / 2 + .6, 0, 0), hits = [];
+  const context = { player, onPlayerHit: hit => hits.push(hit) };
+  traffic.update(.05, context);
+  assert.ok(vehicle.speed >= 12 - vehicle.braking * .05, 'El peatón no puede frenar el carro en seco');
+  assert.ok(vehicle.car.position.x > 20.5);
+  assert.equal(hits.length, 1);
+  assert.ok(hits[0].speed > 11);
+  assert.ok(hits[0].direction.x > .99);
+  let stopped = false;
+  for (let frame = 0; frame < 180; frame++) {
+    traffic.update(.05, context);
+    stopped ||= vehicle.speed === 0;
+  }
+  assert.equal(hits.length, 1, 'Un mismo contacto no aplica daño en cada cuadro');
+  assert.ok(stopped, 'El conductor sigue frenando después del impacto hasta detenerse');
+  traffic.dispose();
+});
+
+test('el carro consigue detenerse sin atropellar si ve al jugador con suficiente anticipación', () => {
+  const traffic = new TrafficSystem(new THREE.Scene(), [new TrafficRoute(0, 240, 0, 240, 3.2)], { carsPerRoute: 1, random: () => .5 });
+  const vehicle = traffic.vehicles[0]; placeOnStraight(vehicle, 20, 0, 1, 0); vehicle.speed = 12;
+  const player = new THREE.Vector3(80, 0, 0), hits = [];
+  for (let frame = 0; frame < 600; frame++) traffic.update(.05, { player, onPlayerHit: hit => hits.push(hit) });
+  assert.equal(hits.length, 0);
+  assert.equal(vehicle.speed, 0);
+  assert.ok(player.x - vehicle.car.position.x >= vehicle.car.length / 2 + .4);
+  traffic.dispose();
+});
+
+test('el volumen recorrido detecta atropellos en curvas sin dañar a quien está fuera de la calzada', () => {
+  const route = new TrafficRoute(0, 40, 0, 40, 3.2);
+  const traffic = new TrafficSystem(new THREE.Scene(), [route], { carsPerRoute: 1, random: () => .5 });
+  const vehicle = traffic.vehicles[0]; vehicle.speed = 12;
+  const player = new THREE.Vector3(), heading = new THREE.Vector3(), hits = [];
+  const start = route.segments[0].length - 5;
+  route.sample(start + 9, player, heading);
+  traffic._checkPlayerImpact(vehicle, player, start, 18, hit => hits.push(hit));
+  assert.equal(hits.length, 1, 'No puede saltarse al peatón entre los extremos del movimiento');
+  vehicle.playerContact = false;
+  player.set(20, 0, 5);
+  traffic._checkPlayerImpact(vehicle, player, 10, 18, hit => hits.push(hit));
+  assert.equal(hits.length, 1, 'Una persona lateral fuera de la carrocería no recibe daño');
+  vehicle.speed = 0;
+  route.sample(start, player, heading);
+  traffic._checkPlayerImpact(vehicle, player, start, 0, hit => hits.push(hit));
+  assert.equal(hits.length, 1, 'Un carro parado no atropella');
   traffic.dispose();
 });
 
@@ -355,7 +425,7 @@ test('el tráfico acelera hasta la nueva velocidad en una recta libre', () => {
   const vehicle = traffic.vehicles[0];
   placeOnStraight(vehicle, 15, 0, 1, 0);
   for (let frame = 0; frame < 120; frame++) traffic.update(.1);
-  assert.ok(vehicle.speed > 5.9 && vehicle.speed <= 6);
+  assert.ok(vehicle.speed > 11.9 && vehicle.speed <= 12);
   traffic.dispose();
 });
 

@@ -28,6 +28,12 @@ export class HUD {
     this.cameraHint = document.getElementById('camera-hint');
     this.audioBtn = document.getElementById('audio-toggle');
     this.pauseBtn = document.getElementById('pause-toggle');
+    this.radioBtn = document.getElementById('radio-toggle');
+    this.radioBtn?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('open-radio-modal'));
+      this.radioBtn.blur();
+    });
+
     this.audioBtn?.addEventListener('click', () => {
       window.dispatchEvent(new CustomEvent('audio-toggle'));
       this.audioBtn.blur();
@@ -306,13 +312,13 @@ export class HUD {
     if (i.value) parts.push(`$${i.value}`);
     if (i.weight) parts.push(`${i.weight}kg`);
     const details = parts.length ? ` (${parts.join(' · ')})` : '';
-    const action = (i.consumable || i.cure) ? 'Clic: consumir/usar · ' : '';
+    const action = (i.consumable || i.cure || i.id === 'radioTransistor' || i.id === 'pilas') ? 'Clic: usar · ' : '';
     return `${action}${i.name}${details}`;
   }
 
   _renderInventory(inv) {
     const rows = inv.items.map((i) => {
-      const canUse = !!(i.consumable || i.cure);
+      const canUse = !!(i.consumable || i.cure || i.usable || i.id === 'radioTransistor' || i.id === 'pilas');
       return `<div class="inv-row ${canUse ? 'usable' : ''}" data-id="${i.id}" title="${this._itemTooltip(i)}">
         ${i.name} <span>x${i.qty}</span>
       </div>`;
@@ -333,6 +339,26 @@ export class HUD {
     if (!item) return;
     const game = window.__game;
     if (!game) return;
+
+    
+    if (itemId === 'radioTransistor') {
+      window.dispatchEvent(new CustomEvent('open-radio-modal'));
+      return;
+    }
+    if (itemId === 'pilas') {
+      if (game.radio) {
+        if (game.radio.battery >= 100) {
+          this._toast('🔋 La radio ya tiene la batería al 100%', 'info');
+        } else {
+          inv.remove('pilas', 1);
+          game.radio.battery = Math.min(100, game.radio.battery + 50);
+          game.audio?.play('pickup');
+          this._toast('🔋 Cambiaste las pilas de la radio (+50% batería)', 'info');
+          this._renderInventory(inv);
+        }
+      }
+      return;
+    }
 
     if (item.consumable) {
       if (item.consumable === 'hambre' && game.stats?.canEat && !game.stats.canEat()) {

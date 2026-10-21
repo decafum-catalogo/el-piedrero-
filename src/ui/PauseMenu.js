@@ -101,6 +101,11 @@ export function openPauseMenu(game) {
     const actionsSection = el('div', { class: 'pause-section' },
       el('h3', { class: 'pause-section-title', text: '⚙️ Opciones Rápidas' }),
       el('div', { class: 'pause-actions' },
+                button(game.radio?.isOn ? '📻 Sintonizar radio transistor (R)' : '📻 Radio transistor (R)', {
+          onClick: () => {
+            window.dispatchEvent(new CustomEvent('open-radio-modal'));
+          }
+        }),
         button('💾 Guardar partida ahora', {
           onClick: () => {
             game._save();
@@ -156,6 +161,7 @@ export function openPauseMenu(game) {
         el('li', {}, el('kbd', { text: 'P' }), ' — Modificar apariencia del personaje.'),
         el('li', {}, el('kbd', { text: 'N' }), ' — Alternar radar / minimapa urbano.'),
         el('li', {}, el('kbd', { text: 'M' }), ' — Alternar entre modelo 3D realista y liviano.'),
+                el('li', {}, el('kbd', { text: 'R' }), ' — Abrir sintonizador de radio transistor AM/FM.'),
         el('li', {}, el('kbd', { text: 'ESC' }), ' — Pausar el juego / cerrar paneles.')
       )
     );

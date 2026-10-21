@@ -28,6 +28,9 @@ import { InteractionSystem } from '../systems/InteractionSystem.js';
 import { DiseaseSystem } from '../systems/DiseaseSystem.js';
 import { TalentSystem } from '../systems/TalentSystem.js';
 import { CraftingSystem } from '../systems/CraftingSystem.js';
+import { RadioSystem } from '../systems/RadioSystem.js';
+import { openRadioModal } from '../ui/RadioModal.js';
+
 
 import { HUD } from '../ui/HUD.js';
 import { PerformanceHUD } from '../ui/PerformanceHUD.js';
@@ -71,6 +74,7 @@ export class Game {
     this.diseases = new DiseaseSystem();
     this.talents = new TalentSystem();
     this.crafting = new CraftingSystem();
+    this.radio = new RadioSystem();
 
     // Mundo + jugador
     this.world = new World(this.sceneMgr.scene);
@@ -104,6 +108,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     window.addEventListener('open-shop', (e) => openShop(this, e.detail?.target));
     window.addEventListener('open-cambuche', () => openCambuche(this));
     window.addEventListener('open-pause-menu', () => openPauseMenu(this));
+    window.addEventListener('open-radio-modal', () => openRadioModal(this));
     window.addEventListener('audio-toggle', () => this.audio?.toggleMute());
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
@@ -111,6 +116,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       if (e.code === 'KeyP' && !this.paused && this.look) this.editLook();
       if (e.code === 'KeyM' && !this.paused) this._toggleModel();
       if (e.code === 'KeyN' && !this.paused) this.minimap?.toggle();
+      if (e.code === 'KeyR' && !this.paused) openRadioModal(this);
       if (e.code === 'Escape' && !e._panelHandled && !this.paused && !this.isSleeping) {
         e._pauseMenuOpened = true;
         openPauseMenu(this);
@@ -126,6 +132,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this.traffic = null;
     this.dealer = null;
     this.craftingStation = null;
+    this.dog = null;
 
     // Estado
     this.look = null;       // apariencia + nombre + origen (creador)
@@ -376,6 +383,10 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       )
     );
     this.interaction.register(this.craftingStation);
+    // ===== Compañero canino "El Chato" =====
+    this.dog = new Dog(this.sceneMgr.scene, new THREE.Vector3(26, 0, 32));
+    this.interaction.register(this.dog);
+
 
     // ===== Cambuche (refugio por piezas) =====
     const bedX = district.reserved?.bed.x ?? 16;
@@ -427,6 +438,14 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       this.costal = !!data.costal;
       this.cambuche?.setBuilt(this.built);
       if (data.look) this._applyLook(data.look);
+      if (data.radio) {
+        if (typeof data.radio.freq === 'number') this.radio.setFrequency(data.radio.freq);
+        if (typeof data.radio.battery === 'number') this.radio.battery = data.radio.battery;
+      }
+      if (data.dog?.isFriend && this.dog) {
+        this.dog.befriend();
+      }
+
     }
   }
 
@@ -441,7 +460,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       worldLayoutVersion: this.world.active?.layoutVersion ?? 0,
       look: this.look,
       built: this.built,
-      costal: this.costal
+      costal: this.costal,
+      radio: this.radio ? { isOn: this.radio.isOn, freq: this.radio.frequency, battery: this.radio.battery } : null,
+      dog: { isFriend: !!this.dog?.isFriend }
     });
   }
 
@@ -599,6 +620,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     // 4. Stats
     this.stats.update(dt, this.player, this.diseases, this.clock, this.talents);
+    this.radio.update(dt, this.stats, this.dog);
     if (this._handleDeath()) return;
 
     // 4b. Aplicar bono de peso por talentos
@@ -632,6 +654,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     for (const c of this.cars) c.update(dt);
     this.cambuche?.update(dt);
     this.dealer?.update(dt);
+    this.dog?.update(dt, this.player.position, this.pickups);
 
     // 10. Audio
     const moving = this.input.axis.x !== 0 || this.input.axis.z !== 0;
@@ -671,7 +694,8 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       { name: 'Recicladora', icon: '♻️', x: this.sellPoint?.position?.x ?? this.sellPoint?.group?.position?.x ?? reserved.sell.x, z: this.sellPoint?.position?.z ?? this.sellPoint?.group?.position?.z ?? reserved.sell.z, color: '#2ab7ca' },
       { name: 'Tienda', icon: '🏪', x: this.shop?.position?.x ?? this.shop?.group?.position?.x ?? reserved.shop?.x ?? 34, z: this.shop?.position?.z ?? this.shop?.group?.position?.z ?? reserved.shop?.z ?? 29, color: '#2ecc71' },
       { name: 'Crafteo', icon: '🔨', x: this.craftingStation?.position?.x ?? this.craftingStation?.group?.position?.x ?? reserved.craft?.x ?? 16.5, z: this.craftingStation?.position?.z ?? this.craftingStation?.group?.position?.z ?? reserved.craft?.z ?? 24.5, color: '#e67e22' },
-      { name: 'Dealer', icon: '💀', x: this.dealer?.position?.x ?? this.dealer?.group?.position?.x ?? reserved.dealer?.x ?? 56, z: this.dealer?.position?.z ?? this.dealer?.group?.position?.z ?? reserved.dealer?.z ?? 56, color: '#9b59b6' }
+      { name: 'Dealer', icon: '💀', x: this.dealer?.position?.x ?? this.dealer?.group?.position?.x ?? reserved.dealer?.x ?? 56, z: this.dealer?.position?.z ?? this.dealer?.group?.position?.z ?? reserved.dealer?.z ?? 56, color: '#9b59b6' },
+      ...(this.dog?.isFriend ? [{ name: 'El Chato', icon: '🐕', x: this.dog.position.x, z: this.dog.position.z, color: '#e67e22' }] : [])
     ];
   }
 

@@ -26,6 +26,28 @@ export class HUD {
     this.nameEl = document.getElementById('player-name');
     this.cameraButton = document.getElementById('camera-toggle');
     this.cameraHint = document.getElementById('camera-hint');
+    this.audioBtn = document.getElementById('audio-toggle');
+    this.pauseBtn = document.getElementById('pause-toggle');
+    this.radioBtn = document.getElementById('radio-toggle');
+    this.radioBtn?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('open-radio-modal'));
+      this.radioBtn.blur();
+    });
+
+    this.audioBtn?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('audio-toggle'));
+      this.audioBtn.blur();
+    });
+    this.pauseBtn?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('open-pause-menu'));
+      this.pauseBtn.blur();
+    });
+    window.addEventListener('audio-settings-change', (e) => {
+      if (this.audioBtn) {
+        this.audioBtn.textContent = e.detail?.muted ? '🔇' : '🔊';
+        this.audioBtn.setAttribute('title', e.detail?.muted ? 'Activar sonido' : 'Silenciar sonido');
+      }
+    });
     this.cameraButton?.addEventListener('click', () => {
       window.dispatchEvent(new CustomEvent('camera-toggle'));
       this.cameraButton.blur();
@@ -52,6 +74,8 @@ export class HUD {
       if (e.code === 'KeyT') this.toggleTalentPanel();
       if (e.code === 'KeyC') this.toggleCraftPanel();
       if (e.code === 'Escape') {
+        const wasOpen = this._talentOpen || this._craftOpen || this._dealerOpen;
+        if (wasOpen) e._panelHandled = true;
         this.talentPanel?.classList.remove('open');
         this.craftPanel?.classList.remove('open');
         this.dealerPanel?.classList.remove('open');
@@ -80,7 +104,7 @@ export class HUD {
       this.cameraButton.setAttribute('aria-label', `Cambiar a vista ${thirdPerson ? 'isométrica' : 'en tercera persona'} (V)`);
     }
     if (this.cameraHint) this.cameraHint.textContent = thirdPerson
-      ? 'Botón derecho + arrastrar o flechas: girar · Rueda: distancia'
+      ? 'Mueve el ratón (o arrastra) para girar la cámara · Rueda: zoom'
       : 'V: cambiar a tercera persona';
   }
 
@@ -140,12 +164,18 @@ export class HUD {
   }
 
   toggleTalentPanel() {
+    if (typeof document !== 'undefined' && document.pointerLockElement) {
+      try { document.exitPointerLock(); } catch {}
+    }
     this._talentOpen = !this._talentOpen;
     this.talentPanel?.classList.toggle('open', this._talentOpen);
     if (this._talentOpen) this.renderTalents();
   }
 
   toggleCraftPanel() {
+    if (typeof document !== 'undefined' && document.pointerLockElement) {
+      try { document.exitPointerLock(); } catch {}
+    }
     this._craftOpen = !this._craftOpen;
     this.craftPanel?.classList.toggle('open', this._craftOpen);
     if (this._craftOpen) {
@@ -157,6 +187,9 @@ export class HUD {
   }
 
   toggleDealerPanel(dealer = null) {
+    if (typeof document !== 'undefined' && document.pointerLockElement) {
+      try { document.exitPointerLock(); } catch {}
+    }
     this._dealerOpen = !this._dealerOpen;
     this.dealerPanel?.classList.toggle('open', this._dealerOpen);
     if (this._dealerOpen) {
@@ -208,6 +241,7 @@ export class HUD {
         else if (type === 'shop') text = `[E] ${interaction.currentTarget.title ?? 'Tienda La Esquinita'} · Comprar`;
         else if (type === 'cambuche') text = '[E] Tu cambuche · Armar / Dormir';
         else if (type === 'dealer') text = '[Q / E] Tienda del Dealer · Comprar / Vender';
+        else if (type === 'dog') text = interaction.currentTarget?.isFriend ? '[E] Acariciar a El Chato 🐕' : '[E] Dar comida o acariciar a El Chato 🐕';
 
         if (text) {
           this._setText(this.promptEl, text);
@@ -267,10 +301,25 @@ export class HUD {
     return true;
   }
 
+  _itemTooltip(i) {
+    if (!i) return '';
+    const parts = [];
+    if (i.consumable) parts.push(`+${i.amount} ${i.consumable}`);
+    for (const k of NEEDS) {
+      if (k !== i.consumable && i[k]) parts.push(`${i[k] > 0 ? '+' : ''}${i[k]} ${k}`);
+    }
+    if (i.cure) parts.push(`Cura: ${i.cure}`);
+    if (i.value) parts.push(`$${i.value}`);
+    if (i.weight) parts.push(`${i.weight}kg`);
+    const details = parts.length ? ` (${parts.join(' · ')})` : '';
+    const action = (i.consumable || i.cure || i.id === 'radioTransistor' || i.id === 'pilas') ? 'Clic: usar · ' : '';
+    return `${action}${i.name}${details}`;
+  }
+
   _renderInventory(inv) {
     const rows = inv.items.map((i) => {
-      const canUse = !!(i.consumable || i.cure);
-      return `<div class="inv-row ${canUse ? 'usable' : ''}" data-id="${i.id}" title="${canUse ? 'Clic para usar/consumir' : ''}">
+      const canUse = !!(i.consumable || i.cure || i.usable || i.id === 'radioTransistor' || i.id === 'pilas');
+      return `<div class="inv-row ${canUse ? 'usable' : ''}" data-id="${i.id}" title="${this._itemTooltip(i)}">
         ${i.name} <span>x${i.qty}</span>
       </div>`;
     }).join('');
@@ -291,7 +340,31 @@ export class HUD {
     const game = window.__game;
     if (!game) return;
 
+    
+    if (itemId === 'radioTransistor') {
+      window.dispatchEvent(new CustomEvent('open-radio-modal'));
+      return;
+    }
+    if (itemId === 'pilas') {
+      if (game.radio) {
+        if (game.radio.battery >= 100) {
+          this._toast('🔋 La radio ya tiene la batería al 100%', 'info');
+        } else {
+          inv.remove('pilas', 1);
+          game.radio.battery = Math.min(100, game.radio.battery + 50);
+          game.audio?.play('pickup');
+          this._toast('🔋 Cambiaste las pilas de la radio (+50% batería)', 'info');
+          this._renderInventory(inv);
+        }
+      }
+      return;
+    }
+
     if (item.consumable) {
+      if (item.consumable === 'hambre' && game.stats?.canEat && !game.stats.canEat()) {
+        this._toast('🤢 Estás demasiado enfermo para comer. ¡Cúrate primero!', 'warn');
+        return;
+      }
       // Efecto principal (consumable + amount) y efectos extra por necesidad (p. ej. animo: 15, salud: -3)
       for (const k of NEEDS) {
         const delta = (k === item.consumable ? item.amount : 0) + (k !== item.consumable ? (item[k] ?? 0) : 0);
@@ -299,8 +372,11 @@ export class HUD {
       }
       inv.remove(itemId, 1);
       game.audio?.play('pickup');
-      game.player?.playAction?.('comer', 1.2);
-      this._toast(`🍴 Consumiste: ${item.name}`, 'info');
+      const isDrink = item.consumable === 'sed' || item.id === 'cafe' || item.id === 'refresco';
+      const isSubstance = item.substance || item.consumable === 'vicio';
+      const verb = isDrink ? '🥤 Bebiste' : (isSubstance ? '🚬 Consumiste' : (item.consumable === 'salud' ? '🩹 Te aplicaste' : '🍴 Comiste'));
+      game.player?.playAction?.(isDrink ? 'beber' : 'comer', 1.2);
+      this._toast(`${verb}: ${item.name}`, 'info');
       this._renderInventory(inv);
     } else if (item.cure) {
       game.diseases?.cure?.(item.cure);

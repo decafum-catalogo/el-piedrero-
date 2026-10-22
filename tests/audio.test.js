@@ -105,17 +105,19 @@ test('la interacción distingue robo de tráfico y alarma de estacionado antes d
   }
 });
 
-test('cada pitada elige al azar entre las trece frases de Valentina y Roberto', () => {
+test('cada pitada elige al azar entre las doce frases de Valentina y Roberto', () => {
   const { audio } = fixture(), vehicle = car(2);
   audio.updateWorld(.1, origin, null, [vehicle]);
   const state = audio.vehicles.instances.get(vehicle.car);
   vehicle.personBlocked = true; state.patience = 0;
-  assert.equal(audio.driverSounds.length, 13);
-  for (let i = 0; i < 13; i++) {
-    audio.vehicles.random = () => (i + .1) / 13;
+  const files = [1, 3, 4, 5, 6, 7].map(n => `valentina_n${n}.mp3`)
+    .concat(Array.from({ length: 6 }, (_, i) => `roberto_n${i + 1}.mp3`));
+  assert.equal(audio.driverSounds.length, 12);
+  for (let i = 0; i < files.length; i++) {
+    audio.vehicles.random = () => (i + .1) / files.length;
     state.cooldown = 0;
     audio.updateWorld(.1, origin, null, [vehicle]);
-    const file = i < 7 ? `valentina_n${i + 1}.mp3` : `roberto_n${i - 6}.mp3`;
+    const file = files[i];
     assert.equal(state.remark.sound.options.src[0], `/audio/${file}`);
     assert.equal(state.remark.sound.voices.get(state.remark.id).volume, .7);
   }

@@ -50,7 +50,7 @@ export class AudioSystem {
       horn3: sound('car_horn_sound_v3.opus', { ...vehicleOptions, loop: false, sprite: { honk: [200, 650] } })
     };
     const driverFiles = [
-      ...Array.from({ length: 7 }, (_, i) => `valentina_n${i + 1}.mp3`),
+      ...[1, 3, 4, 5, 6, 7].map(n => `valentina_n${n}.mp3`),
       ...Array.from({ length: 6 }, (_, i) => `roberto_n${i + 1}.mp3`)
     ];
     this.driverSounds = driverFiles.map(file => sound(file, { volume: 0, loop: false, pool: 8 }));

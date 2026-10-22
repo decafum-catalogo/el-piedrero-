@@ -29,6 +29,8 @@ import { DiseaseSystem } from '../systems/DiseaseSystem.js';
 import { TalentSystem } from '../systems/TalentSystem.js';
 import { CraftingSystem } from '../systems/CraftingSystem.js';
 import { RadioSystem } from '../systems/RadioSystem.js';
+import { PoopSystem } from '../systems/PoopSystem.js';
+import { PsychosisSystem } from '../systems/PsychosisSystem.js';
 import { openRadioModal } from '../ui/RadioModal.js';
 
 
@@ -78,7 +80,15 @@ export class Game {
 
     // Mundo + jugador
     this.world = new World(this.sceneMgr.scene);
-this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
+    this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
+
+    // Sistemas de nuevas mecánicas: Popó y Psicosis por abstinencia
+    this.poopSystem = new PoopSystem(
+      this.sceneMgr.scene, this.audio, this.inventory, this.stats, this.world
+    );
+    this.psychosis = new PsychosisSystem(
+      this.sceneMgr.scene, this.player, this.stats, this.audio, this.world
+    );
     // Interacción
     this.interaction = new InteractionSystem(
       this.player, this.inventory, this.stats, this.audio,
@@ -565,6 +575,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     // Recuperar todas las necesidades evita seguir recibiendo daño al reaparecer.
     for (const need of NEEDS) this.stats[need] = Math.max(60, this.stats[need]);
     this.diseases.cureAll();
+    this.psychosis?.dispose?.();
+    this.poopSystem?.activeProjectiles?.forEach?.(p => p.dispose?.());
+    if (this.poopSystem) this.poopSystem.activeProjectiles = [];
 
     const district = this.world.active;
     if (district?.reserved) {
@@ -641,6 +654,23 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     // 7. Interacción (basura, autos, recicladora, tienda, cambuche, dealer)
     this.interaction.update(dt, this.input, this.clock);
     if (this._handleDeath()) return;
+
+    // 7b. Mecánica de popó y lanzamiento a peatones
+    if (this.input.consumePress('KeyX')) {
+      const hasPoop = this.inventory.count('popo') > 0;
+      if (hasPoop) {
+        this.poopSystem.throwPoop(this.player, this.cameraRig);
+      } else {
+        this.poopSystem.poop(this.player);
+      }
+    }
+    if (this.input.consumePress('KeyZ')) {
+      this.poopSystem.poop(this.player);
+    }
+    this.poopSystem.update(dt);
+
+    // 7c. Sistema de abstinencia, alucinaciones y psicosis inducida
+    this.psychosis.update(dt, this.cameraRig);
 
     // 8. Mundo
     // La visibilidad de edificios usa la cámara del mismo cuadro.
@@ -733,5 +763,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     }));
   }
 
-  stop() { this._running = false; }
+  stop() {
+    this._running = false;
+    this.psychosis?.dispose?.();
+    this.poopSystem?.dispose?.();
+  }
 }

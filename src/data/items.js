@@ -107,12 +107,22 @@ export const ITEMS = {
   lona:    { id: 'lona',    name: 'Lona azul',     weight: 2,    value: 4000, build: true },
   madera:  { id: 'madera',  name: 'Tablas',        weight: 2,    value: 1500, build: true },
   colchon: { id: 'colchon', name: 'Colchón viejo', weight: 6,    value: 5000, build: true },
-  vela:    { id: 'vela',    name: 'Vela',          weight: 0.05, value: 500,  build: true }
+  vela:    { id: 'vela',    name: 'Vela',          weight: 0.05, value: 500,  build: true },
+
+  // ===== ARMAS / HERRAMIENTAS =====
+  popo: {
+    id: 'popo',
+    name: 'Mojón de popó',
+    weight: 0.3,
+    value: 50,
+    usable: true,
+    desc: 'Proyectil biológico artesanal. Presiona [X] para lanzárselo a los peatones.'
+  }
 };
 
 /** La recicladora compra todo lo que no se come, no cura, no es sustancia ni sirve para construir */
 export const isRecyclable = (item) =>
-  !!item && !item.consumable && !item.cure && !item.substance && !item.build;
+  !!item && !item.consumable && !item.cure && !item.substance && !item.build && item.id !== 'popo' && item.id !== 'radioTransistor' && item.id !== 'pilas';
 
 // Icono (lucide) para mostrar cada objeto en los menús
 const ICONS = {
@@ -120,7 +130,7 @@ const ICONS = {
   reloj: 'watch', moneda: 'coins', anillo: 'sparkles', retrovisor: 'eye', radio: 'phone', radioTransistor: 'radio', pilas: 'flame',
   pan: 'bread', lataComida: 'food', agua: 'water', refresco: 'water', cafe: 'coffee',
   vendaje: 'bandage', jabon: 'bath', cepillo: 'bath', cigarrillo: 'flame',
-  lona: 'tent', madera: 'layers', colchon: 'bed', vela: 'flame'
+  lona: 'tent', madera: 'layers', colchon: 'bed', vela: 'flame', popo: 'alert-triangle'
 };
 export const itemIcon = (id) => ICONS[id] ?? (ITEMS[id]?.cure ? 'pill' : 'box');
 

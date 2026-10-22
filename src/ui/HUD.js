@@ -58,6 +58,7 @@ export class HUD {
     this.craftPanel = document.getElementById('craft-panel');
     this.dealerPanel = document.getElementById('dealer-panel');
     this.promptEl = document.getElementById('interaction-prompt');
+    this.poopAmmoEl = document.getElementById('poop-hud-ammo');
 
     // Estado de paneles
     this._talentOpen = false;
@@ -204,6 +205,24 @@ export class HUD {
       if (el) el.style.width = `${Math.max(0, Math.min(100, stats[k]))}%`;
     }
     this.bars.vicio?.parentElement.parentElement.classList.toggle('critical', stats.inWithdrawal);
+    this.bars.vicio?.parentElement.parentElement.classList.toggle('high-withdrawal', !!stats.isHighWithdrawal);
+    if (this.bars.vicio?.parentElement?.parentElement && stats.abstinencia !== undefined) {
+      this.bars.vicio.parentElement.parentElement.title = stats.abstinencia > 0
+        ? `Abstinencia: ${stats.abstinencia}% (Vicio: ${Math.round(stats.vicio)}/100)`
+        : 'Vicio: si se vacía entras en abstinencia';
+    }
+
+    // Indicador de munición de popó
+    if (this.poopAmmoEl) {
+      const poopCount = inventory?.count?.('popo') ?? 0;
+      if (poopCount > 0) {
+        this._setText(this.poopAmmoEl, `💩 [X] Lanzar popó (${poopCount}) · [Z] Cagar`);
+        this.poopAmmoEl.className = 'ready';
+      } else {
+        this._setText(this.poopAmmoEl, '💩 [X] Hacer popó');
+        this.poopAmmoEl.className = 'empty';
+      }
+    }
 
     // Reloj
     const h = Math.floor(clock.hour).toString().padStart(2, '0');

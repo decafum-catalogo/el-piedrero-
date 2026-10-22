@@ -541,3 +541,117 @@ body.is-loading #creator-modal { visibility: visible; }
 .radio-perk-text strong {
   color: #2ecc71;
 }
+
+/* === HUD Popó y Proyectil === */
+#poop-hud-ammo {
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  background: rgba(36, 20, 10, 0.88);
+  border: 1px solid #795548;
+  border-radius: 6px;
+  padding: 6px 14px;
+  color: #d7ccc8;
+  font-family: monospace;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+  pointer-events: none;
+  z-index: 10;
+  transition: transform 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
+}
+
+#poop-hud-ammo.ready {
+  border-color: #ffd166;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(255, 209, 102, 0.4);
+}
+
+#poop-hud-ammo.empty {
+  opacity: 0.7;
+}
+
+/* === Abstinencia y Psicosis Visual === */
+#psychosis-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  overflow: hidden;
+}
+
+#psychosis-overlay.active {
+  opacity: 1;
+}
+
+.psychosis-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 38%, rgba(80, 0, 45, 0.45) 72%, rgba(25, 0, 15, 0.88) 100%);
+  animation: psychosis-pulse 2.2s infinite ease-in-out;
+  mix-blend-mode: multiply;
+}
+
+@keyframes psychosis-pulse {
+  0% { transform: scale(1); opacity: 0.65; }
+  50% { transform: scale(1.04); opacity: 0.95; }
+  100% { transform: scale(1); opacity: 0.65; }
+}
+
+.psychosis-warning {
+  position: fixed;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(45, 6, 22, 0.92);
+  border: 1px solid #e74c3c;
+  color: #ff6b81;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  padding: 6px 18px;
+  border-radius: 4px;
+  box-shadow: 0 0 18px rgba(231, 76, 60, 0.65);
+  display: none;
+  text-shadow: 0 0 8px rgba(255, 0, 0, 0.8);
+  animation: blink-warning 0.8s infinite alternate;
+  z-index: 20;
+}
+
+@keyframes blink-warning {
+  from { opacity: 0.7; }
+  to { opacity: 1; }
+}
+
+.hallucination-word {
+  position: absolute;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  font-size: clamp(14px, 3.2vw, 26px);
+  color: rgba(255, 65, 95, 0.9);
+  text-shadow: 0 0 10px rgba(255, 0, 40, 0.95), 2px 2px 0 #000;
+  pointer-events: none;
+  animation: float-whisper 3.4s forwards ease-out;
+  transform-origin: center;
+  white-space: nowrap;
+}
+
+@keyframes float-whisper {
+  0% { opacity: 0; transform: scale(0.7) translateY(12px) rotate(-3deg); }
+  20% { opacity: 0.95; transform: scale(1.06) translateY(0) rotate(0deg); }
+  80% { opacity: 0.85; transform: scale(1) translateY(-14px) rotate(2deg); }
+  100% { opacity: 0; transform: scale(1.18) translateY(-32px) rotate(4deg); }
+}
+
+/* Indicador de barra de vicio en abstinencia crítica */
+.stat-bar[data-stat="vicio"].high-withdrawal .fill {
+  background: #e74c3c !important;
+  box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
+  animation: pulse 0.5s infinite alternate;
+}
+

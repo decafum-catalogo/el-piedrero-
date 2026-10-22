@@ -312,7 +312,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
 
 /* === Items consumibles en inventario === */
 .inv-row.usable {
-  cursor: pointer;
+  cursor: pointer; pointer-events: auto;
   transition: background 0.15s, color 0.15s;
 }
 .inv-row.usable:hover {

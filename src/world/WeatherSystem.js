@@ -8,6 +8,7 @@ export class WeatherSystem {
     this.timer = 0;
     this.nextChange = 180 + Math.random() * 120; // 3 a 5 minutos
     this.isRaining = false;
+    this.wetness = 0;
 
     // Partículas de lluvia (Three.js Points)
     this.rainCount = 350;
@@ -70,12 +71,22 @@ export class WeatherSystem {
     }
   }
 
-  update(dt, playerPosition) {
+  update(dt, playerPosition, district = null) {
     this.timer += dt;
     if (this.timer >= this.nextChange) {
       this.timer = 0;
       this.nextChange = 120 + Math.random() * 180;
       this.setWeather(this.weather === 'nublado' ? 'llovizna' : 'nublado');
+    }
+
+    // Acumulación y secado gradual de charcos/humedad
+    if (this.isRaining) {
+      this.wetness = Math.min(1.0, this.wetness + dt * 0.25);
+    } else {
+      this.wetness = Math.max(0.0, this.wetness - dt * 0.04);
+    }
+    if (district?.setWetness) {
+      district.setWetness(this.wetness);
     }
 
     if (!this.isRaining || !this.rainParticles || !this.rainGeometry || !playerPosition) return;

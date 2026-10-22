@@ -34,6 +34,11 @@ import { InteractionSystem } from '../systems/InteractionSystem.js';
 import { DiseaseSystem } from '../systems/DiseaseSystem.js';
 import { TalentSystem } from '../systems/TalentSystem.js';
 import { CraftingSystem } from '../systems/CraftingSystem.js';
+import { RadioSystem } from '../systems/RadioSystem.js';
+import { PoopSystem } from '../systems/PoopSystem.js';
+import { PsychosisSystem } from '../systems/PsychosisSystem.js';
+import { openRadioModal } from '../ui/RadioModal.js';
+
 
 import { HUD } from '../ui/HUD.js';
 import { InventoryUI } from '../ui/InventoryUI.js';
@@ -75,10 +80,21 @@ export class Game {
     this.diseases = new DiseaseSystem();
     this.talents = new TalentSystem();
     this.crafting = new CraftingSystem();
+    this.radio = new RadioSystem();
+    this.radio.setMasterVolume(this.audio.volume, this.audio.muted);
+    window.addEventListener('audio-settings-change', ({ detail }) => this.radio.setMasterVolume(detail.volume, detail.muted));
 
     // Mundo + jugador
     this.world = new World(this.sceneMgr.scene);
-this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
+    this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
+
+    // Sistemas de nuevas mecánicas: Popó y Psicosis por abstinencia
+    this.poopSystem = new PoopSystem(
+      this.sceneMgr.scene, this.audio, this.inventory, this.stats, this.world
+    );
+    this.psychosis = new PsychosisSystem(
+      this.sceneMgr.scene, this.player, this.stats, this.audio, this.world
+    );
     // Interacción
     this.interaction = new InteractionSystem(
       this.player, this.inventory, this.stats, this.audio,
@@ -108,6 +124,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     window.addEventListener('open-recycler', () => openRecycler(this));
     window.addEventListener('open-shop', (e) => openShop(this, e.detail?.target));
     window.addEventListener('open-cambuche', () => openCambuche(this));
+    window.addEventListener('open-radio-modal', () => openRadioModal(this));
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
       if (e.code === 'KeyN' && !this.paused) this.minimap.toggle();
@@ -115,6 +132,10 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       if (e.code === 'KeyV') this._toggleCamera();
       if (e.code === 'KeyP' && !this.paused && this.look) this.editLook();
       if (e.code === 'KeyM' && !this.paused) this._toggleModel();
+      if (e.code === 'KeyR') {
+        if (this._radioModalOpen) this.menu.close();
+        else if (!this.paused) openRadioModal(this);
+      }
     });
 
     // Entidades
@@ -127,6 +148,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     this._onVehicleImpact = this._onVehicleImpact.bind(this);
     this.dealer = null;
     this.craftingStation = null;
+    this.dog = null;
 
     // Estado
     this.look = null;       // apariencia + nombre + origen (creador)
@@ -414,6 +436,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     );
     this.interaction.register(this.craftingStation);
 
+
     // ===== Cambuche (refugio por piezas) =====
     const bedX = district.reserved?.bed.x ?? 16;
     const bedZ = district.reserved?.bed.z ?? 44;
@@ -470,6 +493,14 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       if (this.dog && data.dog?.isFriend) this.dog.befriend();
       this.cambuche?.setBuilt(this.built);
       if (data.look) this._applyLook(data.look);
+      if (data.radio) {
+        if (typeof data.radio.freq === 'number') this.radio.setFrequency(data.radio.freq);
+        if (typeof data.radio.battery === 'number') this.radio.battery = data.radio.battery;
+      }
+      if (data.dog?.isFriend && this.dog) {
+        this.dog.befriend();
+      }
+
     }
   }
 
@@ -485,6 +516,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
       look: this.look,
       built: this.built,
       costal: this.costal,
+      radio: this.radio ? { isOn: this.radio.isOn, freq: this.radio.frequency, battery: this.radio.battery } : null,
       dog: { isFriend: !!this.dog?.isFriend }
     });
   }
@@ -610,6 +642,9 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     // Recuperar todas las necesidades evita seguir recibiendo daño al reaparecer.
     for (const need of NEEDS) this.stats[need] = Math.max(60, this.stats[need]);
     this.diseases.cureAll();
+    this.psychosis?.dispose?.();
+    this.poopSystem?.activeProjectiles?.forEach?.(p => p.dispose?.());
+    if (this.poopSystem) this.poopSystem.activeProjectiles = [];
 
     const district = this.world.active;
     if (district?.reserved) {
@@ -646,6 +681,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     const dt = Math.min((now - this._lastTime) / 1000, 0.1);
     this._lastTime = now;
 
+    this.radio?.setPaused(!!(this.isSleeping || globalThis.document?.hidden || (this.paused && !this._radioModalOpen)));
     if (this.isSleeping || this.paused || globalThis.document?.hidden) {
       this.cameraRig.releaseControls();
       this.audio.setPaused(true);
@@ -694,6 +730,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
 
     // 4. Stats
     this.stats.update(dt, this.player, this.diseases, this.clock, this.talents);
+    this.radio?.update(dt, this.stats, this.dog);
     if (this._handleDeath()) return;
 
     // 4b. Aplicar bono de peso por talentos
@@ -715,15 +752,31 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     if (!this.player.isStunned) this.interaction.update(dt, this.input, this.clock);
     if (this._handleDeath()) return;
 
+    // 7b. Mecánica de popó y lanzamiento a peatones
+    if (!this.player.isStunned && this.input.consumePress('KeyX')) {
+      const hasPoop = this.inventory.count('popo') > 0;
+      if (hasPoop) {
+        this.poopSystem.throwPoop(this.player, this.cameraRig);
+      } else {
+        this.poopSystem.poop(this.player);
+      }
+    }
+    if (!this.player.isStunned && this.input.consumePress('KeyZ')) {
+      this.poopSystem.poop(this.player);
+    }
+    this.poopSystem.update(dt);
+
+    // 7c. Sistema de abstinencia, alucinaciones y psicosis inducida
+
     // 8. Mundo
     // La visibilidad de edificios usa la cámara del mismo cuadro.
-    this.cameraRig.follow(this.player.position, dt, this.collisions);
+    this.cameraRig.follow(this.player.position, dt, this.collisions, this.player.speed, this.input.isRunning);
+    this.psychosis.update(dt, this.cameraRig);
     this.world.update(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? []);
     this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.trafficPedestrians ?? this.world.active?.npcs ?? [], onPlayerHit: this._onVehicleImpact });
     if (this._handleDeath()) return;
 
-    this.weather?.update(dt, this.player.position);
-    this.dog?.update(dt, this.player.position, this.pickups);
+    this.weather?.update(dt, this.player.position, this.renderer.quality === 'baja' ? null : this.world.active);
 
     // 9. Entidades
     for (const p of this.pickups) p.update(dt);
@@ -731,6 +784,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     for (const { car } of this.traffic?.vehicles ?? []) car.update(dt);
     this.cambuche?.update(dt);
     this.dealer?.update(dt);
+    this.dog?.update(dt, this.player.position, this.pickups);
 
     // 10. Audio
     const moving = !this.player.isStunned && Math.hypot(this.player.position.x - previousX, this.player.position.z - previousZ) > .001;
@@ -741,7 +795,7 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     // 12. Render
     this._renderFrame(now, true);
 
-    this.minimap?.update(this.player.position, Math.atan2(this.cameraRig.camera.matrixWorld.elements[8], this.cameraRig.camera.matrixWorld.elements[10]), this._getPOIs(), now);
+    this.minimap?.update(this.player.position, Math.atan2(this.cameraRig.camera.matrixWorld.elements[8], this.cameraRig.camera.matrixWorld.elements[10]), this._getPOIs(now), now);
 
     // 13. UI
     this.hud.update(
@@ -763,17 +817,33 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     } else this.renderer.resolution.resetWindow();
   }
 
-  _getPOIs() {
-    return [[this.cambuche, 'Cambuche', '⛺', '#ffd166'], [this.sellPoint, 'Recicladora', '♻️', '#2ab7ca'],
-      [this.shop, 'Tienda', '🏪', '#2ecc71'], [this.craftingStation, 'Crafteo', '🔨', '#e67e22'],
-      [this.dealer, 'Dealer', '💀', '#9b59b6']].filter(([entity]) => entity).map(([entity, name, icon, color]) =>
-        ({ name, icon, color, x: entity.position.x, z: entity.position.z }));
+  _getPOIs(now = performance.now()) {
+    const friend = !!this.dog?.isFriend;
+    if (!this._poiCache || now - this._poiCacheTime >= 350 || this._poiDogFriend !== friend) {
+      const reserved = this.world?.active?.reserved ?? {};
+      this._poiCache = [[this.cambuche, reserved.bed, 'Cambuche', '⛺', '#ffd166'],
+        [this.sellPoint, reserved.sell, 'Recicladora', '♻️', '#2ab7ca'],
+        [this.shop, reserved.shop, 'Tienda', '🏪', '#2ecc71'],
+        [this.craftingStation, reserved.craft, 'Crafteo', '🔨', '#e67e22'],
+        [this.dealer, reserved.dealer, 'Dealer', '💀', '#9b59b6']]
+        .flatMap(([entity, fallback, name, icon, color]) => {
+          const pos = entity?.position ?? fallback;
+          return pos ? [{ name, icon, color, x: pos.x, z: pos.z }] : [];
+        });
+      this._dogPOI = friend ? { name: 'El Chato', icon: '🐕', color: '#e6b566' } : null;
+      if (this._dogPOI) this._poiCache.push(this._dogPOI);
+      this._poiCacheTime = now;
+      this._poiDogFriend = friend;
+    }
+    if (this._dogPOI) Object.assign(this._dogPOI, { x: this.dog.position.x, z: this.dog.position.z });
+    return this._poiCache;
   }
 
   setGraphicsQuality(level, notify = true) {
     const quality = ['baja', 'media', 'alta'].includes(level) ? level : 'alta';
     this.renderer.setQuality(quality);
     this.sceneMgr.setQuality(quality);
+    this.world?.active?.setWetness?.(quality === 'baja' ? 0 : this.weather?.wetness ?? 0);
     if (notify) window.dispatchEvent(new CustomEvent('toast', { detail: { text: 'Calidad gráfica: ' + quality, type: 'info' } }));
   }
 
@@ -791,5 +861,10 @@ this.player = new Player(this.sceneMgr.scene, this.input, this.stats);
     for (const { car } of this.traffic?.vehicles ?? []) culling.register(car.group, { dynamic: true, margin: .5 });
   }
 
-  stop() { this._running = false; }
+  stop() {
+    this._running = false;
+    this.psychosis?.dispose?.();
+    this.poopSystem?.dispose?.();
+    this.radio?.destroy?.();
+  }
 }

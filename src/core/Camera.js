@@ -22,6 +22,13 @@ export class CameraRig {
     this._ray = new THREE.Ray();
     this._snap = true;
     this._drag = null;
+    this.baseFov = 55;
+    this.targetFov = 55;
+    this.roll = 0;
+    this._targetRoll = 0;
+    this._bobTime = 0;
+    this._bobAmount = 0;
+
 
     try {
       if (localStorage.getItem('bazuko.camera') === 'isometric') this.mode = 'isometric';
@@ -53,6 +60,7 @@ export class CameraRig {
   orbit(dx, dy) {
     this.yaw -= dx * 0.005;
     this.pitch = THREE.MathUtils.clamp(this.pitch + dy * 0.005, 0.05, 0.65);
+    this._targetRoll = THREE.MathUtils.clamp(-dx * 0.0004, -0.022, 0.022);
   }
 
   zoom(delta) {
@@ -162,8 +170,28 @@ export class CameraRig {
     this.camera.updateMatrixWorld();
   }
 
-  follow(targetPos, dt = 1 / 60, collisions = null) {
+  follow(targetPos, dt = 1 / 60, collisions = null, speed = 0, isRunning = false) {
+    // 1. FOV dinámico al correr
+    if (this.mode === 'third-person' && dt > 0) {
+      const wantFov = (isRunning && speed > 2.5) ? 61 : this.baseFov;
+      if (Math.abs(this.camera.fov - wantFov) > 0.05) {
+        this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, wantFov, 1 - Math.exp(-6 * dt));
+        this.camera.updateProjectionMatrix();
+      }
+    } else if (this.camera.fov !== this.baseFov) {
+      this.camera.fov = this.baseFov;
+      this.camera.updateProjectionMatrix();
+    }
     this._look.copy(targetPos).add(this.lookOffset);
+    if (this.mode === 'third-person' && dt > 0 && speed > 0.4) {
+      this._bobTime += dt * (isRunning ? 13 : 8.5);
+      const targetBob = isRunning ? 0.038 : 0.018;
+      this._bobAmount = THREE.MathUtils.lerp(this._bobAmount, targetBob, 1 - Math.exp(-6 * dt));
+      this._look.y += Math.sin(this._bobTime) * this._bobAmount;
+    } else if (this._bobAmount > 0.001 && dt > 0) {
+      this._bobAmount = THREE.MathUtils.lerp(this._bobAmount, 0, 1 - Math.exp(-8 * dt));
+      this._look.y += Math.sin(this._bobTime) * this._bobAmount;
+    }
     if (this.mode === 'isometric') {
       this._desired.copy(targetPos).add(this.offset);
       if (this._snap) this.camera.position.copy(this._desired);
@@ -193,6 +221,11 @@ export class CameraRig {
     this._desired.copy(this._look);
     if (this.mode === 'third-person') this._desired.addScaledVector(this._direction, -1);
     this.camera.lookAt(this._desired);
+    if (this.mode === 'third-person' && dt > 0) {
+      this._targetRoll = THREE.MathUtils.lerp(this._targetRoll, 0, 1 - Math.exp(-7 * dt));
+      this.roll = THREE.MathUtils.lerp(this.roll, this._targetRoll, 1 - Math.exp(-12 * dt));
+      this.camera.rotation.z = this.roll;
+    }
     this.camera.updateMatrixWorld();
     this._snap = false;
   }

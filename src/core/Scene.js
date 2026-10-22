@@ -119,7 +119,7 @@ export class SceneManager {
     if (!this.scene.fog) return;
     const cap = this.quality === 'baja' ? 130 : this.quality === 'media' ? 160 : 230;
     this.scene.fog.far = Math.min(this.scene.fog.far, cap);
-    this.scene.fog.near = Math.min(this.scene.fog.near, this.scene.fog.far * .5);
+    this.scene.fog.near = Math.min(this.scene.fog.near, this.scene.fog.far * .5, this.quality === 'baja' ? 40 : Infinity);
   }
 
   /** El sol (y su caja de sombras) sigue al jugador para sombras nítidas en un mapa grande */

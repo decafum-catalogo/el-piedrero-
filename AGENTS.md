@@ -64,3 +64,7 @@ Para las pruebas de navegador, instalar Chromium con `npx playwright install chr
 Consultar la rama y los cambios locales antes de editar. Los experimentos se realizan en `pruebas-integracion` cuando se solicite; `main` recibe las integraciones indicadas. No asumir que crear un commit o fusionar implica publicar en el remoto.
 
 Para cambios de lógica, ejecutar las pruebas relacionadas y la compilación cuando corresponda. Para documentación, revisar enlaces y recursos locales. Mantener `dist/`, `node_modules/`, `work/` e informes de pruebas fuera de los commits. Actualizar documentación y capturas cuando cambie lo que describen; las capturas deben corresponder a imágenes reales compartidas o tomadas del juego.
+
+## Integración del original del 21 de octubre de 2026
+
+Ver `docs/integracion-upstream.md`. RadioSystem y RadioModal agregan radio con pilas; PoopSystem y PsychosisSystem coordinan proyectiles y abstinencia. Mantener el volumen y silencio generales también en la radio, evitar actualizaciones duplicadas de El Chato y ejecutar la distorsión de cámara después de seguir al jugador. El radar reutiliza sus puntos estáticos y actualiza al perro dentro del caché. La inercia debe reiniciarse al recuperar al jugador de un atropello.

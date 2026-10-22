@@ -92,6 +92,9 @@ En PowerShell, si una política de ejecución impide usar `npm`, ejecuta los mis
 | `M` | Alternar entre el personaje realista y el modelo liviano. |
 | `Esc` o botón Pausa | Abrir ajustes de pausa; cerrar primero el panel activo y liberar el cursor. |
 | `N` | Mostrar u ocultar el radar. |
+| `R` en la calle | Abrir o cerrar la radio AM/FM; permite sintonizar emisoras y cambiar pilas. |
+| `X` en la calle | Lanzar si llevas munición; de lo contrario, hacer popó. |
+| `Z` en la calle | Hacer popó. |
 | Clic en comida o bebida del inventario | Consumir el objeto. |
 
 ## Cómo empezar
@@ -160,7 +163,7 @@ Para ejecutar las pruebas con el runner de Node.js:
 npm test
 ```
 
-Las 171 pruebas actuales cubren colisiones, cámaras, visibilidad de edificios, suelos, navegación de peatones, tráfico, bus, supervivencia, migración de partidas guardadas, ampliación de la ciudad, rendimiento y carga inicial. Los carros circulan a 10–14 m/s en rectas libres (el doble que antes); el bus conserva sus 5 m/s y los semáforos completan su ciclo en 36 segundos, con 14 segundos de verde por eje, 3 de amarillo y 1 de despeje. El tráfico permite cruces simultáneos compatibles, mantiene la prioridad entre giros que se cortan y usa aceleración, frenado y reacción progresivos. Se comprueba su circulación durante diez minutos simulados, además del paso compartido con el bus y la carrocería dentro de la calzada al girar. Las pruebas de arranque verifican que la partida espere modelos, shaders y GPU, que un fallo impida comenzar una partida incompleta y que la espera no contamine las estadísticas de FPS. Las pruebas de modelos importados comprueban las dimensiones de los nueve GLB reales, el uso compartido de recursos, el desvanecimiento del bus y los estados de construcción del cambuche. La reserva de materiales se comprueba contra todas las recetas, también tras reponerse las bolsas, con protección de objetos cuando el costal está lleno.
+Las 192 pruebas actuales cubren colisiones, cámaras, visibilidad de edificios, suelos, navegación de peatones, tráfico, bus, supervivencia, migración de partidas guardadas, ampliación de la ciudad, rendimiento y carga inicial. Los carros circulan a 10–14 m/s en rectas libres (el doble que antes); el bus conserva sus 5 m/s y los semáforos completan su ciclo en 36 segundos, con 14 segundos de verde por eje, 3 de amarillo y 1 de despeje. El tráfico permite cruces simultáneos compatibles, mantiene la prioridad entre giros que se cortan y usa aceleración, frenado y reacción progresivos. Se comprueba su circulación durante diez minutos simulados, además del paso compartido con el bus y la carrocería dentro de la calzada al girar. Las pruebas de arranque verifican que la partida espere modelos, shaders y GPU, que un fallo impida comenzar una partida incompleta y que la espera no contamine las estadísticas de FPS. Las pruebas de modelos importados comprueban las dimensiones de los nueve GLB reales, el uso compartido de recursos, el desvanecimiento del bus y los estados de construcción del cambuche. La reserva de materiales se comprueba contra todas las recetas, también tras reponerse las bolsas, con protección de objetos cuando el costal está lleno.
 
 ## Estructura
 
@@ -183,3 +186,7 @@ docs/images/   Capturas del juego
 ## Tecnologías
 
 JavaScript con módulos ES, Three.js para el mundo 3D, Vite para desarrollo y compilación y Howler para el audio.
+
+## Integración del original (21 de octubre de 2026)
+
+Integra los cambios de `juanagogo/bazuko` hasta `77f66bd`: radio AM/FM sintetizada con pilas y guardado, movimiento con inercia, ajustes de cámara al correr, humedad del asfalto y nuevas mecánicas de abstinencia, alucinaciones y reacción de peatones a proyectiles. Conserva el tráfico, los modelos, el cambuche, los sonidos y las optimizaciones de esta versión. La radio respeta volumen general, silencio y pausa; el asfalto húmedo se desactiva en calidad baja. Véase [la nota de integración](docs/integracion-upstream.md).

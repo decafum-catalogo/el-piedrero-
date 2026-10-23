@@ -39,6 +39,8 @@ export class SceneManager {
 
     this.sun.target.position.set(0, 0, 0);
     this.scene.add(this.sun.target);
+    this.quality = 'alta';
+    this._sky = new THREE.Color();
   }
 
   /**
@@ -49,6 +51,7 @@ export class SceneManager {
    * - Atardecer (17:30-19:00): tonos cálidos ocres y ámbar
    */
   setTimeOfDay(hour) {
+    this._hour = hour;
     const day = THREE.MathUtils.smoothstep(hour, 6.5, 8.5) * (1 - THREE.MathUtils.smoothstep(hour, 17.0, 19.0));
     const dawn = Math.max(0, 1 - Math.abs(hour - 6.2) / 1.3);
     const dusk = Math.max(0, 1 - Math.abs(hour - 18.2) / 1.2);
@@ -67,7 +70,7 @@ export class SceneManager {
       this.sun.color.copy(_SUN_NIGHT);
     }
 
-    const sky = new THREE.Color().copy(_NIGHT);
+    const sky = this._sky.copy(_NIGHT);
     if (dawn > 0.01) sky.lerp(_DAWN, dawn * 0.85);
     if (day > 0.01) sky.lerp(_DAY, day);
     if (dusk > 0.01) sky.lerp(_DUSK_SKY, dusk * 0.65);
@@ -77,10 +80,21 @@ export class SceneManager {
       this.scene.fog.color.copy(sky);
       this.scene.fog.near = 45 + day * 30;
       this.scene.fog.far = 150 + day * 80;
+      this._limitFog();
     }
   }
 
   setQuality(level = 'alta') {
+    this.quality = ['baja', 'media', 'alta'].includes(level) ? level : 'alta';
+    level = this.quality;
+    const size = level === 'media' ? 1024 : 2048;
+    if (this.sun.shadow.mapSize.x !== size) {
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.mapPass?.dispose();
+      this.sun.shadow.map = this.sun.shadow.mapPass = null;
+      this.sun.shadow.mapSize.set(size, size);
+      this.sun.shadow.needsUpdate = true;
+    }
     if (level === 'baja') {
       this.sun.castShadow = false;
       if (this.scene.fog) {
@@ -98,6 +112,14 @@ export class SceneManager {
       this.sun.castShadow = true;
       this.sun.shadow.mapSize.set(2048, 2048);
     }
+    this.setTimeOfDay(this._hour ?? 6);
+  }
+
+  _limitFog() {
+    if (!this.scene.fog) return;
+    const cap = this.quality === 'baja' ? 130 : this.quality === 'media' ? 160 : 230;
+    this.scene.fog.far = Math.min(this.scene.fog.far, cap);
+    this.scene.fog.near = Math.min(this.scene.fog.near, this.scene.fog.far * .5, this.quality === 'baja' ? 40 : Infinity);
   }
 
   /** El sol (y su caja de sombras) sigue al jugador para sombras nítidas en un mapa grande */

@@ -4,6 +4,7 @@ import { PlayerSilhouette } from './PlayerSilhouette.js';
 import { AdaptiveResolution } from './AdaptiveResolution.js';
 import { FrustumCulling } from './FrustumCulling.js';
 import { paintLoadingFrame } from '../ui/LoadingScreen.js';
+import { GRAPHICS_PROFILES, effectiveQuality } from './GraphicsQuality.js';
 
 export class Renderer {
   constructor(canvas) {
@@ -16,7 +17,7 @@ export class Renderer {
     this.instance.setPixelRatio(this.resolution.ratio);
     this.instance.setSize(window.innerWidth, window.innerHeight);
     this.instance.shadowMap.enabled = true;
-    this.instance.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.instance.shadowMap.type = THREE.PCFShadowMap;
 
     // Look realista: tone mapping fílmico
     this.instance.toneMapping = THREE.ACESFilmicToneMapping;
@@ -33,13 +34,15 @@ export class Renderer {
 
   setQuality(level = 'alta') {
     this.quality = ['baja', 'media', 'alta'].includes(level) ? level : 'alta';
-    const limit = { baja: 1, media: 1.25, alta: 1.5 }[this.quality];
+    const limit = GRAPHICS_PROFILES[this.quality].pixelRatio;
     this.resolution.setLimit(Math.min(globalThis.window?.devicePixelRatio || 1, limit));
     this.instance.setPixelRatio(this.resolution.ratio);
-    this.instance.shadowMap.enabled = this.quality !== 'baja';
+    this.instance.shadowMap.enabled = this.effectiveQuality !== 'baja';
     this.instance.shadowMap.needsUpdate = true;
     try { localStorage.setItem('bazuko.graphics_quality', this.quality); } catch { /* sin almacenamiento */ }
   }
+
+  get effectiveQuality() { return effectiveQuality(this.quality ?? 'alta', this.resolution?.pressure ?? 0); }
 
   /** Mapa de entorno neutro: da reflejos (charcos, vidrios) y luz rebotada a los materiales PBR */
   createEnvironment() {
@@ -94,18 +97,27 @@ export class Renderer {
     } finally { gl.deleteSync(fence); }
   }
 
-  render(scene, camera, playerRoot = null, shadowLights = []) {
+  render(scene, camera, playerRoot = null, shadowLights = [], showSilhouette = true) {
     this.instance.info.reset();
     this.culling.apply(camera, this.instance.shadowMap.enabled ? shadowLights : []);
     try {
       this.instance.render(scene, camera);
-      if (playerRoot) this.silhouette.render(this.instance, scene, camera, playerRoot);
+      if (playerRoot && showSilhouette && GRAPHICS_PROFILES[this.effectiveQuality].silhouette) {
+        this.silhouette.render(this.instance, scene, camera, playerRoot, this.overlayLights);
+      }
     } finally {
       this.culling.restore();
     }
   }
 
   adaptResolution(frameMs) {
-    if (this.resolution.sample(frameMs)) this.instance.setPixelRatio(this.resolution.ratio);
+    if (this.resolution.sample(frameMs)) {
+      if (this.instance.getPixelRatio() !== this.resolution.ratio) this.instance.setPixelRatio(this.resolution.ratio);
+      const shadows = this.effectiveQuality !== 'baja';
+      if (this.instance.shadowMap.enabled !== shadows) {
+        this.instance.shadowMap.enabled = shadows;
+        this.instance.shadowMap.needsUpdate = true;
+      }
+    }
   }
 }

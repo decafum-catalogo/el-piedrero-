@@ -143,12 +143,13 @@ function attachPart(srcMesh, bones, parent, kind) {
 function hideCovered(bodyMesh, baseIndex, hidden) {
   const src = bodyMesh.geometry;
   const geo = new THREE.BufferGeometry();
-  for (const [k, v] of Object.entries(src.attributes)) geo.setAttribute(k, v);
-  geo.morphAttributes = src.morphAttributes;
+  // Esta geometría se libera por instancia: sus buffers no pueden pertenecer al caché.
+  for (const [k, v] of Object.entries(src.attributes)) geo.setAttribute(k, v.clone());
+  geo.morphAttributes = Object.fromEntries(Object.entries(src.morphAttributes).map(([key, values]) => [key, values.map(v => v.clone())]));
   geo.boundingSphere = src.boundingSphere;
   const vid = src.attributes._vid;
   if (!hidden.size || !vid) {
-    geo.setIndex(baseIndex);
+    geo.setIndex(baseIndex.clone());
   } else {
     const out = [];
     const idx = baseIndex.array;
@@ -219,7 +220,25 @@ async function buildInstance(catalog, look, lod = false) {
     actions[name].setEffectiveWeight(name === 'idle' ? 1 : 0);
   }
   if (useLod) root.traverse((o) => { if (o.isMesh) o.castShadow = false; }); // lejos: sin sombra propia
-  return { root, mixer, actions, real };
+  return { root, mixer, actions, real, ownedGeometries: bodyMesh ? [bodyMesh.geometry] : [] };
+}
+
+/** Solo recursos de instancia; los modelos y texturas del banco siguen compartidos. */
+export function disposeRealisticInstance(instance) {
+  if (!instance || instance.disposed) return;
+  instance.disposed = true;
+  instance.mixer.stopAllAction();
+  instance.mixer.uncacheRoot(instance.root);
+  const materials = new Set(), skeletons = new Set();
+  instance.root.traverse(mesh => {
+    if (!mesh.isMesh) return;
+    for (const material of [mesh.material].flat()) materials.add(material);
+    if (mesh.skeleton) skeletons.add(mesh.skeleton);
+  });
+  for (const material of materials) material.dispose();
+  for (const skeleton of skeletons) skeleton.dispose();
+  for (const geometry of instance.ownedGeometries ?? []) geometry.dispose();
+  instance.root.removeFromParent();
 }
 
 /**
@@ -232,13 +251,15 @@ export async function createRealisticCharacter(look = {}, { lod = false } = {}) 
   group.scale.setScalar(REALISTIC_SCALE);
   let inst = null;
   let token = 0;
+  let disposed = false;
   const weights = {};
 
   async function setLook(l) {
+    if (disposed) return;
     const my = ++token;
     const next = await buildInstance(catalog, l, lod);
-    if (my !== token) return; // llegó otra apariencia mientras cargaba
-    if (inst) group.remove(inst.root);
+    if (my !== token || disposed) { disposeRealisticInstance(next); return; }
+    disposeRealisticInstance(inst);
     inst = next;
     group.add(inst.root);
     for (const k of Object.keys(weights)) delete weights[k];
@@ -251,6 +272,12 @@ export async function createRealisticCharacter(look = {}, { lod = false } = {}) 
     group,
     get look() { return look; },
     setLook(l) { look = l; return setLook(l); },
+    dispose() {
+      if (disposed) return;
+      disposed = true; token++;
+      disposeRealisticInstance(inst); inst = null;
+      group.removeFromParent();
+    },
     update(dt, { speed = 0, running = false, action = null } = {}) {
       if (!inst) return;
       const a = inst.actions;
@@ -273,6 +300,8 @@ export async function createRealisticCharacter(look = {}, { lod = false } = {}) 
       const k = Math.min(1, dt * 8);
       for (const key of Object.keys(a)) {
         weights[key] += ((key === target ? 1 : 0) - weights[key]) * k;
+        if (key !== target && weights[key] < .001) weights[key] = 0;
+        a[key].enabled = weights[key] > 0 || key === target;
         a[key].setEffectiveWeight(weights[key]);
       }
       if (a.walk) a.walk.timeScale = THREE.MathUtils.clamp(speed / 1.4, 0.6, 1.6);

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Car } from '../entities/Car.js';
 import { signalState } from '../world/bogota/TrafficSignals.js';
 import { PLAYER_RADIUS } from '../utils/constants.js';
+import { SpatialGrid } from '../core/SpatialGrid.js';
 
 const GAP = 1.8;
 const ACCELERATION = 1.8;
@@ -20,6 +21,11 @@ export class TrafficSystem {
     this._signalDirection = new THREE.Vector3();
     this._nearbyPedestrians = [];
     this._nearbyCars = [];
+    this._carGrid = new SpatialGrid();
+    this._personGrid = new SpatialGrid();
+    this._carCandidates = [];
+    this._personCandidates = [];
+    this._routeVehicles = new Map();
     for (const route of routes) {
       // Evita una población inicial mayor que el espacio disponible en el circuito.
       const count = Math.min(carsPerRoute, Math.floor(route.length / 12));
@@ -222,6 +228,7 @@ export class TrafficSystem {
   }
 
   _clearance(vehicle, player, pedestrians) {
+    if (!this._updating) this._buildSpatialIndex(pedestrians);
     const { route, car, distance, speed } = vehicle;
     vehicle.personBlocked = false;
     vehicle.playerClearance = Infinity;
@@ -230,7 +237,7 @@ export class TrafficSystem {
       return Math.min(hardClearance, vehicle.playerClearance);
     };
     let clearance = Infinity;
-    for (const other of this.vehicles) {
+    for (const other of this._routeVehicles.get(route) ?? []) {
       if (other === vehicle || other.route !== route) continue;
       const gap = (other.distance - distance + route.length) % route.length;
       clearance = Math.min(clearance, Math.max(0, gap - (car.length + other.car.length) / 2 - GAP));
@@ -244,15 +251,15 @@ export class TrafficSystem {
     const nearbyCars = this._nearbyCars ??= [];
     nearby.length = 0;
     nearbyCars.length = 0;
-    for (const other of this.vehicles) {
+    const minX = car.position.x - radius, maxX = car.position.x + radius;
+    const minZ = car.position.z - radius, maxZ = car.position.z + radius;
+    this._carGrid.query(minX, minZ, maxX, maxZ, this._carCandidates);
+    for (const other of this._carCandidates) {
       if (other === vehicle || other.route === route) continue;
       if (other.car.position.distanceToSquared(car.position) <= (radius + other.car.length) ** 2) nearbyCars.push(other);
     }
-    for (const other of this.parkedCars ?? []) {
-      if (other.car.position.distanceToSquared(car.position) <= (radius + other.car.length) ** 2) nearbyCars.push(other);
-    }
-    for (const bus of this.busVehicles ?? []) if (bus.car.group.visible && bus.car.position.distanceToSquared(car.position) <= (radius + bus.car.length) ** 2) nearbyCars.push(bus);
-    for (const pedestrian of pedestrians) {
+    this._personGrid.query(minX, minZ, maxX, maxZ, this._personCandidates);
+    for (const pedestrian of this._personCandidates) {
       const dx = pedestrian.position.x - car.position.x, dz = pedestrian.position.z - car.position.z;
       if (dx * dx + dz * dz <= radius * radius) nearby.push(pedestrian);
     }
@@ -279,6 +286,26 @@ export class TrafficSystem {
       }
     }
     return finish(clearance);
+  }
+
+  _buildSpatialIndex(pedestrians) {
+    this._carGrid ??= new SpatialGrid(); this._personGrid ??= new SpatialGrid();
+    this._routeVehicles ??= new Map(); this._carCandidates ??= []; this._personCandidates ??= [];
+    this._carGrid.clear(); this._personGrid.clear();
+    for (const list of this._routeVehicles.values()) list.length = 0;
+    const insert = other => {
+      const { x, z } = other.car.position, size = other.car.length;
+      this._carGrid.insert(other, x - size, z - size, x + size, z + size);
+    };
+    for (const vehicle of this.vehicles) {
+      insert(vehicle);
+      let list = this._routeVehicles.get(vehicle.route);
+      if (!list) this._routeVehicles.set(vehicle.route, list = []);
+      list.push(vehicle);
+    }
+    for (const vehicle of this.parkedCars ?? []) insert(vehicle);
+    for (const vehicle of this.busVehicles ?? []) if (vehicle.car.group.visible) insert(vehicle);
+    for (const person of pedestrians) this._personGrid.insert(person, person.position.x, person.position.z);
   }
 
   _checkPlayerImpact(vehicle, player, startDistance, travel, onPlayerHit) {
@@ -320,44 +347,50 @@ export class TrafficSystem {
     let remaining = Math.min(dt, 0.5);
     while (remaining > 1e-8) {
       const stepTime = Math.min(remaining, 0.05);
-      for (const vehicle of this.vehicles) {
-        const clearance = this._clearance(vehicle, player, pedestrians);
-        const braking = vehicle.braking ?? BRAKING;
-        // Anticipa la respuesta gradual del conductor; el peatón no es una pared
-        // capaz de eliminar la velocidad restante en un solo subpaso.
-        const brakingClearance = Math.min(clearance, Math.max(0, vehicle.playerClearance - vehicle.speed));
-        let desiredSpeed = Math.min(vehicle.cruiseSpeed, Math.sqrt(2 * braking * brakingClearance));
-        if (vehicle.impactStop) {
-          desiredSpeed = 0;
-          if (vehicle.speed < .1) {
-            vehicle.impactWait = (vehicle.impactWait ?? 2) - stepTime;
-            if (vehicle.impactWait <= 0) { vehicle.impactStop = false; vehicle.impactWait = undefined; }
+      this._buildSpatialIndex(pedestrians);
+      this._updating = true;
+      try {
+        for (const vehicle of this.vehicles) {
+          const clearance = this._clearance(vehicle, player, pedestrians);
+          const braking = vehicle.braking ?? BRAKING;
+          // Anticipa la respuesta gradual del conductor; el peatón no es una pared
+          // capaz de eliminar la velocidad restante en un solo subpaso.
+          const brakingClearance = Math.min(clearance, Math.max(0, vehicle.playerClearance - vehicle.speed));
+          let desiredSpeed = Math.min(vehicle.cruiseSpeed, Math.sqrt(2 * braking * brakingClearance));
+          if (vehicle.impactStop) {
+            desiredSpeed = 0;
+            if (vehicle.speed < .1) {
+              vehicle.impactWait = (vehicle.impactWait ?? 2) - stepTime;
+              if (vehicle.impactWait <= 0) { vehicle.impactStop = false; vehicle.impactWait = undefined; }
+            }
           }
-        }
-        // Anticipa las curvas y reduce la velocidad antes de girar.
-        let start = 0;
-        for (const segment of vehicle.route.segments) {
-          if (segment.radius) {
-            const ahead = ((start - vehicle.distance) % vehicle.route.length + vehicle.route.length) % vehicle.route.length;
-            const inCurve = vehicle.distance >= start && vehicle.distance < start + segment.length;
-            const turnSpeed = Math.sqrt(segment.radius * 1.8);
-            desiredSpeed = Math.min(desiredSpeed, Math.sqrt(turnSpeed ** 2 + 2 * braking * (inCurve ? 0 : ahead)));
+          // Anticipa las curvas y reduce la velocidad antes de girar.
+          let start = 0;
+          for (const segment of vehicle.route.segments) {
+            if (segment.radius) {
+              const ahead = ((start - vehicle.distance) % vehicle.route.length + vehicle.route.length) % vehicle.route.length;
+              const inCurve = vehicle.distance >= start && vehicle.distance < start + segment.length;
+              const turnSpeed = Math.sqrt(segment.radius * 1.8);
+              desiredSpeed = Math.min(desiredSpeed, Math.sqrt(turnSpeed ** 2 + 2 * braking * (inCurve ? 0 : ahead)));
+            }
+            start += segment.length;
           }
-          start += segment.length;
+          if (clearance < .05 && vehicle.speed < .1) vehicle.stopped = true;
+          if (vehicle.stopped && clearance > .5) {
+            vehicle.resumeDelay = vehicle.reactionTime; vehicle.stopped = false;
+          }
+          if (vehicle.resumeDelay > 0) { vehicle.resumeDelay -= stepTime; desiredSpeed = 0; }
+          const targetAcceleration = THREE.MathUtils.clamp((desiredSpeed - vehicle.speed) / .65, -braking, vehicle.accelerationLimit ?? ACCELERATION);
+          vehicle.acceleration = THREE.MathUtils.clamp(targetAcceleration, vehicle.acceleration - 3 * stepTime, vehicle.acceleration + 3 * stepTime);
+          const candidateSpeed = THREE.MathUtils.clamp(vehicle.speed + vehicle.acceleration * stepTime, 0, vehicle.cruiseSpeed);
+          const speed = desiredSpeed === 0 && candidateSpeed < .01 ? 0 : candidateSpeed;
+          const travel = Math.min(Math.max(0, speed * stepTime), vehicle.hardClearance);
+          vehicle.nextDistance = (vehicle.distance + travel) % vehicle.route.length;
+          vehicle.nextSpeed = travel / stepTime;
+          vehicle.nextTravel = travel;
         }
-        if (clearance < .05 && vehicle.speed < .1) vehicle.stopped = true;
-        if (vehicle.stopped && clearance > .5) {
-          vehicle.resumeDelay = vehicle.reactionTime; vehicle.stopped = false;
-        }
-        if (vehicle.resumeDelay > 0) { vehicle.resumeDelay -= stepTime; desiredSpeed = 0; }
-        const targetAcceleration = THREE.MathUtils.clamp((desiredSpeed - vehicle.speed) / .65, -braking, vehicle.accelerationLimit ?? ACCELERATION);
-        vehicle.acceleration = THREE.MathUtils.clamp(targetAcceleration, vehicle.acceleration - 3 * stepTime, vehicle.acceleration + 3 * stepTime);
-        const candidateSpeed = THREE.MathUtils.clamp(vehicle.speed + vehicle.acceleration * stepTime, 0, vehicle.cruiseSpeed);
-        const speed = desiredSpeed === 0 && candidateSpeed < .01 ? 0 : candidateSpeed;
-        const travel = Math.min(Math.max(0, speed * stepTime), vehicle.hardClearance);
-        vehicle.nextDistance = (vehicle.distance + travel) % vehicle.route.length;
-        vehicle.nextSpeed = travel / stepTime;
-        vehicle.nextTravel = travel;
+      } finally {
+        this._updating = false;
       }
       // Todos consultan las mismas posiciones antes de aplicar el movimiento.
       for (const vehicle of this.vehicles) {

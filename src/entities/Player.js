@@ -204,7 +204,9 @@ export class Player {
 
   dispose() {
     this.ragdoll.clear();
-    this.root.traverse((o) => {
+    this._realistic?.dispose?.();
+    this._realisticPromise?.then(character => character.dispose?.()).catch(() => {});
+    this.procedural.group.traverse((o) => {
       o.geometry?.dispose?.();
       o.material?.dispose?.();
     });

@@ -67,6 +67,7 @@ export class Npc {
     this.wait = this.navigation ? 0 : Math.random() * 6;
     this.moving = false;
     this.animAcc = 0;
+    this.animationBudget = 1;
     this.frame = Math.floor(Math.random() * 3); // reparte los cuadros de animación entre NPC
     this.lodChar = null;   // liviano (siempre)
     this.fullChar = null;  // completo (precargado; se muestra al acercarse)
@@ -80,6 +81,7 @@ export class Npc {
     this.ready = (async () => {
       this.look = opts.look ?? await randomStreetLook({ gastada: opts.gastada });
       this.lodChar = await createRealisticCharacter(this.look, { lod: true });
+      if (this._disposed) { this.lodChar.dispose?.(); return; }
       this._show(this.lodChar);
       // arranca cada uno en otro punto de la animación para que no se muevan al unísono
       this.character.update(Math.random() * 3, { speed: 0 });
@@ -94,7 +96,7 @@ export class Npc {
 
   _loadFull() {
     return this._fullLoading ??= createRealisticCharacter(this.look, { lod: false })
-      .then(c => { this.fullChar = c; });
+      .then(c => { if (this._disposed) c.dispose?.(); else this.fullChar = c; });
   }
 
   _show(char) {
@@ -284,13 +286,19 @@ export class Npc {
 
     this.animAcc += dt;
     this.frame++;
-    if (dist > NPC_LOD.animStop && !this.moving) return; // lejos y quieto: pose congelada
-    if (dist > NPC_LOD.animEvery && this.frame % 3 !== 0) return;
+    if (dist > NPC_LOD.animStop) return; // navegación activa, pose lejana congelada
+    const budget = ctx.animationBudget ?? this.animationBudget;
+    const interval = dist > NPC_LOD.animEvery ? .1 * budget : budget > 1 ? budget / 60 : 0;
+    if (interval && this.animAcc < interval) return;
     this.character.update(Math.min(this.animAcc, 0.2), { speed: this.moving ? this.walkSpeed / REALISTIC_SCALE : 0 });
     this.animAcc = 0;
   }
 
   dispose() {
+    if (this._disposed) return;
+    this._disposed = true;
+    this.lodChar?.dispose?.();
+    this.fullChar?.dispose?.();
     if (this.splatMesh) {
       this.root.remove(this.splatMesh);
       this.splatMesh.geometry?.dispose?.();

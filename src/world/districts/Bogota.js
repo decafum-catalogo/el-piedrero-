@@ -104,6 +104,7 @@ export class Bogota {
     this.animated = [];       // grupos con userData.update
     this.facadeMats = [];
     this._facadeTextures = new Map();
+    this._facadeMaterials = new Map();
     this.npcs = [];
     this.buildingVisibility = new BuildingVisibility();
     this.t = 0;
@@ -572,11 +573,15 @@ export class Bogota {
       this._facadeTextures.set(textureKey, tex);
     }
     for (const t of [tex.map, tex.emissiveMap, tex.bumpMap]) { t.anisotropy = 8; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; }
-    const facadeMat = new THREE.MeshStandardMaterial({
-      map: tex.map, emissiveMap: tex.emissiveMap, emissive: '#ffffff', emissiveIntensity: 0,
-      bumpMap: tex.bumpMap, bumpScale: 0.4, roughness: 0.85
-    });
-    this.facadeMats.push(facadeMat);
+    let facadeMat = this._facadeMaterials.get(textureKey);
+    if (!facadeMat) {
+      facadeMat = new THREE.MeshStandardMaterial({
+        map: tex.map, emissiveMap: tex.emissiveMap, emissive: '#ffffff', emissiveIntensity: 0,
+        bumpMap: tex.bumpMap, bumpScale: 0.4, roughness: 0.85
+      });
+      this._facadeMaterials.set(textureKey, facadeMat);
+      this.facadeMats.push(facadeMat);
+    }
 
     const [x0, z0] = tiles[0], [x1, z1] = tiles[tiles.length - 1];
     const cx = (W(x0) + W(x1)) / 2 - dx * (depth - 1) * T / 2;
@@ -973,7 +978,7 @@ export class Bogota {
       _projView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       frustum = _frustum.setFromProjectionMatrix(_projView);
     }
-    const ctx = { player: playerPos, frustum };
+    const ctx = { player: playerPos, frustum, animationBudget: this.animationBudget ?? 1 };
     for (const n of this.npcs) n.update(dt, ctx);
     for (const flock of this.pigeonFlocks ?? []) flock.update(dt, playerPos, this.npcs);
   }
@@ -982,6 +987,9 @@ export class Bogota {
     for (const material of this.towerLights ?? []) material.emissiveIntensity = isNight ? 1.8 : .05;
     for (const p of this.props) p.instance.setNight?.(isNight);
     for (const m of this.facadeMats) m.emissiveIntensity = isNight ? 1.2 : 0;
+    for (const material of this.buildingVisibility.closedMaterials.values()) {
+      if (material.emissiveMap) material.emissiveIntensity = isNight ? 1.2 : 0;
+    }
   }
 
   dispose(scene) {
@@ -992,6 +1000,7 @@ export class Bogota {
     for (const bus of this.busServices ?? []) bus.dispose();
     this.buildingVisibility.dispose();
     this._facadeTextures.clear();
+    this._facadeMaterials.clear();
     scene.remove(this.group);
     for (const n of this.npcs) n.dispose();
     this.group.traverse((o) => {

@@ -12,7 +12,8 @@ async function startNewGame(page) {
   await page.locator('#creator-done').click();
   await expect(page.locator('#loading-screen')).toBeHidden({ timeout: 120_000 });
   await expect(page.locator('#menu-title')).toHaveText('Nota del desarrollador');
-  await expect(page.locator('#menu')).toContainText('Cristianlv11');
+  // La nota actual oculta temporalmente los créditos; conserva el enlace de colaboración.
+  await expect(page.getByRole('link', { name: 'Ver issues del proyecto original' })).toHaveAttribute('href', 'https://github.com/juanagogo/bazuko/issues');
   await expect(page.locator('#menu')).toContainText('issues abiertos al público');
   await page.getByRole('button', { name: 'Continuar jugando', exact: true }).click();
   await expect(page.locator('#creator-modal')).toBeHidden();

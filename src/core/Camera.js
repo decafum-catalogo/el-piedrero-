@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GRAPHICS_PROFILES } from './GraphicsQuality.js';
 
 export class CameraRig {
   constructor(scene, canvas) {
@@ -55,6 +56,13 @@ export class CameraRig {
     this.releaseControls();
     try { localStorage.setItem('bazuko.camera', this.mode); } catch { /* sin almacenamiento */ }
     return this.mode;
+  }
+
+  setQuality(level) {
+    const far = GRAPHICS_PROFILES[level]?.far ?? 300;
+    if (this.camera.far === far) return;
+    this.camera.far = far;
+    this.camera.updateProjectionMatrix();
   }
 
   orbit(dx, dy) {
@@ -205,7 +213,10 @@ export class CameraRig {
       // Acorta el brazo de cámara antes de una pared; el margen protege el plano cercano.
       this._ray.set(this._look, this._direction);
       let distance = this.distance;
-      for (const { box } of collisions?.colliders ?? []) {
+      const endX = this._look.x + this._direction.x * distance, endZ = this._look.z + this._direction.z * distance;
+      const candidates = collisions?.queryStatic?.(Math.min(this._look.x, endX) - .2, Math.min(this._look.z, endZ) - .2,
+        Math.max(this._look.x, endX) + .2, Math.max(this._look.z, endZ) + .2) ?? collisions?.colliders ?? [];
+      for (const { box } of candidates) {
         this._box.copy(box).expandByScalar(0.2);
         if (this._box.containsPoint(this._look)) { distance = 0; break; }
         if (this._ray.intersectBox(this._box, this._hit)) {

@@ -24,7 +24,7 @@ beforeEach(() => {
 test('los perfiles respetan su límite de resolución incluso después de la adaptación automática', () => {
   const renderer = Object.assign(Object.create(Renderer.prototype), {
     resolution: new AdaptiveResolution(2),
-    instance: { shadowMap: {}, setPixelRatio(value) { this.ratio = value; } }
+    instance: { shadowMap: {}, setPixelRatio(value) { this.ratio = value; }, getPixelRatio() { return this.ratio; } }
   });
   for (const [quality, cap] of [['baja', 1], ['media', 1.25], ['alta', 1.5]]) {
     renderer.setQuality(quality);

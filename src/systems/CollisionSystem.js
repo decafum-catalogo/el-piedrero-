@@ -1,10 +1,17 @@
 import * as THREE from 'three';
+import { SpatialGrid } from '../core/SpatialGrid.js';
 
 export class CollisionSystem {
   constructor() {
     this.colliders = []; // { box: THREE.Box3, mesh }
     this.dynamicColliders = [];
     this._vehicles = new Map();
+    this._staticGrid = new SpatialGrid();
+    this._staticOrder = new Map();
+    this._moveCandidates = [];
+    this._cameraCandidates = [];
+    this._occlusionCandidates = [];
+    this._extent = new THREE.Vector3();
   }
 
   /** Registra un mesh como sólido. size opcional para hitbox custom. */
@@ -16,9 +23,45 @@ export class CollisionSystem {
         )
       : new THREE.Box3().setFromObject(mesh);
     this.colliders.push({ box, mesh });
+    this.invalidateStaticIndex();
   }
 
-  clear() { this.colliders = []; this.dynamicColliders = []; this._vehicles.clear(); }
+  clear() {
+    this.colliders = []; this.dynamicColliders = []; this._vehicles.clear();
+    this.invalidateStaticIndex(); this._staticGrid.clear(); this._staticOrder.clear();
+  }
+
+  invalidateStaticIndex() { this._indexedColliders = null; }
+
+  queryStatic(minX, minZ, maxX, maxZ, result = this._cameraCandidates) {
+    // Los constructores de distritos también añaden cajas directamente al array.
+    if (this._indexedColliders !== this.colliders || this._indexedCount !== this.colliders.length) {
+      this._staticGrid.clear(); this._staticOrder.clear();
+      this.colliders.forEach((entry, index) => {
+        const { min, max } = entry.box;
+        this._staticGrid.insert(entry, min.x, min.z, max.x, max.z);
+        this._staticOrder.set(entry, index);
+      });
+      this._indexedColliders = this.colliders;
+      this._indexedCount = this.colliders.length;
+    }
+    this._staticGrid.query(minX, minZ, maxX, maxZ, result);
+    // Mantener el orden de resolución anterior, incluso si una caja ocupa varias celdas.
+    result.sort((a, b) => this._staticOrder.get(a) - this._staticOrder.get(b));
+    return result;
+  }
+
+  /** Consulta conservadora del volumen cámara/jugador; admite falsos positivos. */
+  mayOccludePlayer(camera, player) {
+    const margin = .8;
+    const candidates = this.queryStatic(Math.min(camera.x, player.x - margin), Math.min(camera.z, player.z - margin),
+      Math.max(camera.x, player.x + margin), Math.max(camera.z, player.z + margin), this._occlusionCandidates);
+    const minY = Math.min(camera.y, player.y), maxY = Math.max(camera.y, player.y + 2.2);
+    const minX = Math.min(camera.x, player.x - margin), maxX = Math.max(camera.x, player.x + margin);
+    const minZ = Math.min(camera.z, player.z - margin), maxZ = Math.max(camera.z, player.z + margin);
+    const intersects = ({ box }) => box.max.x >= minX && box.min.x <= maxX && box.max.z >= minZ && box.min.z <= maxZ && box.max.y >= minY && box.min.y <= maxY;
+    return candidates.some(intersects) || this.dynamicColliders.some(intersects);
+  }
 
   /** Cajas simples; el bus conserva además orientación para la colisión precisa. */
   setVehicles(cars = [], bus = null) {
@@ -41,8 +84,11 @@ export class CollisionSystem {
         o.axes[0].set(1,0,0).applyQuaternion(o.quaternion);
         o.axes[1].set(0,1,0).applyQuaternion(o.quaternion);
         o.axes[2].set(0,0,1).applyQuaternion(o.quaternion);
-        const extent = new THREE.Vector3();
-        for (let i = 0; i < 3; i++) extent.addScaledVector(o.axes[i].clone().set(Math.abs(o.axes[i].x), Math.abs(o.axes[i].y), Math.abs(o.axes[i].z)), o.halfSize.getComponent(i));
+        const extent = this._extent.set(0, 0, 0);
+        for (let i = 0; i < 3; i++) {
+          const axis = o.axes[i], half = o.halfSize.getComponent(i);
+          extent.x += Math.abs(axis.x) * half; extent.y += Math.abs(axis.y) * half; extent.z += Math.abs(axis.z) * half;
+        }
         entry.box.min.copy(o.center).sub(extent); entry.box.max.copy(o.center).add(extent);
         this.dynamicColliders.push(entry);
         continue;
@@ -90,7 +136,7 @@ export class CollisionSystem {
     const epsilon = 1e-7;
     const start = pos[axis];
     let end = start + delta;
-    for (const { box, vehicle, layered, obb } of this._allColliders()) {
+    for (const { box, vehicle, layered, obb } of this._movementColliders(pos, radius, axis, delta)) {
       if ((vehicle || layered) && (pos.y > box.max.y || pos.y + 1.6 < box.min.y)) continue;
       if (obb) {
         const movement = new THREE.Vector3(); movement[axis] = end - start;
@@ -159,4 +205,11 @@ export class CollisionSystem {
   }
 
   *_allColliders() { yield* this.colliders; yield* this.dynamicColliders; }
+
+  *_movementColliders(pos, radius, axis, delta) {
+    const endX = pos.x + (axis === 'x' ? delta : 0), endZ = pos.z + (axis === 'z' ? delta : 0);
+    yield* this.queryStatic(Math.min(pos.x, endX) - radius, Math.min(pos.z, endZ) - radius,
+      Math.max(pos.x, endX) + radius, Math.max(pos.z, endZ) + radius, this._moveCandidates);
+    yield* this.dynamicColliders;
+  }
 }

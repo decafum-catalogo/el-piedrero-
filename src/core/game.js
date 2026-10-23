@@ -44,6 +44,8 @@ import { HUD } from '../ui/HUD.js';
 import { InventoryUI } from '../ui/InventoryUI.js';
 import { PerformanceHUD } from '../ui/PerformanceHUD.js';
 import { LocalLights } from './LocalLights.js';
+import { GRAPHICS_PROFILES } from './GraphicsQuality.js';
+import { FrameProfiler } from './FrameProfiler.js';
 import { loadInBatches, withLoadTimeout } from './Startup.js';
 import { paintLoadingFrame } from '../ui/LoadingScreen.js';
 import { el, button } from '../ui/dom.js';
@@ -104,11 +106,13 @@ export class Game {
     // HUD, menús y creador de personaje
     this.hud = new HUD();
     this.performanceHUD = new PerformanceHUD();
+    this.profiler = new FrameProfiler();
     this.localLights = new LocalLights(this.sceneMgr.scene);
+    this.renderer.overlayLights = [this.sceneMgr.ambient, this.sceneMgr.sun, ...this.localLights.pool];
     this.menu = new Menu();
     this.minimap = new Minimap();
     this.weather = new WeatherSystem(this.sceneMgr.scene);
-    let quality = 'alta';
+    let quality = 'media';
     try { quality = localStorage.getItem('bazuko.graphics_quality') || quality; } catch { /* sin almacenamiento */ }
     this.setGraphicsQuality(quality, false);
     this.hud.audioBtn?.setAttribute('aria-label', this.audio.isMuted() ? 'Activar sonido' : 'Silenciar sonido');
@@ -715,6 +719,7 @@ export class Game {
     }
     if (this._handleDeath()) return;
 
+    this.profiler?.beginFrame();
     // 1. Tiempo
     this._vehicleImpactCooldown = Math.max(0, (this._vehicleImpactCooldown ?? 0) - dt);
     this.clock.update(dt);
@@ -744,6 +749,7 @@ export class Game {
       if (Number.isFinite(ground)) this.player.position.y = ground;
       this.player.root.position.y = this.player.position.y;
     }
+    this.profiler?.mark('jugadorCamaraColisiones');
 
     // 4. Stats
     this.stats.update(dt, this.player, this.diseases, this.clock, this.talents);
@@ -789,11 +795,14 @@ export class Game {
     // La visibilidad de edificios usa la cámara del mismo cuadro.
     this.cameraRig.follow(this.player.position, dt, this.collisions, this.player.speed, this.input.isRunning);
     this.psychosis.update(dt, this.cameraRig);
+    this.profiler?.mark('sistemas');
     this.world.update(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? []);
+    this.profiler?.mark('mundoNPC');
     this.traffic?.update(dt, { player: this.player.position, pedestrians: this.world.active?.trafficPedestrians ?? this.world.active?.npcs ?? [], onPlayerHit: this._onVehicleImpact });
+    this.profiler?.mark('trafico');
     if (this._handleDeath()) return;
 
-    this.weather?.update(dt, this.player.position, this.renderer.quality === 'baja' ? null : this.world.active);
+    this.weather?.update(dt, this.player.position, this.renderer.effectiveQuality === 'baja' ? null : this.world.active);
 
     // 9. Entidades
     for (const p of this.pickups) p.update(dt);
@@ -809,9 +818,11 @@ export class Game {
     this.audio.setRaining(!!this.weather?.isRaining);
     this.audio.updateSteps(moving, this.input.isRunning);
     this.audio.updateBoost(this.interaction.boostActive);
+    this.profiler?.mark('entidadesClimaAudio');
 
     // 12. Render
     this._renderFrame(now, true);
+    this.profiler?.mark('envioRenderLucesCulling');
 
     this.minimap?.update(this.player.position, Math.atan2(this.cameraRig.camera.matrixWorld.elements[8], this.cameraRig.camera.matrixWorld.elements[10]), this._getPOIs(now), now);
 
@@ -823,13 +834,32 @@ export class Game {
 
     // 15. Fin de frame
     this.input.endFrame();
+    this.profiler?.mark('interfaz');
+    this.profiler?.endFrame();
   };
 
+  getPerformanceReport() {
+    return {
+      cpu: this.profiler.report(), frames: this.performanceHUD.metrics.recentStats(),
+      graphics: { selected: this.renderer.quality, effective: this.renderer.effectiveQuality,
+        pixelRatio: this.renderer.instance.getPixelRatio(), ...this.renderer.instance.info.render }
+    };
+  }
+
   _renderFrame(now, active) {
+    const quality = this.renderer.effectiveQuality;
+    if (this._effectiveQuality !== quality) {
+      this._effectiveQuality = quality;
+      this.sceneMgr.setQuality(quality);
+      this.cameraRig.setQuality?.(quality);
+      if (this.world.active) this.world.active.animationBudget = GRAPHICS_PROFILES[quality].animationBudget;
+      this.world.active?.setWetness?.(quality === 'baja' ? 0 : this.weather?.wetness ?? 0);
+    }
     const elapsed = this._lastRenderTime === undefined ? 0 : (now - this._lastRenderTime) / 1000;
     this._lastRenderTime = now;
     this.localLights.update(elapsed, this.player.position, (x, z) => this.world.active?.getGroundHeight?.(x, z) ?? 0, this.cameraRig.camera);
-    this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera, this.player.root, [this.sceneMgr.sun]);
+    const showSilhouette = this.collisions.mayOccludePlayer?.(this.cameraRig.camera.position, this.player.position) ?? true;
+    this.renderer.render(this.sceneMgr.scene, this.cameraRig.camera, this.player.root, [this.sceneMgr.sun], showSilhouette);
     if (this.performanceHUD.update(now, this.player.position, this.renderer, active, this.localLights)) {
       this.renderer.adaptResolution(this.performanceHUD.metrics.frameMs);
     } else this.renderer.resolution.resetWindow();
@@ -865,11 +895,15 @@ export class Game {
     const quality = ['baja', 'media', 'alta'].includes(level) ? level : 'alta';
     this.renderer.setQuality(quality);
     this.sceneMgr.setQuality(quality);
+    this.cameraRig.setQuality?.(quality);
+    this._effectiveQuality = null;
     this.world?.active?.setWetness?.(quality === 'baja' ? 0 : this.weather?.wetness ?? 0);
     if (notify) window.dispatchEvent(new CustomEvent('toast', { detail: { text: 'Calidad gráfica: ' + quality, type: 'info' } }));
   }
 
   _registerRenderGroups() {
+    // Las fuentes de la ciudad y del fogón no cambian de posición; sí de intensidad/visibilidad.
+    this.localLights.refreshSources({ static: true });
     const culling = this.renderer.culling, district = this.world.active;
     culling.clear();
     if (this.dog) culling.register(this.dog.group, { dynamic: true, margin: 1 });

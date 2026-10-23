@@ -119,3 +119,20 @@ test('la población incluye peatones junto al inicio y mantiene quietos a los ve
   vendor.dispose();
   city.dispose(city.scene);
 });
+
+test('un peatón lejano sigue caminando sin animar y recupera la animación al acercarse', async () => {
+  const nav = new PedestrianNavigation([Array(80).fill('sidewalk')], 2);
+  const npc = new Npc(new THREE.Scene(), new THREE.Vector3(80, 0, 0), {
+    look: {}, navigation: nav, speed: 1, isWalkable: (x, z) => nav.isWalkableAt(x, z)
+  });
+  await npc.ready;
+  let animated = 0;
+  npc.character.update = () => { animated++; };
+  npc.target = new THREE.Vector3(90, 0, 0);
+  for (let i = 0; i < 60; i++) npc.update(1 / 60, { player: new THREE.Vector3(), frustum: { intersectsSphere: () => true } });
+  assert.ok(npc.position.x > 80.5);
+  assert.equal(animated, 0);
+  npc.update(1 / 60, { player: npc.position.clone().add(new THREE.Vector3(15, 0, 0)) });
+  assert.equal(animated, 1);
+  npc.dispose();
+});

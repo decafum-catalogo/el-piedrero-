@@ -4,7 +4,7 @@ Juego de supervivencia urbana en 3D para el navegador, ambientado en un barrio i
 
 Este proyecto es un fork de [juanagogo/bazuko](https://github.com/juanagogo/bazuko), con mejoras de cámara, visibilidad, circulación y equilibrio de supervivencia.
 
-![Ciudad de noche en tercera persona: edificios de distintas alturas, peatones, tráfico y viaducto](docs/images/ciudad-nocturna-tercera-persona.webp)
+![Cruce nocturno en tercera persona con gasolinera, edificios altos, carros y viaducto](docs/images/ciudad-nocturna-tercera-persona.webp)
 
 ## Características
 
@@ -25,25 +25,23 @@ Este proyecto es un fork de [juanagogo/bazuko](https://github.com/juanagogo/bazu
 
 ## Capturas
 
-### Parque, palomas y El Chato
-
 Las capturas actuales muestran la ciudad de noche en tercera persona, con edificios de distintas alturas, tráfico y los nuevos espacios urbanos. Son imágenes reales del juego compartidas durante el desarrollo.
 
-### Gasolinera y edificios del barrio
+### Parque, palomas y El Chato
 
-![Personaje frente a la gasolinera iluminada, rodeada de edificios altos y casas de ladrillo](docs/images/gasolinera-nocturna.webp)
+![Parque de noche con palomas, El Chato, vendedor ambulante y bus sobre el viaducto](docs/images/parque-palomas-y-chato.webp)
 
 ### Estación Portal del Centro
 
-![Estación Portal del Centro al fondo, junto a la pasarela y la rampa del viaducto](docs/images/estacion-portal-del-centro.webp)
+![Bus articulado junto a la estación Portal del Centro, con la pasarela y el viaducto al fondo](docs/images/estacion-portal-del-centro.webp)
 
-### Acceso al viaducto
+### Calles y comercio bajo el viaducto
 
-![Rampa de acceso al puente elevado con peatones, taxis y edificios de distintos diseños](docs/images/acceso-al-viaducto.webp)
+![Cruce bajo el viaducto con semáforos, peatones, vendedor de frutas y fachadas de ladrillo](docs/images/acceso-al-viaducto.webp)
 
 ### Recorrido elevado junto a Colpatria
 
-![Vista desde el viaducto, con la Torre Colpatria, el edificio de ladrillo y las nuevas torres del barrio](docs/images/viaducto-y-colpatria.webp)
+![Buses articulados sobre el viaducto, junto a la Torre Colpatria y los edificios del barrio](docs/images/viaducto-y-colpatria.webp)
 
 Las cinco capturas están en [docs/images](docs/images), en formato WebP optimizado y con su resolución original.
 

@@ -4,7 +4,7 @@ Juego de supervivencia urbana en 3D para el navegador, ambientado en un barrio i
 
 Este proyecto es un fork de [juanagogo/bazuko](https://github.com/juanagogo/bazuko), con mejoras de cámara, visibilidad, circulación y equilibrio de supervivencia.
 
-![Parque en vista isométrica con palomas, El Chato, radar, peatones y carros junto a los carriles de SOLO BUS](docs/images/parque-palomas-y-chato.png)
+![Ciudad de noche en tercera persona: edificios de distintas alturas, peatones, tráfico y viaducto](docs/images/ciudad-nocturna-tercera-persona.webp)
 
 ## Características
 
@@ -27,27 +27,25 @@ Este proyecto es un fork de [juanagogo/bazuko](https://github.com/juanagogo/bazu
 
 ### Parque, palomas y El Chato
 
-La captura de portada muestra el parque junto al punto de inicio: palomas en el suelo, El Chato, el sitio para construir el cambuche y el tráfico del barrio. El radar orienta hacia los lugares cercanos y la ayuda se consulta con el botón «!».
+Las capturas actuales muestran la ciudad de noche en tercera persona, con edificios de distintas alturas, tráfico y los nuevos espacios urbanos. Son imágenes reales del juego compartidas durante el desarrollo.
 
-### El Chato y TransMilenio en tercera persona
+### Gasolinera y edificios del barrio
 
-![Vista de desarrollo en tercera persona con El Chato junto al cambuche y un TransMilenio al fondo](docs/images/tercera-persona-chato-y-transmilenio.png)
+![Personaje frente a la gasolinera iluminada, rodeada de edificios altos y casas de ladrillo](docs/images/gasolinera-nocturna.webp)
 
-El Chato puede acompañarte al darle pan o una lata de atún. Las capturas compartidas durante el desarrollo pueden mostrar diferencias en la distribución de la interfaz.
+### Estación Portal del Centro
 
-### Vista general del barrio
+![Estación Portal del Centro al fondo, junto a la pasarela y la rampa del viaducto](docs/images/estacion-portal-del-centro.webp)
 
-![Vista isométrica del barrio con calles amplias, andenes y pasos peatonales](docs/images/barrio-isometrico.jpg)
+### Acceso al viaducto
 
-### Carros, taxis y bus articulado
+![Rampa de acceso al puente elevado con peatones, taxis y edificios de distintos diseños](docs/images/acceso-al-viaducto.webp)
 
-![Bus articulado rojo en la troncal junto a la estación, con carros y un taxi circulando por las calles](docs/images/carros-y-bus.jpg)
+### Recorrido elevado junto a Colpatria
 
-### Cámara en tercera persona
+![Vista desde el viaducto, con la Torre Colpatria, el edificio de ladrillo y las nuevas torres del barrio](docs/images/viaducto-y-colpatria.webp)
 
-![Personaje en tercera persona frente a un cruce con carros y peatones](docs/images/tercera-persona.jpg)
-
-Las capturas están guardadas dentro del repositorio, en [`docs/images`](docs/images), y se muestran directamente en GitHub mediante enlaces relativos.
+Las cinco capturas están en [docs/images](docs/images), en formato WebP optimizado y con su resolución original.
 
 ## Ejecutar en el navegador
 

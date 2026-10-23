@@ -1,6 +1,8 @@
 import { el, button } from './dom.js';
 
 export function openDeveloperNote(game) {
+  // Ocultar temporalmente esta sección mientras se reorganizan los créditos.
+  const showCredits = false;
   const credits = [
     ['juanagogo / bazuko', 'Proyecto original y base del juego.', 'https://github.com/juanagogo/bazuko'],
     ['GrandaCoder / Vagabundo', 'Integración, mejoras y desarrollo de esta versión.', 'https://github.com/GrandaCoder/Vagabundo'],
@@ -10,13 +12,13 @@ export function openDeveloperNote(game) {
   ];
   game.menu.open({
     title: 'Nota del desarrollador',
-    sub: 'Créditos y colaboración abierta',
+    sub: 'Colaboración abierta',
     ic: 'info',
     render: () => ({
       body: el('div', { class: 'developer-note' },
-        el('p', { text: 'Esta versión incluye código y aportes de las siguientes personas y repositorios. Gracias por compartir su trabajo:' }),
+        ...(showCredits ? [el('p', { text: 'Esta versión incluye código y aportes de las siguientes personas y repositorios. Gracias por compartir su trabajo:' }),
         el('ul', { class: 'developer-note__credits' }, credits.map(([name, contribution, url]) =>
-          el('li', {}, el('a', { href: url, target: '_blank', rel: 'noopener noreferrer', text: name }), el('span', { text: contribution })))),
+          el('li', {}, el('a', { href: url, target: '_blank', rel: 'noopener noreferrer', text: name }), el('span', { text: contribution }))))] : []),
         el('div', { class: 'developer-note__request' },
           el('h3', { text: 'Hagamos visibles las tareas pendientes' }),
           el('p', { text: 'A quienes mantienen y colaboran en el proyecto: por favor, publiquen las funcionalidades que se deben desarrollar como issues abiertos al público, indicando qué se necesita y su estado. Así cualquiera podrá conocer las tareas, proponer ideas y colaborar sin duplicar esfuerzos.' }),

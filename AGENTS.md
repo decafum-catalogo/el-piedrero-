@@ -68,3 +68,5 @@ Para cambios de lógica, ejecutar las pruebas relacionadas y la compilación cua
 ## Integración del original del 21 de octubre de 2026
 
 Ver `docs/integracion-upstream.md`. RadioSystem y RadioModal agregan radio con pilas; PoopSystem y PsychosisSystem coordinan proyectiles y abstinencia. Mantener el volumen y silencio generales también en la radio, evitar actualizaciones duplicadas de El Chato y ejecutar la distorsión de cámara después de seguir al jugador. El radar reutiliza sus puntos estáticos y actualiza al perro dentro del caché. La inercia debe reiniciarse al recuperar al jugador de un atropello.
+
+Las animaciones ActionForge se adaptan en `src/character/actionforge.js`; el banco contiene solo ocho clips y el esqueleto. Conservar las prendas modulares y el respaldo de clips anteriores. Preparar clips sobre copias del cuerpo para no alterar la pose de otros personajes. Mantener el movimiento horizontal en el controlador y permitir la altura animada de cadera para agacharse. Ver `docs/animaciones-actionforge.md`.

@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { createRetargeter } from './retarget.js';
+import { buildCharacterClips } from './actionforge.js';
 import { PALETTES } from './look.js';
 
 const BASE = '/models/personaje/';
@@ -15,8 +15,7 @@ const ANIM_URLS = ['/models/animaciones.glb', '/models/animaciones-prueba.glb'];
 // El modelo mide ~1,7 m; el mundo usa la escala del personaje procedural (~1,85 m)
 export const REALISTIC_SCALE = 1.08;
 
-// Clips que busca el personaje (en minúsculas); los que no existan caen en idle/walk/run
-const CLIPS = ['idle', 'walk', 'run', 'buscar', 'pedir', 'comer', 'dormir', 'saludo'];
+const ACTIONFORGE_URL = '/models/animaciones-actionforge.glb';
 
 export const REAL_DEFAULT = {
   sexo: 'hombre', edad: 'adulto', pelo: 'desordenado', barba: 'descuidada', ropa: 'chaqueta', calzado: 'tenis-rotos'
@@ -79,17 +78,16 @@ function loadAnimations() {
 }
 
 const clipCache = new Map();
+let actionforgePromise;
 async function clipsForBody(bodyId, bodyGltf) { // bodyId incluye el nivel de detalle
   if (!clipCache.has(bodyId)) {
     clipCache.set(bodyId, (async () => {
-      const anims = await loadAnimations();
-      const retarget = createRetargeter(anims.scene, bodyGltf.scene);
-      const out = {};
-      for (const name of CLIPS) {
-        const src = anims.animations.find((c) => c.name.toLowerCase() === name);
-        if (src) out[name] = retarget(src);
-      }
-      return out;
+      actionforgePromise ??= load(ACTIONFORGE_URL).catch(error => {
+        console.warn('No se pudo cargar ActionForge; se usarán las animaciones anteriores.', error);
+        return null;
+      });
+      const [anims, actionforge] = await Promise.all([loadAnimations(), actionforgePromise]);
+      return buildCharacterClips(bodyGltf, anims, actionforge);
     })());
   }
   return clipCache.get(bodyId);
@@ -213,6 +211,10 @@ async function buildInstance(catalog, look, lod = false) {
   const actions = {};
   for (const [name, clip] of Object.entries(clips)) {
     actions[name] = mixer.clipAction(clip);
+    if (['comer', 'beber', 'lanzar', 'saludo'].includes(name)) {
+      actions[name].setLoop(THREE.LoopOnce, 1);
+      actions[name].clampWhenFinished = true;
+    }
     actions[name].play();
     actions[name].setEffectiveWeight(name === 'idle' ? 1 : 0);
   }
@@ -260,10 +262,14 @@ export async function createRealisticCharacter(look = {}, { lod = false } = {}) 
         else if (action === 'lanzar' && a.pedir) target = 'pedir';
       }
       if (inst?.root) {
-        const targetY = action === 'cagar' ? -0.3 : 0;
+        const targetY = action === 'cagar' && !a.cagar ? -0.3 : 0;
         inst.root.position.y += (targetY - inst.root.position.y) * Math.min(1, dt * 10);
       }
       if (!a[target]) target = 'idle';
+      if (target !== inst.previousTarget) {
+        if (a[target] && !['idle', 'walk', 'run'].includes(target)) a[target].reset().play();
+        inst.previousTarget = target;
+      }
       const k = Math.min(1, dt * 8);
       for (const key of Object.keys(a)) {
         weights[key] += ((key === target ? 1 : 0) - weights[key]) * k;

@@ -346,7 +346,7 @@ body #interaction-prompt { bottom: 160px; max-width: calc(100vw - 40px); text-al
 
 /* === Items consumibles en inventario === */
 .inv-row.usable {
-  cursor: pointer;
+  cursor: pointer; pointer-events: auto;
   transition: background 0.15s, color 0.15s;
 }
 .inv-row.usable:hover {

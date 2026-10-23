@@ -28,7 +28,11 @@ test('la ciudad añade el parque del lago a la ampliación de tres veces la supe
   assert.equal(map.length*map[0].length,CITY_WIDTH*CITY_HEIGHT);
   assert.equal(CITY_AREA_MULTIPLIER, CITY_WIDTH * CITY_HEIGHT / (ORIGINAL_CITY_WIDTH * ORIGINAL_CITY_HEIGHT));
   assert.ok(CITY_AREA_MULTIPLIER > 3);
-  for(let z=1;z<ORIGINAL_CITY_HEIGHT-1;z++) for(let x=1;x<ORIGINAL_CITY_WIDTH-1;x++) assert.equal(map[z][x],center[z][x]);
+  for(let z=1;z<ORIGINAL_CITY_HEIGHT-1;z++) for(let x=1;x<ORIGINAL_CITY_WIDTH-1;x++) {
+    // La nueva curva del viaducto puede reservar suelo junto al extremo sur de la troncal.
+    if ((z >= 45 && x >= 33 && x <= 55) || (z <= 7 && x >= 27 && x <= 48)) continue;
+    assert.equal(map[z][x],center[z][x]);
+  }
   for(const version of [2,3]) {
     const saved=[141,.04,104];
     assert.deepEqual(migrateStreetPosition(saved,version),saved);
@@ -56,13 +60,18 @@ test('los barrios nuevos son accesibles a pie y los cruces conectan toda la red 
   for(const park of EXTENSION_PARKS) assert.equal(city.map[park.z0+2][park.x0+2],'grass');
   for(const [a,b] of CITY_CARRERAS) assert.equal(b-a+1,6);
   for(const [a,b] of CITY_CALLES) assert.equal(b-a+1,6);
-  for(let x=0;x<CITY_WIDTH;x++) assert.equal(city.map[0][x]+city.map[CITY_HEIGHT-1][x],'wallwall');
+  for(let x=0;x<CITY_WIDTH;x++) {
+    assert.equal(city.map[CITY_HEIGHT-1][x],'wall');
+    assert.equal(city.map[0][x] === 'wall', x < 27 || x > 48);
+  }
   for(let z=0;z<CITY_HEIGHT;z++) assert.equal(city.map[z][0]+city.map[z][CITY_WIDTH-1],'wallwall');
 });
 
 test('el distrito completo construye y actualiza barrios, vendedores, peatones y bus sin perder colisiones',async()=>{
   const scene=new THREE.Scene(),city=new Bogota(),collisions=new CollisionSystem();
   city.build(scene,collisions);
+  assert.equal(city.stationGroup.name, 'Estación Portal del Centro');
+  assert.equal(city.busServices.length, 2);
   try {
     await Promise.all(city.npcs.map(npc=>npc.ready));
     assert.equal(city.npcs.length,72); // 66 peatones y 6 vendedores.

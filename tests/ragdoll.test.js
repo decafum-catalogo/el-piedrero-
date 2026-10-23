@@ -69,6 +69,23 @@ test('las cajas de los vehículos impiden atravesarlos a pie y se actualizan sin
   assert.equal(collisions._vehicles.size, 0);
 });
 
+test('el ragdoll conserva la caja orientada del bus en vez de su envolvente diagonal', () => {
+  const player = playerAtOrigin();
+  const collisions = new CollisionSystem();
+  const group = new THREE.Group(); group.rotation.set(.15, .7, 0, 'YXZ');
+  const bus = { position: new THREE.Vector3(5, 0, 0), group, length: 18.2, width: 2.52 };
+  collisions.setVehicles([], bus);
+  player.receiveVehicleImpact(new THREE.Vector3(1,0,0), 6, { collisions });
+  player.update(1 / 60, null, collisions);
+  const entry = collisions.dynamicColliders[0], body = player.ragdoll.environment.get(entry);
+  assert.ok(body);
+  assert.ok(Math.abs(body.shapes[0].halfExtents.x - 1.26) < 1e-8);
+  assert.ok(Math.abs(body.shapes[0].halfExtents.z - 9.1) < 1e-8);
+  assert.ok(Math.abs(body.quaternion.y - group.quaternion.y) < 1e-8);
+  assert.ok(Math.abs(body.quaternion.x - group.quaternion.x) < 1e-8);
+  player.dispose();
+});
+
 test('el ragdoll respeta la caja simple de un carro estacionado al aterrizar', () => {
   const player = playerAtOrigin();
   const collisions = new CollisionSystem();

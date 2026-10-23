@@ -104,6 +104,7 @@ export class PlayerRagdoll {
     }
     for (const entry of nearby) {
       const { min, max } = entry.box;
+      const oriented = entry.obb;
       let body = this.environment.get(entry);
       if (!body) {
         body = new Body({ mass: 0, shape: new Box(new Vec3(Math.max(.01, (max.x - min.x) / 2),
@@ -112,12 +113,14 @@ export class PlayerRagdoll {
         this.environment.set(entry, body); this.world.addBody(body);
       }
       const half = body.shapes[0].halfExtents;
-      const hx = Math.max(.01, (max.x - min.x) / 2), hy = Math.max(.01, (max.y - min.y) / 2), hz = Math.max(.01, (max.z - min.z) / 2);
+      const hx = Math.max(.01, oriented?.halfSize.x ?? (max.x - min.x) / 2), hy = Math.max(.01, oriented?.halfSize.y ?? (max.y - min.y) / 2), hz = Math.max(.01, oriented?.halfSize.z ?? (max.z - min.z) / 2);
       if (Math.abs(half.x - hx) + Math.abs(half.y - hy) + Math.abs(half.z - hz) > 1e-5) {
         half.set(hx, hy, hz); body.shapes[0].updateConvexPolyhedronRepresentation();
         body.shapes[0].updateBoundingSphereRadius(); body.updateBoundingRadius();
       }
-      body.position.set((min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2);
+      body.position.set(oriented?.center.x ?? (min.x + max.x) / 2, oriented?.center.y ?? (min.y + max.y) / 2, oriented?.center.z ?? (min.z + max.z) / 2);
+      if (oriented) body.quaternion.set(oriented.quaternion.x, oriented.quaternion.y, oriented.quaternion.z, oriented.quaternion.w);
+      else body.quaternion.set(0, 0, 0, 1);
       body.aabbNeedsUpdate = true;
     }
   }

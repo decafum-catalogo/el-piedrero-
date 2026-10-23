@@ -250,6 +250,18 @@ test('un archivo de sonido ausente informa su ruta y conserva el error hasta una
   } finally { logger.mock.restore(); audio.dispose(); }
 });
 
+test('los dos buses mantienen voces independientes de marcha y ralentí', () => {
+  const { audio, bank } = fixture();
+  const north = new BusService({x:78.5,startZ:80,endZ:-60,stationZ:-30});
+  const south = new BusService({x:71.5,startZ:-60,endZ:80,stationZ:-30});
+  north.position.set(78.5,.02,-30); south.position.set(71.5,.02,-30); south.speed=5;
+  audio.vehicles.update(.1,new THREE.Vector3(75,.92,-30),[],[north,south]);
+  const a=audio.vehicles.instances.get(north),b=audio.vehicles.instances.get(south);
+  assert.ok(a&&b); assert.notEqual(a.idle.id,b.idle.id);assert.notEqual(a.drive.id,b.drive.id);
+  assert.equal(bank.busIdle.starts,2);assert.equal(bank.busDrive.starts,2);
+  audio.dispose(); north.dispose(); south.dispose();
+});
+
 test('cada carro tiene voces normales independientes que mezclan marcha y ralentí', () => {
   const { audio, bank } = fixture(), first = car(4), second = car(-8);
   const vehicles = audio.vehicles;

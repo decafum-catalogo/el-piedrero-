@@ -46,11 +46,11 @@ test('las rutas rodean edificios sin diagonales y no atraviesan componentes aisl
   assert.deepEqual(nav.createRoute(new THREE.Vector3(-100, 0, 0)), []);
 });
 
-test('en Bogotá los recorridos usan andenes y cruces, evitan tienda y estación', () => {
+test('en Bogotá los recorridos usan andenes y cruces, evitan la tienda y pasan bajo la estación elevada', () => {
   const city = district();
   const nav = city._createPedestrianNavigation();
   assert.equal(nav.isWalkableAt(...point(68, 58)), false);
-  assert.equal(nav.isWalkableAt(...point(48, 42)), false);
+  assert.equal(nav.isWalkableAt(...point(48, 42)), true); // El bus y la estación quedan arriba.
   assert.equal(nav.isWalkableAt(...point(12, 40)), false); // Carril fuera de un cruce.
   assert.equal(nav.isWalkableAt(...point(12, 22)), true); // Cruce de Carrera 15.
   let crossingCount = 0;

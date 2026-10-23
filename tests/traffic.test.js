@@ -11,6 +11,27 @@ const { TrafficSystem } = await import('../src/systems/TrafficSystem.js');
 const { Car } = await import('../src/entities/Car.js');
 const { Bogota } = await import('../src/world/districts/Bogota.js');
 const { TrafficSignals } = await import('../src/world/bogota/TrafficSignals.js');
+const { BusService } = await import('../src/world/bogota/BusService.js');
+
+test('el bus completa el desvío de Colpatria con tráfico y semáforos durante diez minutos', () => {
+  let seed = 12345;
+  const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const city = new Bogota(), bus = new BusService(city.getBusRoute());
+  const traffic = new TrafficSystem(new THREE.Scene(), city.getTrafficRoutes(), { random });
+  const signals = traffic.signals = new TrafficSignals();
+  bus.signals = signals; traffic.setBus(bus);
+  let cycles = 0, stopped = 0;
+  for (let frame = 0; frame < 6000; frame++) {
+    signals.update(frame * .1); traffic.update(.1);
+    const before = bus.position.z;
+    bus.update(.1, { vehicles: traffic.vehicles });
+    if (bus.position.z > before) cycles++;
+    stopped = bus.speed < .05 ? stopped + .1 : 0;
+    assert.ok(stopped < 60, `Reservas: ${JSON.stringify([...signals.reservations].filter(([n,s])=>s.busBlocked).map(([n,s])=>({n,owners:[...s.owners.keys()].map(v=>({x:v.car.position.x,z:v.car.position.z,speed:v.speed}))})))} Bus bloqueado en ${bus.position.x}, ${bus.position.z}: ${JSON.stringify(traffic.vehicles.filter(v=>v.car.position.distanceTo(bus.position)<25).map(v=>({x:v.car.position.x,z:v.car.position.z,speed:v.speed,yaw:v.car.group.rotation.y})))}`);
+  }
+  assert.ok(cycles >= 2, `Recorridos completos: ${cycles}`);
+  traffic.dispose(); bus.dispose();
+});
 
 test('descartar peatones lejanos mantiene el mismo frenado en rectas y giros', () => {
   const route = new TrafficRoute(0, 30, 0, 30);
@@ -144,7 +165,7 @@ test('las alternativas aleatorias mantienen toda la carrocería en calles y cruc
   const city = new Bogota(), map = city._layout();
   const routes = city.getTrafficRoutes();
   assert.equal(routes.length, 6);
-  assert.equal(routes.alternatives.length, 90);
+  assert.equal(routes.alternatives.length, 75);
   const position = new THREE.Vector3(), direction = new THREE.Vector3();
   for (const route of routes.alternatives) for (let distance = 0; distance < route.length; distance += .5) {
     route.sample(distance, position, direction);

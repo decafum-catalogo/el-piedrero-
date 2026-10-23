@@ -1,9 +1,10 @@
 import * as THREE from 'three';
+import { BRIDGE_RISE } from './BridgeElevation.js';
 
 export const LAKE_PARK = Object.freeze({ name: 'Parque del Lago', z0: 222, z1: 318,
   lakeX: 75, lakeZ: 262, radiusX: 50, radiusZ: 26 });
-export const LAKE_BRIDGE = Object.freeze({ x0: 67, x1: 83, z0: 220, z1: 306,
-  crestStart: 246, crestEnd: 280, rise: 4.8 });
+export const LAKE_BRIDGE = Object.freeze({ x0: 70, x1: 80, z0: 220, z1: 318,
+  crestStart: 220, crestEnd: 280, rise: BRIDGE_RISE });
 
 export function onLakeBridge(x, z) {
   return x >= LAKE_BRIDGE.x0 && x <= LAKE_BRIDGE.x1 && z >= LAKE_BRIDGE.z0 && z <= LAKE_BRIDGE.z1;
@@ -11,9 +12,9 @@ export function onLakeBridge(x, z) {
 
 export function bridgeHeight(z) {
   const b = LAKE_BRIDGE;
-  if (z <= b.z0 || z >= b.z1) return .02;
-  const t = z < b.crestStart ? (z - b.z0) / (b.crestStart - b.z0)
-    : z > b.crestEnd ? (b.z1 - z) / (b.z1 - b.crestEnd) : 1;
+  // La entrada norte conecta elevada con el viaducto; solo baja en la orilla sur.
+  if (z < b.z0 - 1 || z >= b.z1) return .02;
+  const t = z > b.crestEnd ? (b.z1 - z) / (b.z1 - b.crestEnd) : 1;
   return .02 + b.rise * (.5 - .5 * Math.cos(Math.PI * t));
 }
 
@@ -40,40 +41,4 @@ export function paintLakePark(map) {
       map[z][x] = wx >= 70 && wx <= 80 ? 'busway' : 'plaza';
     }
   }
-}
-
-/** Estructura estática: tablero elevado, barandas y pilas. El agua usa el material del terreno. */
-export function buildLakeBridge() {
-  const group = new THREE.Group();
-  group.name = 'Puente elevado del Parque del Lago';
-  const b = LAKE_BRIDGE;
-  const concrete = new THREE.MeshStandardMaterial({ color: '#b1b4ae', roughness: .88 });
-  const rail = new THREE.MeshStandardMaterial({ color: '#345960', roughness: .55, metalness: .45 });
-  const add = (geometry, material, x, y, z) => {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true;
-    group.add(mesh); return mesh;
-  };
-  for (let z = b.z0; z < b.z1; z += 2) {
-    const y0 = bridgeHeight(z), y1 = bridgeHeight(z + 2);
-    const pitch = Math.atan2(y1 - y0, 2);
-    const deck = add(new THREE.BoxGeometry(b.x1 - b.x0, .45, Math.hypot(2, y1 - y0)), concrete,
-      (b.x0 + b.x1) / 2, (y0 + y1) / 2 - .25, z + 1);
-    deck.rotation.x = -pitch;
-    for (const x of [b.x0 + .2, b.x1 - .2]) {
-      const top = add(new THREE.BoxGeometry(.12, .12, Math.hypot(2, y1 - y0)), rail, x, (y0 + y1) / 2 + 1.1, z + 1);
-      top.rotation.x = -pitch;
-      add(new THREE.BoxGeometry(.09, 1.12, .09), rail, x, y0 + .56, z);
-      if (z % 4 === 0) {
-        const mid = add(new THREE.BoxGeometry(.08, .08, Math.hypot(4, bridgeHeight(z + 4) - y0)), rail,
-          x, (y0 + bridgeHeight(z + 4)) / 2 + .5, z + 2);
-        mid.rotation.x = -Math.atan2(bridgeHeight(z + 4) - y0, 4);
-      }
-    }
-  }
-  for (const z of [242, 258, 274, 290]) for (const x of [70, 80]) {
-    const top = bridgeHeight(z) - .45;
-    add(new THREE.CylinderGeometry(.5, .7, top + .5, 8), concrete, x, (top - .5) / 2, z);
-  }
-  return group;
 }

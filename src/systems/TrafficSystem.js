@@ -53,7 +53,9 @@ export class TrafficSystem {
   }
 
   setBus(bus) {
-    this.busVehicle = bus ? { car: bus, heading: { x: 0, z: -1 } } : null;
+    this.busVehicles = [bus].flat().filter(Boolean).map(vehicle => ({ car: vehicle,
+      get heading() { return vehicle.heading ?? { x: 0, z: -1 }; } }));
+    this.busVehicle = this.busVehicles[0] ?? null;
   }
 
   setParkedCars(cars) { this.parkedCars = cars.map(car => ({ car })); }
@@ -90,6 +92,7 @@ export class TrafficSystem {
   }
 
   _carInPath(other, car) {
+    if (Math.abs(other.car.position.y - car.position.y) > 3) return false;
     const dx = other.car.position.x - this._probePosition.x, dz = other.car.position.z - this._probePosition.z;
     const headingX = other.heading?.x ?? Math.cos(other.car.group.rotation.y);
     const headingZ = other.heading?.z ?? -Math.sin(other.car.group.rotation.y);
@@ -146,13 +149,17 @@ export class TrafficSystem {
       }
       for (const vehicle of state.plans.keys()) if (!candidates.includes(vehicle) && !state.owners.has(vehicle)) state.plans.delete(vehicle);
       for (const vehicle of candidates) if (!state.plans.has(vehicle)) state.plans.set(vehicle, this._crossingPlan(vehicle, node));
-      const busInside = this.busVehicle?.car.group.visible && this._overlapsNode(this.busVehicle.car, node, this.busVehicle.heading);
+      const busInside = this.busVehicle?.car.group.visible && this.busVehicle.car.position.y < 3 && this._overlapsNode(this.busVehicle.car, node, this.busVehicle.heading);
       const bus = this.busVehicle?.car;
+      const busCrossingX = bus?.pathX?.(node.z1, bus.laneX) ?? bus?.position.x;
+      const busApproaching = bus?.group.visible && bus.position.y < 3 && bus.position.z > node.z1 &&
+        bus.position.z < node.z1 + bus.length / 2 + 15 && busCrossingX >= node.x0 && busCrossingX <= node.x1;
+      const busClaims = busInside || (busApproaching && signalState(this.signals.time, 1) === 0);
       if (bus && !state.busPlan) {
         state.busPlan = { width: bus.width, points: [], axis: 1 };
-        for (let z = node.z1 + bus.length / 2; z >= node.z0 - bus.length / 2; z -= .75) state.busPlan.points.push({ x: bus.position.x, z });
+        for (let z = node.z1 + bus.length / 2; z >= node.z0 - bus.length / 2; z -= .75) state.busPlan.points.push({ x: bus.pathX?.(z, bus.laneX) ?? bus.position.x, z });
       }
-      if (busInside) for (const [vehicle, claim] of state.owners) {
+      if (busClaims) for (const [vehicle, claim] of state.owners) {
         if (!claim.entered && this._pathsConflict(claim.plan, state.busPlan)) state.owners.delete(vehicle);
       }
       // Los que ya cruzan despejan primero. La cola solo da prioridad entre
@@ -163,7 +170,7 @@ export class TrafficSystem {
         if (state.owners.has(vehicle)) continue;
         const plan = state.plans.get(vehicle), entered = this._overlapsNode(vehicle.car, node);
         if (!entered && signalState(this.signals.time, plan.axis) !== 0) continue;
-        const blocked = (busInside && this._pathsConflict(plan, state.busPlan)) ||
+        const blocked = (busClaims && this._pathsConflict(plan, state.busPlan)) ||
           [...state.owners.values()].some(claim => this._pathsConflict(plan, claim.plan)) ||
           waiting.some(earlier => this._pathsConflict(plan, earlier));
         if (blocked && !entered) waiting.push(plan);
@@ -244,7 +251,7 @@ export class TrafficSystem {
     for (const other of this.parkedCars ?? []) {
       if (other.car.position.distanceToSquared(car.position) <= (radius + other.car.length) ** 2) nearbyCars.push(other);
     }
-    if (this.busVehicle?.car.group.visible && this.busVehicle.car.position.distanceToSquared(car.position) <= (radius + this.busVehicle.car.length) ** 2) nearbyCars.push(this.busVehicle);
+    for (const bus of this.busVehicles ?? []) if (bus.car.group.visible && bus.car.position.distanceToSquared(car.position) <= (radius + bus.car.length) ** 2) nearbyCars.push(bus);
     for (const pedestrian of pedestrians) {
       const dx = pedestrian.position.x - car.position.x, dz = pedestrian.position.z - car.position.z;
       if (dx * dx + dz * dz <= radius * radius) nearby.push(pedestrian);

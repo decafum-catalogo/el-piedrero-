@@ -12,9 +12,13 @@ test('el bus completo recorre la troncal sin invadir estación, separadores, and
   assert.ok(route.x - bus.width / 2 > stationX + 1.6);
   assert.ok(route.x + bus.width / 2 < CARACAS.busway[1] * 2 + 1 - 0.15);
   for(let z=route.endZ;z<=route.startZ;z+=0.1) {
+    bus.position.z = z; bus._alignToGround();
+    const heading = bus.heading;
     for(let along=-bus.length/2;along<=bus.length/2;along+=0.5) for(const side of [-bus.width/2,0,bus.width/2]) {
-      const tile=map[Math.round((z+along)/2)]?.[Math.round((route.x+side)/2)];
-      assert.ok(['road','busway'].includes(tile), `${route.x+side},${z+along}: ${tile}`);
+      const x = bus.position.x + heading.x * along - heading.z * side;
+      const wz = z + heading.z * along + heading.x * side;
+      const tile=wz < 0 && x >= 60 && x <= 90 && wz >= -74 ? 'busway' : map[Math.round(wz/2)]?.[Math.round(x/2)];
+      assert.ok(['road','busway'].includes(tile), `${x},${wz}: ${tile}`);
     }
   }
   city.group.add(bus.group);
@@ -24,7 +28,7 @@ test('el bus completo recorre la troncal sin invadir estación, separadores, and
 });
 
 test('el servicio avanza, para cuatro segundos en la estación y repite el recorrido sin giro brusco visible', () => {
-  const city=new Bogota(), bus=new BusService(city.getBusRoute());
+  const city=new Bogota(), bus=new BusService({ ...city.getBusRoute(), stationZ: 49 });
   const orientation=bus.group.quaternion.clone(), wheel=bus.group.userData.wheels[0].quaternion.clone();
   let dwellSeconds=0, arrived=false, departed=false, relayed=false;
   for(let i=0;i<2400;i++) {
@@ -37,7 +41,7 @@ test('el servicio avanza, para cuatro segundos en la estación y repite el recor
       assert.equal(bus.speed,0);
     }
     if(arrived && bus.position.z<bus.stationZ-1) departed=true;
-    assert.equal(bus.group.rotation.y, 0);
+    assert.ok(Math.abs(bus.group.rotation.y) < 1.1);
     assert.equal(bus.group.rotation.z, 0);
     assert.ok(Math.abs(bus.group.rotation.x) < .35);
     if(bus.position.z>before) {
@@ -53,11 +57,24 @@ test('el servicio avanza, para cuatro segundos en la estación y repite el recor
   assert.ok(!bus.group.userData.wheels[0].quaternion.equals(wheel));
 });
 
+test('sin estación el bus cruza la antigua parada sin frenar ni esperar', () => {
+  const bus = new BusService({ ...new Bogota().getBusRoute(), stationZ: null });
+  assert.equal(bus.stationZ, null);
+  bus.position.z = 65; bus._alignToGround(); bus.speed = 5;
+  for (let i = 0; i < 150; i++) {
+    bus.update(.05);
+    assert.equal(bus.dwellRemaining, 0);
+    assert.ok(bus.speed > 4.99);
+  }
+  assert.ok(bus.position.z < 35);
+});
+
 test('el bus frena ante el jugador y los peatones, y vuelve a avanzar cuando despejan el carril', () => {
   for(const actor of ['player','pedestrian']) {
     const bus=new BusService(new Bogota().getBusRoute());
     for(let i=0;i<60;i++) bus.update(0.05);
     const person=new THREE.Vector3(bus.position.x,0,bus.position.z-bus.length/2-10);
+    person.y = bus.groundHeight(person.x, person.z);
     const context=actor==='player'?{player:person}:{pedestrians:[{position:person}]};
     for(let i=0;i<200;i++) bus.update(0.05,context);
     assert.ok(bus.speed<1e-8);

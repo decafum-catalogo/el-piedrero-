@@ -177,6 +177,13 @@ export class Game {
 
     const district = this.world.active;
     this._loadIfSave();
+    // Cada entrada comienza de noche y con lluvia, también al retomar un guardado.
+    this.clock.hour = 22;
+    if (this.weather) {
+      this.weather.setWeather('llovizna', false);
+      this.weather.timer = 0;
+      this.weather.wetness = .6;
+    }
     // Cada entrada a la partida comienza delante del cambuche, incluso si
     // la partida guardada conserva una ubicación anterior de exploración.
     if (district?.reserved) {
@@ -187,6 +194,8 @@ export class Game {
       );
       this.player.root.position.copy(this.player.position);
     }
+
+    this.weather?.update(0, this.player.position, this.renderer.quality === 'baja' ? null : district);
 
     if (!this.look) {
       await this._createCharacter(loading);
@@ -205,13 +214,13 @@ export class Game {
     const importedEntities = [
       ...(this.cars ?? []),
       ...(this.traffic?.vehicles ?? []).map(vehicle => vehicle.car),
-      district?.busService, this.cambuche, ...(this.pickups ?? [])
+      ...(district?.busServices ?? [district?.busService]), this.cambuche, ...(this.pickups ?? [])
     ].filter(Boolean);
     await withLoadTimeout(loadInBatches(importedEntities, entity => entity.preloadModel()), 'La carga de vehículos y refugio tardó demasiado.');
     await loading.stage('Preparando estación, lámparas y semáforos…', 3.7);
     await withLoadTimeout(district?.preloadDetails?.() ?? Promise.resolve(), 'La carga del mobiliario urbano tardó demasiado.');
     if (this.traffic) this.traffic.signals = district?.signals;
-    this.traffic?.setBus?.(district?.busService);
+    this.traffic?.setBus?.(district?.busServices ?? district?.busService);
     if (this.cambuche) this.cambuche.group.position.y = district?.getGroundHeightUnder?.(this.cambuche.group)
       ?? district?.getGroundHeight?.(this.cambuche.position.x, this.cambuche.position.z) ?? 0;
     // Calcular los límites después de reemplazar las carrocerías por los GLB.
@@ -670,7 +679,7 @@ export class Game {
     if (!this.collisions?.setVehicles) return;
     const cars = [...(this.cars ?? [])];
     for (const vehicle of this.traffic?.vehicles ?? []) cars.push(vehicle.car);
-    this.collisions.setVehicles(cars, this.world.active?.busService);
+    this.collisions.setVehicles(cars, this.world.active?.busServices ?? this.world.active?.busService);
   }
 
   _loop = () => {
@@ -698,7 +707,7 @@ export class Game {
       this.traffic?.update(dt, { pedestrians: this.world.active?.trafficPedestrians ?? this.world.active?.npcs ?? [] });
       this.cameraRig.follow(this.player.position, dt, this.collisions);
       this.audio.updateSteps(false, false);
-      this.audio.updateWorld(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? [], this.world.active?.busService);
+      this.audio.updateWorld(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? [], this.world.active?.busServices ?? this.world.active?.busService);
       this._handleDeath();
       this._renderFrame(now, false); this.input.endFrame();
       return;
@@ -728,7 +737,9 @@ export class Game {
     this._syncVehicleColliders();
     this.player.update(dt, this.cameraRig.camera, this.collisions);
     if (!this.player.isStunned) {
-      const ground = this.world.active?.getGroundHeight?.(this.player.position.x, this.player.position.z);
+      const district = this.world.active;
+      const ground = district?.getMovementGroundHeight?.(this.player.position.x, this.player.position.z, this.player.position.y)
+        ?? district?.getGroundHeight?.(this.player.position.x, this.player.position.z);
       if (Number.isFinite(ground)) this.player.position.y = ground;
       this.player.root.position.y = this.player.position.y;
     }
@@ -793,7 +804,7 @@ export class Game {
 
     // 10. Audio
     const moving = !this.player.isStunned && Math.hypot(this.player.position.x - previousX, this.player.position.z - previousZ) > .001;
-    this.audio.updateWorld(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? [], this.world.active?.busService);
+    this.audio.updateWorld(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? [], this.world.active?.busServices ?? this.world.active?.busService);
     this.audio.updateSteps(moving, this.input.isRunning);
     this.audio.updateBoost(this.interaction.boostActive);
 
@@ -836,6 +847,8 @@ export class Game {
           return pos ? [{ name, icon, color, x: pos.x, z: pos.z }] : [];
         });
       if (this.world?.active?.gasStation) this._poiCache.push({ name: 'Gasolinera', icon: '⛽', x: 154, z: 94, color: '#f25b5b' });
+      if (this.world?.active?.stationGroup) this._poiCache.push({ name: 'Portal del Centro', icon: '🚏', x: 75, z: -2, color: '#e45960' });
+      if (this.world?.active?.colpatria) this._poiCache.push({ name: 'Torre Colpatria', icon: '🏙️', x: 81, z: 154, color: '#ffcb45' });
       if (this.world?.active?.lakePark) this._poiCache.push({ name: 'Parque del Lago', icon: '🌊', x: 138, z: 238, color: '#5ed4dc' });
       this._dogPOI = friend ? { name: 'El Chato', icon: '🐕', color: '#e6b566' } : null;
       if (this._dogPOI) this._poiCache.push(this._dogPOI);
@@ -863,7 +876,7 @@ export class Game {
     if (district?.signals) culling.register(district.signals.group);
     for (const pickup of this.pickups) culling.register(pickup.group, { dynamic: true, margin: .2 });
     for (const object of district?.animated ?? []) culling.register(object, { margin: 1 });
-    if (district?.busService) culling.register(district.busService.group, { dynamic: true, margin: .5 });
+    for (const bus of district?.busServices ?? [district?.busService].filter(Boolean)) culling.register(bus.group, { dynamic: true, margin: .5 });
     for (const car of this.cars) culling.register(car.group, { dynamic: true, margin: .5 });
     for (const { car } of this.traffic?.vehicles ?? []) culling.register(car.group, { dynamic: true, margin: .5 });
   }

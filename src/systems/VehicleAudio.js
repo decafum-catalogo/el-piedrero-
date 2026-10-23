@@ -50,13 +50,14 @@ export class VehicleAudio {
 
   update(dt, position, vehicles = [], bus = null) {
     const present = new Set(vehicles.map(vehicle => vehicle.car));
-    if (bus) present.add(bus);
+    const buses = [bus].flat().filter(Boolean);
+    for (const vehicle of buses) present.add(vehicle);
     for (const [car, state] of this.instances) if (!present.has(car)) {
       this._stop(state); this.instances.delete(car);
     }
     if (this.paused) return;
     const entries = vehicles.map(vehicle => ({ source: vehicle, car: vehicle.car, bus: false }));
-    if (bus) entries.push({ source: bus, car: bus, bus: true });
+    for (const vehicle of buses) entries.push({ source: vehicle, car: vehicle, bus: true });
     for (const entry of entries) {
       const dx = entry.car.position.x - position.x, dz = entry.car.position.z - position.z;
       entry.distance = Math.hypot(dx, dz);

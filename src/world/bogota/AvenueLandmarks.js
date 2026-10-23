@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export const AVENUE_OVERPASS = Object.freeze({ x0: 55, x1: 95, z: 128, clearance: 6.4 });
+export const AVENUE_OVERPASS = Object.freeze({ x0: 55, x1: 95, z: 8, clearance: 6.4 });
 
 export function skylineFloors(x, z, ruin, random = Math.random()) {
   if (ruin) return random < .3 ? 3 : 2;

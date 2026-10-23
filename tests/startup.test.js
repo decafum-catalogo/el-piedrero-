@@ -5,6 +5,8 @@ import { Game } from '../src/core/game.js';
 import { Renderer } from '../src/core/Renderer.js';
 import { FrameMetrics } from '../src/core/FrameMetrics.js';
 import { loadInBatches, withLoadTimeout } from '../src/core/Startup.js';
+import { Clock } from '../src/core/Clock.js';
+import { WeatherSystem } from '../src/world/WeatherSystem.js';
 
 const deferred = () => {
   let resolve, reject;
@@ -68,9 +70,14 @@ globalThis.localStorage ??= { getItem() { return null; } };
 
 test('el inicio espera modelos, shaders y GPU antes de mostrar, medir o simular; no se duplica', async t => {
   const f = fixture(t);
+  f.game.clock = new Clock();
+  f.game.weather = new WeatherSystem(f.game.sceneMgr.scene);
   f.game.world.active.reserved = { spawn: { x: 112.98, z: 97.84 } };
   f.game.world.active.getGroundHeight = () => .08;
-  f.game._loadIfSave = () => f.game.player.position.set(40, 0, 26);
+  f.game._loadIfSave = () => {
+    f.game.player.position.set(40, 0, 26);
+    f.game.clock.deserialize({ day: 5, hour: 9 });
+  };
   const start = f.game.start(f.loading);
   assert.equal(f.game.start(f.loading), start);
   await tick();
@@ -91,7 +98,15 @@ test('el inicio espera modelos, shaders y GPU antes de mostrar, medir o simular;
   assert.equal(f.metrics.frames, 0);
   assert.equal(f.metrics.previous, null);
   assert.deepEqual(f.game.input.keys, {});
-  assert.equal(f.game.clock.hour, 6);
+  assert.equal(f.game.clock.hour, 22);
+  assert.equal(f.game.clock.day, 5);
+  assert.equal(f.game.clock.isNight, true);
+  assert.equal(f.game.weather.isRaining, true);
+  assert.equal(f.game.weather.rainParticles.visible, true);
+  assert.ok(f.game.weather.rainParticles.material.opacity > 0);
+  assert.equal(f.game.weather.timer, 0);
+  assert.equal(f.game.weather.rainParticles.position.x, 112.98);
+  assert.equal(f.game.weather.rainParticles.position.z, 97.84);
   assert.deepEqual(f.game.player.position.toArray(), [112.98, .08, 97.84]);
   assert.deepEqual(f.game.player.root.position, f.game.player.position);
   assert.equal(f.events.filter(e => e === 'map').length, 1);

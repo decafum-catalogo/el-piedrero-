@@ -47,7 +47,7 @@ Para las pruebas de navegador, instalar Chromium con `npx playwright install chr
 
 ## Decisiones que deben conservarse
 
-- La ciudad mide 240 × 322 metros, con el nuevo Parque del Lago al sur desde Z 222. Usar sus funciones de altura y navegación; no cambiar coordenadas sin considerar partidas guardadas.
+- La ciudad base mide 240 × 322 metros, con el Parque del Lago al sur desde Z 222 y una extensión de avenida de 74 metros al norte. Usar sus funciones de altura y navegación; no cambiar coordenadas sin considerar partidas guardadas.
 - El cambuche está en X 112.98, Z 94.64. El inicio y la recuperación están en X 112.98, Z 97.84. Conservar la construcción progresiva y la reserva renovable de materiales en la basura.
 - El juego y la medición de FPS comienzan después de cargar modelos, materiales y GPU. Menús, inventario, creador y pestaña oculta suspenden la simulación correspondiente.
 - La muerte requiere recuperación explícita; no teletransportar automáticamente al jugador. Dejar terminar una caída mortal antes de mostrar su pantalla.
@@ -71,10 +71,24 @@ Ver `docs/integracion-upstream.md`. RadioSystem y RadioModal agregan radio con p
 
 Las animaciones ActionForge se adaptan en `src/character/actionforge.js`; el banco contiene solo ocho clips y el esqueleto. Conservar las prendas modulares y el respaldo de clips anteriores. Preparar clips sobre copias del cuerpo para no alterar la pose de otros personajes. Mantener el movimiento horizontal en el controlador y permitir la altura animada de cadera para agacharse. Ver `docs/animaciones-actionforge.md`.
 
-## Parque del Lago
+## Parque, viaducto y edificios
 
-`src/world/bogota/LakePark.js` concentra dimensiones y perfil del puente. Toda la altura debe consultarse con bridgeHeight/getGroundHeight; el agua es no transitable y tiene colisión baja para no crear paredes invisibles frente a la cámara. El bus conserva su carril y estación, pero ajusta altura e inclinación a lo largo de la rampa. No extender líneas de calzada ni separadores planos sobre el parque o bajo el tablero. La ampliación no desplaza coordenadas previas ni aumenta automáticamente los NPC.
+LakePark.js define el parque al sur desde Z 222. El agua no es transitable. ColpatriaViaduct.js construye el único tablero desde Z 15,43 hasta Z 318; BridgeElevation.js comparte la cota de 7,82 metros. La rampa norte llega a esa cota en Z 39 y la sur comienza en Z 280. No generar otro tablero sobre el lago ni separadores planos debajo. Las consultas de movimiento distinguen la calle inferior del puente y respetan los colliders layered.
 
-## Avenida y gasolinera
+La llegada norte conserva eje X 75 y bordes X 69–81 durante toda la pendiente. En rectas el ancho es 10 metros. Las secciones a Z constante reservan el volumen barrido por las dos carrocerías en curva; conservar esa reserva al cambiar rutas. El concreto se extruye verticalmente 6 cm bajo el asfalto, con las mismas UV globales de las calles. viaductSurface debe coincidir con los triángulos dibujados.
 
-`AvenueLandmarks.js` define alturas variadas y la pasarela visual en Z 128. Mantener libre el corredor del bus y sus soportes fuera de la calzada. `GasStation.js` reserva el lote X 145–163, Z 89–117; sus cajas bloquean surtidores, columnas, tienda y tótem, pero dejan circular bajo la cubierta. No crear basura ni navegación peatonal dentro de esos obstáculos. Los modelos se agrupan con la geometría estática y no necesitan luces adicionales.
+Colpatria.js define la torre de 112 metros, planta de 24 × 26 metros y anexo gris de 22 metros. busPathX y southBusPathX reservan carriles separados; el segundo añade separación interior en las curvas. Mantener sincronizadas rutas, reserva del mapa y geometría del puente. Los tiles colpatria y colpatriaAnnex no generan casas encima. La iluminación usa materiales emisivos, sin nuevas luces.
+
+AvenueLandmarks.js define alturas variadas y la pasarela en Z 8. GasStation.js reserva el lote X 145–163, Z 89–117; sus colisiones permiten circular bajo la cubierta. D69Store.js reserva los tiles X 22–26, Z 80–86 con el tipo sólido storeD69, sin generar casas ni objetos encima. Ambos conjuntos se agrupan como geometría estática.
+
+Al iniciar, después de cargar el guardado, fijar las 22:00 sin cambiar el día ni el progreso. Activar llovizna, reiniciar su temporizador y colocar partículas junto al jugador antes del primer render; luego continúan los ciclos normales.
+
+## Estación y buses en ambos sentidos
+
+TransitTerminal.js extiende la avenida al norte: X 54–96, Z −74–0, conservando la ciudad anterior. paintTerminalEntrance abre el borde del mapa sin alterar los carriles de carros existentes. La isla de Portal del Centro mide 4 × 40 metros y está centrada en X 75, Z −30, a 0,92 metros. Sus rampas peatonales de 8 metros usan terminalGroundHeight; no añadir una caja sólida que impida subir. La estructura y el mobiliario sí tienen colliders layered. No cargar el antiguo modelo GLB de estación.
+
+Bogota.busServices contiene ambos buses; busService conserva el primero por compatibilidad. Cada BusService calcula direction desde startZ/endZ, orienta su frente local −Z, adapta el chasis a cinco apoyos y para cuatro segundos en stationZ −30. El carril norte usa X 78,5 y el sur X 71,5 en las rectas. Mantener la precarga, descarte visual, audio, tráfico, colisiones y liberación de recursos para ambos buses. freezeStaticTransforms acepta un Set de raíces dinámicas para no congelarlos.
+
+CollisionSystem mantiene una AABB de referencia y una OBB de dimensiones constantes por bus. El barrido del jugador se resuelve en el espacio local; PlayerRagdoll usa el mismo centro, dimensiones y quaternion. No usar la envolvente diagonal como colisión final. VehicleAudio mantiene voces independientes por instancia. Tráfico y semáforos no bloquean buses elevados por objetos de la calle inferior.
+
+transit-terminal.test.js comprueba acceso a pie, parada y salida en ambos sentidos, carrocerías dentro del tablero y separación al cruzarse en las curvas. Las pruebas de lógica no sustituyen la revisión visual en el juego.

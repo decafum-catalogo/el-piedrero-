@@ -98,3 +98,7 @@ El rodeo de Colpatria usa un eje con transiciones de curvatura suaves entre Z 80
 ## Ilustraciones de carga
 
 LoadingArtwork.js administra parejas numeradas según loading-artwork.json. Las imágenes WebP optimizadas se guardan en public/images/pantalla-carga; ambos planos deben decodificarse antes de mostrar una pareja. La galería es opcional y nunca bloquea Game.start ni añade espera mínima. Cancelar temporizadores y resultados de cargas anteriores al mostrar el creador o terminar la partida inicial. Conservar el progreso y reintento de LoadingScreen, las rutas relativas a BASE_URL y la preferencia de movimiento reducido.
+
+## Variedad urbana
+
+UrbanBuildings.js planifica sustituciones deterministas sobre tiles building exclusivamente. Conservar el mismo plan al construir las fachadas y las colisiones. Las huellas se incorporan a covered antes de generar casas y relleno; en _buildCollisions se excluyen esos tiles de las cajas genéricas de 8 metros y se añade una caja de altura real por solar. No cambiar el mapa ni ocupar ruinas, calles, parques, edificios especiales o reservas del viaducto. Los cinco diseños usan createBuildingShell y BuildingVisibility, con fachadas repetibles compartidas y sin luces nuevas. Las torres de 30 pisos miden 96 metros, menos que Colpatria.

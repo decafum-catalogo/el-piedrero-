@@ -1,3 +1,4 @@
+import { planUrbanBuildings, buildUrbanBuilding, URBAN_DESIGNS } from '../bogota/UrbanBuildings.js';
 import { buildSmallBuilding, SMALL_BUILDING } from '../bogota/SmallBuilding.js';
 // src/world/districts/Bogota.js
 // Centro de Bogotá (inspirado en Santa Inés / El Cartucho y la Av. Caracas).
@@ -477,6 +478,25 @@ export class Bogota {
     this._interiorMat = new THREE.MeshStandardMaterial({ map: roofMat.map, color: '#675e50', roughness: 1 });
     this._uvUnits = { brick: [TX.BRICK_TILE.w, TX.BRICK_TILE.h], slab: [4, 4], tiles: [2, 2] };
     const covered = new Set();
+    this.urbanBuildings = planUrbanBuildings(map);
+    const urbanPalette = {
+      facades: URBAN_DESIGNS.map((design,i)=>{
+        const tex=TX.facade({seed:170+i,width:6,floors:3,pxPerM:32,shopFront:false,style:i===0?'ladrillo':'concreto',wallColor:['#975c40','#b6b3a8','#c3b8a5','#857c70','#687d81'][i]});
+        return new THREE.MeshStandardMaterial({map:repeatAll(tex.map),emissiveMap:repeatAll(tex.emissiveMap),emissive:'#ffffff',emissiveIntensity:0,bumpMap:repeatAll(tex.bumpMap),bumpScale:.16,roughness:i===4?.55:.9});
+      }),
+      roof:roofMat,interior:this._interiorMat,
+      concrete:new THREE.MeshStandardMaterial({color:'#686962',roughness:.95}),
+      trim:new THREE.MeshStandardMaterial({color:'#c6bda9',roughness:.8}),
+      rail:new THREE.MeshStandardMaterial({color:'#4e5552',roughness:.75}),
+      glass:new THREE.MeshStandardMaterial({color:'#263a3e',roughness:.4,metalness:.2})
+    };
+    for(const plan of this.urbanBuildings) {
+      for(let dz=0;dz<plan.tiles;dz++)for(let dx=0;dx<plan.tiles;dx++)covered.add((plan.tileX+dx)+','+(plan.tileZ+dz));
+      const shell=buildUrbanBuilding(plan,urbanPalette);
+      this.group.add(shell.root);
+      const building=this.buildingVisibility.register(shell);
+      for(const part of building.parts)for(const material of part.materials)if(material.emissiveMap)this.facadeMats.push(material);
+    }
 
     // direcciones: [dx, dz, índice de cara de BoxGeometry]
     const DIRS = [[0, -1, 5], [0, 1, 4], [-1, 0, 1], [1, 0, 0]];
@@ -628,6 +648,12 @@ export class Bogota {
   /** Colisiones: tramos horizontales de tiles sólidos unidos en una caja */
   _buildCollisions(map, collisions) {
     if (!collisions) return;
+    const urbanTiles=new Set();
+    for(const plan of planUrbanBuildings(map)) {
+      for(let dz=0;dz<plan.tiles;dz++)for(let dx=0;dx<plan.tiles;dx++)urbanTiles.add((plan.tileX+dx)+','+(plan.tileZ+dz));
+      const object=new THREE.Object3D();object.position.set(plan.x,0,plan.z);
+      collisions.add(object,new THREE.Vector3(plan.width,plan.height,plan.depth));
+    }
     const obstacles = [...GAS_OBSTACLES,
       ...[AVENUE_OVERPASS.x0, AVENUE_OVERPASS.x1].map(x => ({ x, z: AVENUE_OVERPASS.z, w: 1.4, d: 4.6, h: 11.4 }))];
     for (const { x, z, w, d, h } of obstacles) {
@@ -637,10 +663,10 @@ export class Bogota {
     for (let z = 0; z < map.length; z++) {
       let x = 0;
       while (x < map[0].length) {
-        if (!SOLID.has(map[z][x])) { x++; continue; }
+        if (!SOLID.has(map[z][x]) || urbanTiles.has(`${x},${z}`)) { x++; continue; }
         const water = map[z][x] === 'water';
         let x2 = x;
-        while (x2 + 1 < map[0].length && SOLID.has(map[z][x2 + 1]) && (map[z][x2 + 1] === 'water') === water &&
+        while (x2 + 1 < map[0].length && !urbanTiles.has(`${x2+1},${z}`) && SOLID.has(map[z][x2 + 1]) && (map[z][x2 + 1] === 'water') === water &&
           (map[z][x2 + 1] === 'storeD69') === (map[z][x] === 'storeD69') &&
           (map[z][x2 + 1] === 'colpatria') === (map[z][x] === 'colpatria') &&
           (map[z][x2 + 1] === 'colpatriaAnnex') === (map[z][x] === 'colpatriaAnnex') &&

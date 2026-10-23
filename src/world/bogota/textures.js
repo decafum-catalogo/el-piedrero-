@@ -190,7 +190,7 @@ function brickWall(x, r, x0, y0, w, h, pxPerM = 36) {
   }
 }
 
-export function facade({ seed, width, floors, pxPerM = 28, shopFront = true, style = 'pintada' }) {
+export function facade({ seed, width, floors, pxPerM = 28, shopFront = true, style = 'pintada', wallColor = null }) {
   const r = rng(seed);
   const w = Math.max(64, Math.round(width * pxPerM));
   const fh = 3 * pxPerM;
@@ -200,7 +200,7 @@ export function facade({ seed, width, floors, pxPerM = 28, shopFront = true, sty
   xe.fillStyle = '#000';
   xe.fillRect(0, 0, w, h);
 
-  const wall = pick(r, WALLS);
+  const wall = wallColor ?? pick(r, WALLS);
   const ruin = style === 'ruina';
   if (style === 'ladrillo') {
     brickWall(x, r, 0, 0, w, h, pxPerM);

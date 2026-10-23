@@ -37,7 +37,9 @@ test('el servicio avanza, para cuatro segundos en la estación y repite el recor
       assert.equal(bus.speed,0);
     }
     if(arrived && bus.position.z<bus.stationZ-1) departed=true;
-    assert.ok(bus.group.quaternion.equals(orientation));
+    assert.equal(bus.group.rotation.y, 0);
+    assert.equal(bus.group.rotation.z, 0);
+    assert.ok(Math.abs(bus.group.rotation.x) < .35);
     if(bus.position.z>before) {
       assert.equal(bus.group.visible,false);
       assert.equal(bus.materials.keys().next().value.opacity,0);

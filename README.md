@@ -16,7 +16,7 @@ Este proyecto es un fork de [juanagogo/bazuko](https://github.com/juanagogo/bazu
 - Diez palomas en cada uno de los tres parques: caminan, levantan vuelo cuando el jugador o un NPC se acerca a menos de 3,5 metros y aterrizan en otro lugar. Cada bandada usa cinco lotes de geometría instanciada, sin luces ni física; se suspende a más de 90 metros del jugador.
 - Carros y taxis con recorridos aleatorios entre 90 alternativas transitables y un bus articulado que circula por la troncal y para en la estación.
 - Calzadas de 12 metros y andenes de 4 metros.
-- Ciudad de 240 × 222 metros: tres veces la superficie inicial, con barrios nuevos al oriente y al sur, dos calles y dos carreras adicionales y dos parques nuevos.
+- Ciudad de 240 × 322 metros: conserva la ampliación urbana y añade un gran parque al sur, con barrios nuevos al oriente y al sur, dos calles y dos carreras adicionales y dos parques nuevos.
 - Creación de personaje, inventario, reciclaje, comercio, talentos y construcción del cambuche.
 - Ciclo de día y noche y necesidades de supervivencia con un ritmo relajado. Un día del juego dura una hora real.
 - Panel de FPS actuales, mínimos, máximos, promedio y coordenadas X, Y, Z.
@@ -163,7 +163,7 @@ Para ejecutar las pruebas con el runner de Node.js:
 npm test
 ```
 
-Las 195 pruebas actuales cubren colisiones, cámaras, visibilidad de edificios, suelos, navegación de peatones, tráfico, bus, supervivencia, migración de partidas guardadas, ampliación de la ciudad, rendimiento y carga inicial. Los carros circulan a 10–14 m/s en rectas libres (el doble que antes); el bus conserva sus 5 m/s y los semáforos completan su ciclo en 36 segundos, con 14 segundos de verde por eje, 3 de amarillo y 1 de despeje. El tráfico permite cruces simultáneos compatibles, mantiene la prioridad entre giros que se cortan y usa aceleración, frenado y reacción progresivos. Se comprueba su circulación durante diez minutos simulados, además del paso compartido con el bus y la carrocería dentro de la calzada al girar. Las pruebas de arranque verifican que la partida espere modelos, shaders y GPU, que un fallo impida comenzar una partida incompleta y que la espera no contamine las estadísticas de FPS. Las pruebas de modelos importados comprueban las dimensiones de los nueve GLB reales, el uso compartido de recursos, el desvanecimiento del bus y los estados de construcción del cambuche. La reserva de materiales se comprueba contra todas las recetas, también tras reponerse las bolsas, con protección de objetos cuando el costal está lleno.
+Las 202 pruebas actuales cubren colisiones, cámaras, visibilidad de edificios, suelos, navegación de peatones, tráfico, bus, supervivencia, migración de partidas guardadas, ampliación de la ciudad, rendimiento y carga inicial. Los carros circulan a 10–14 m/s en rectas libres (el doble que antes); el bus conserva sus 5 m/s y los semáforos completan su ciclo en 36 segundos, con 14 segundos de verde por eje, 3 de amarillo y 1 de despeje. El tráfico permite cruces simultáneos compatibles, mantiene la prioridad entre giros que se cortan y usa aceleración, frenado y reacción progresivos. Se comprueba su circulación durante diez minutos simulados, además del paso compartido con el bus y la carrocería dentro de la calzada al girar. Las pruebas de arranque verifican que la partida espere modelos, shaders y GPU, que un fallo impida comenzar una partida incompleta y que la espera no contamine las estadísticas de FPS. Las pruebas de modelos importados comprueban las dimensiones de los nueve GLB reales, el uso compartido de recursos, el desvanecimiento del bus y los estados de construcción del cambuche. La reserva de materiales se comprueba contra todas las recetas, también tras reponerse las bolsas, con protección de objetos cuando el costal está lleno.
 
 ## Estructura
 
@@ -194,3 +194,11 @@ Integra los cambios de `juanagogo/bazuko` hasta `77f66bd`: radio AM/FM sintetiza
 ### Animaciones del personaje
 
 El personaje realista usa nuevos movimientos de Quaternius exportados con ActionForge para caminar, correr, buscar, pedir, consumir, agacharse y lanzar. Se conserva la personalización de ropa, pelo y cuerpo, además del ragdoll. El banco optimizado contiene ocho clips sin duplicar las texturas. Consulta [procedencia, adaptación y controles](docs/animaciones-actionforge.md).
+
+### Parque del Lago
+
+La ampliación al sur (desde Z 222) añade un lago de unos 100 × 52 metros, senderos, bancas y arbolado. El puente de la troncal tiene rampas suaves, una plataforma elevada 4,8 metros, pilas y barandas. El bus cruza el lago adaptando altura e inclinación a cinco puntos de apoyo para no atravesar el tablero; conserva la estación y el resto del recorrido. El jugador sigue las cotas del puente y no puede entrar caminando al agua. El parque aparece en el radar. Se mantienen las coordenadas del centro y la población anterior para limitar el costo de la ampliación.
+
+### Avenida y estación de gasolina
+
+La Caracas alterna edificios de dos a seis pisos y tiene una pasarela elevada en Z 128 como referencia visual, con 6,4 metros libres sobre la calzada. La estación de gasolina está junto a X 142, Z 95: incluye marquesina roja, cuatro surtidores, tienda y tótem, con colisiones simples y marcador en el radar. Es un escenario visual; no añade una mecánica de abastecimiento. Ambos conjuntos reutilizan la agrupación de geometría estática y no añaden luces dinámicas.

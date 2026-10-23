@@ -727,6 +727,11 @@ export class Game {
     const previousX = this.player.position.x, previousZ = this.player.position.z;
     this._syncVehicleColliders();
     this.player.update(dt, this.cameraRig.camera, this.collisions);
+    if (!this.player.isStunned) {
+      const ground = this.world.active?.getGroundHeight?.(this.player.position.x, this.player.position.z);
+      if (Number.isFinite(ground)) this.player.position.y = ground;
+      this.player.root.position.y = this.player.position.y;
+    }
 
     // 4. Stats
     this.stats.update(dt, this.player, this.diseases, this.clock, this.talents);
@@ -830,6 +835,8 @@ export class Game {
           const pos = entity?.position ?? fallback;
           return pos ? [{ name, icon, color, x: pos.x, z: pos.z }] : [];
         });
+      if (this.world?.active?.gasStation) this._poiCache.push({ name: 'Gasolinera', icon: '⛽', x: 154, z: 94, color: '#f25b5b' });
+      if (this.world?.active?.lakePark) this._poiCache.push({ name: 'Parque del Lago', icon: '🌊', x: 138, z: 238, color: '#5ed4dc' });
       this._dogPOI = friend ? { name: 'El Chato', icon: '🐕', color: '#e6b566' } : null;
       if (this._dogPOI) this._poiCache.push(this._dogPOI);
       this._poiCacheTime = now;

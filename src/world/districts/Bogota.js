@@ -1,7 +1,7 @@
 // src/world/districts/Bogota.js
 // Centro de Bogotá (inspirado en Santa Inés / El Cartucho y la Av. Caracas).
 //
-// Ciudad de 120 × 111 tiles de 2 m; conserva el centro de 74 × 60 y añade barrios al oriente y al sur.
+// Ciudad de 120 × 161 tiles de 2 m; conserva el centro de 74 × 60 y añade barrios al oriente y al sur.
 // Ejes: x = oriente↔occidente (los cerros quedan hacia −x,
 // que es donde mira la cámara), z = norte↔sur. Carreras corren a lo largo de z, calles a lo largo de x.
 //
@@ -26,6 +26,9 @@ import { BuildingVisibility, createBuildingShell } from '../bogota/BuildingVisib
 import { PedestrianNavigation } from '../bogota/PedestrianNavigation.js';
 import { TrafficRoute } from '../bogota/TrafficRoute.js';
 import { BusService } from '../bogota/BusService.js';
+import { skylineFloors, buildAvenueOverpass, AVENUE_OVERPASS } from '../bogota/AvenueLandmarks.js';
+import { GAS_STATION, GAS_OBSTACLES, inGasStation, buildGasStation } from '../bogota/GasStation.js';
+import { LAKE_PARK, LAKE_BRIDGE, onLakeBridge, bridgeHeight, buildLakeBridge, buildLakeWater } from '../bogota/LakePark.js';
 import { PigeonFlock } from '../../entities/PigeonFlock.js';
 import { geometryChunk, mergeByChunk, freezeStaticTransforms, createRenderSectors } from '../bogota/StaticGeometry.js';
 import { CITY_WIDTH, CITY_HEIGHT, CITY_AREA_MULTIPLIER, CITY_CARRERAS as CARRERAS,
@@ -37,12 +40,12 @@ import { ORIGINAL_SIZE as S, ORIGINAL_CARRERAS, ORIGINAL_CARACAS, ORIGINAL_CALLE
   migrateStreetPosition, WORLD_LAYOUT_VERSION, SIDEWALK_TILES } from '../bogota/StreetLayout.js';
 const T = TILE_SIZE;
 const WALKABLE = new Set(['road', 'busway', 'sidewalk', 'dirt', 'grass', 'plaza', 'floor']);
-const SOLID = new Set(['building', 'ruin', 'wall']);
+const SOLID = new Set(['building', 'ruin', 'wall', 'water']);
 const SIDEWALK_Y = 0.12;
 // La colocación de objetos debe usar las mismas cotas que la malla del terreno.
 const GROUND_HEIGHTS = Object.freeze({
   road: 0, busway: 0.02, sidewalk: SIDEWALK_Y, floor: SIDEWALK_Y,
-  dirt: 0.04, grass: 0.06, plaza: SIDEWALK_Y
+  dirt: 0.04, grass: 0.06, plaza: SIDEWALK_Y, water: -.18
 });
 
 const WX = STREET_X.world, WZ = STREET_Z.world;
@@ -84,9 +87,11 @@ const W = (t) => t * T; // tile → metros (centro del tile)
 export class Bogota {
   constructor() {
     this.group = new THREE.Group();
+    this.lakePark = LAKE_PARK;
+    this.gasStation = GAS_STATION;
     this.width = CITY_WIDTH;
     this.height = CITY_HEIGHT;
-    this.populationScale = CITY_AREA_MULTIPLIER;
+    this.populationScale = Math.min(3, CITY_AREA_MULTIPLIER);
     this.size = Math.max(this.width, this.height);
     this.layoutVersion = WORLD_LAYOUT_VERSION;
     this.props = [];          // { instance } con setNight/update (faroles de bazuko)
@@ -158,6 +163,9 @@ export class Bogota {
     this._buildCartucho();
     this._buildPark();
     this._buildExtensions();
+    this._buildLakePark();
+    this.group.add(buildAvenueOverpass());
+    this.group.add(buildGasStation({ createSign: signTexture }));
     const parks = [
       { x0: WX(29.5), x1: WX(37.5), z0: WZ(33.5), z1: WZ(44.5) },
       ...EXTENSION_PARKS.map(park => ({ x0: W(park.x0 + .5), x1: W(park.x1 - .5), z0: W(park.z0 + .5), z1: W(park.z1 - .5) }))
@@ -211,7 +219,7 @@ export class Bogota {
           const t = map[tz][tx];
           if (!['sidewalk', 'dirt', 'grass', 'plaza'].includes(t)) continue;
           const x = W(tx), z = W(tz);
-          if (this.isNearReserved(x, z)) continue;
+          if (this.isNearReserved(x, z) || inGasStation(x, z)) continue;
           grid.push(new THREE.Vector3(x, 0, z));
         }
       }
@@ -278,6 +286,7 @@ export class Bogota {
       x: centerX + 3.5,
       startZ: W(this.height - 2) - P.ARTICULATED_BUS_SIZE.length / 2,
       endZ: W(1) + P.ARTICULATED_BUS_SIZE.length / 2,
+      groundHeight: (_x, z) => bridgeHeight(z),
       stationZ: WZ(21.5)
     };
   }
@@ -297,23 +306,28 @@ export class Bogota {
       floor: new THREE.MeshStandardMaterial({ map: tex(concrete.map, 6), roughness: 0.9, color: '#8a8a86' }),
       dirt: new THREE.MeshStandardMaterial({ map: tex(dirt.map, 8), roughness: 1, color: '#8a7a64' }),
       grass: new THREE.MeshStandardMaterial({ map: dirt.map, roughness: 1, color: '#3e5a2c' }),
-      plaza: new THREE.MeshStandardMaterial({ map: walk.map, roughness: 0.8, color: '#c9b9a0' })
+      plaza: new THREE.MeshStandardMaterial({ map: walk.map, roughness: 0.8, color: '#c9b9a0' }),
+      water: new THREE.MeshStandardMaterial({ color: '#267d8b', roughness: .24, metalness: .18 })
     };
-    const scaleOf = { road: 14, busway: 14, sidewalk: 6, floor: 6, dirt: 8, grass: 8, plaza: 6 };
+    const scaleOf = { road: 14, busway: 14, sidewalk: 6, floor: 6, dirt: 8, grass: 8, plaza: 6, water: 16 };
     const heightOf = GROUND_HEIGHTS;
     const quads = {};
     for (let z = 0; z < map.length; z++) {
       for (let x = 0; x < map[0].length; x++) {
         const t = map[z][x];
-        if (!mats[t]) continue;
+        if (!mats[t] || t === 'water') continue;
         const g = new THREE.PlaneGeometry(T, T);
         g.rotateX(-Math.PI / 2);
         g.translate(W(x), heightOf[t], W(z));
         const uv = g.attributes.uv, pos = g.attributes.position;
+        if (onLakeBridge(W(x), W(z))) {
+          for (let i = 0; i < pos.count; i++) pos.setY(i, bridgeHeight(pos.getZ(i)));
+          g.computeVertexNormals();
+        }
         for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getX(i) / scaleOf[t], pos.getZ(i) / scaleOf[t]);
         (quads[t] ??= []).push(g);
         // bordillo: cara vertical hacia la calle
-        if (heightOf[t] >= SIDEWALK_Y) {
+        if (heightOf[t] >= SIDEWALK_Y && !onLakeBridge(W(x), W(z))) {
           for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
             const n = map[z + dz]?.[x + dx];
             if (n !== 'road' && n !== 'busway') continue;
@@ -327,6 +341,7 @@ export class Bogota {
     }
     mats.curb = new THREE.MeshStandardMaterial({ color: '#d8d4c8', roughness: 0.8 });
     this.groundMaterials = mats;
+    this.group.add(buildLakeWater(mats.water));
     for (const [t, list] of Object.entries(quads)) {
       this.group.add(mergeByChunk(list, mats[t], { receiveShadow: true }));
     }
@@ -360,12 +375,22 @@ export class Bogota {
       for (const side of [-1, 1]) {
         const label = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.4), busText);
         label.rotation.set(-Math.PI / 2, 0, side * Math.PI / 2);
-        label.position.set(busCenter + side * 3.5, .035, z);
+        label.position.set(busCenter + side * 3.5, this.getGroundHeight(busCenter + side * 3.5, z) + .015, z);
+        if (z > LAKE_PARK.z0) label.rotation.x -= Math.atan2(bridgeHeight(z + .1) - bridgeHeight(z - .1), .2);
         this.group.add(label);
       }
     }
     const white = [], yellow = [], curbs = [];
-    const plane = (w, d, x, z) => { const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2); g.translate(x, 0.015, z); return g; };
+    const plane = (w, d, x, z) => {
+      const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2); g.translate(x, .015, z);
+      if (onLakeBridge(x, z)) {
+        const p = g.attributes.position;
+        for (let i = 0; i < p.count; i++) p.setY(i, bridgeHeight(p.getZ(i)) + .015);
+        g.computeVertexNormals();
+      }
+      return g;
+    };
+    for (const z of [226, 310]) for (let x = 70; x <= 80; x += .9) white.push(plane(.5, 2.2, x, z));
     const carrX = [...CARRERAS, [CARACAS.lanes[0][0], CARACAS.lanes[1][1]]];
     // línea amarilla al centro de las calles
     for (const [a, b] of CALLES) {
@@ -374,7 +399,7 @@ export class Bogota {
     }
     for (const [a, b] of CARRERAS) {
       const xc = (W(a) + W(b)) / 2;
-      for (let z = 2; z < W(this.height) - 2; z += 3) yellow.push(plane(0.12, 1.6, xc, z));
+      for (let z = 2; z < LAKE_PARK.z0; z += 3) yellow.push(plane(0.12, 1.6, xc, z));
     }
     // cebras a ambos lados de cada cruce
     for (const [za, zb] of CALLES) {
@@ -393,6 +418,7 @@ export class Bogota {
     // separadores de concreto de la troncal
     for (const x of [W(CARACAS.busway[0]) - T / 2, W(CARACAS.busway[1]) + T / 2]) {
       for (let z = 1; z < this.height - 1; z++) {
+        if (W(z) >= LAKE_PARK.z0) continue;
         if (CALLES.some(([a, b]) => z >= a - 0.5 && z <= b + 0.5)) continue;
         const g = new THREE.BoxGeometry(0.3, 0.25, T);
         g.translate(x, 0.125, W(z));
@@ -481,7 +507,7 @@ export class Bogota {
     for (const [x, z] of tiles) for (let d = 0; d < depth; d++) covered.add(`${x - dx * d},${z - dz * d}`);
 
     const widthM = tiles.length * T;
-    const floors = ruin ? 2 + (Math.random() < 0.3 ? 1 : 0) : 2 + Math.floor(Math.random() * 3);
+    const floors = skylineFloors(tiles[0][0], tiles[0][1], ruin);
     const h = floors * 3;
     const style = ruin ? 'ruina' : Math.random() < 0.55 ? 'ladrillo' : 'pintada';
     // el ladrillo necesita más resolución para que cada ladrillo (36 × 12 cm) se distinga
@@ -570,15 +596,29 @@ export class Bogota {
   /** Colisiones: tramos horizontales de tiles sólidos unidos en una caja */
   _buildCollisions(map, collisions) {
     if (!collisions) return;
+    const obstacles = [...GAS_OBSTACLES,
+      ...[AVENUE_OVERPASS.x0, AVENUE_OVERPASS.x1].map(x => ({ x, z: AVENUE_OVERPASS.z, w: 1.4, d: 4.6, h: 11.4 }))];
+    for (const { x, z, w, d, h } of obstacles) {
+      const object = new THREE.Object3D(); object.position.set(x, .12, z);
+      collisions.add(object, new THREE.Vector3(w, h, d));
+    }
+    for (let z = LAKE_BRIDGE.z0; z < LAKE_BRIDGE.z1; z += 2) {
+      for (const x of [LAKE_BRIDGE.x0 + .2, LAKE_BRIDGE.x1 - .2]) {
+        const rail = new THREE.Object3D();
+        rail.position.set(x, bridgeHeight(z + 1), z + 1);
+        collisions.add(rail, new THREE.Vector3(.2, 1.2, 2));
+      }
+    }
     for (let z = 0; z < map.length; z++) {
       let x = 0;
       while (x < map[0].length) {
         if (!SOLID.has(map[z][x])) { x++; continue; }
+        const water = map[z][x] === 'water';
         let x2 = x;
-        while (x2 + 1 < map[0].length && SOLID.has(map[z][x2 + 1])) x2++;
+        while (x2 + 1 < map[0].length && SOLID.has(map[z][x2 + 1]) && (map[z][x2 + 1] === 'water') === water) x2++;
         const o = new THREE.Object3D();
-        o.position.set((W(x) + W(x2)) / 2, 0, W(z));
-        collisions.add(o, new THREE.Vector3((x2 - x + 1) * T, 8, T));
+        o.position.set((W(x) + W(x2)) / 2, water ? -.4 : 0, W(z));
+        collisions.add(o, new THREE.Vector3((x2 - x + 1) * T, water ? .4 : 8, T));
         x = x2 + 1;
       }
     }
@@ -598,6 +638,7 @@ export class Bogota {
   }
 
   getGroundHeight(x, z) {
+    if (onLakeBridge(x, z)) return bridgeHeight(z);
     const t = this.map[Math.round(z / T)]?.[Math.round(x / T)];
     return GROUND_HEIGHTS[t] ?? 0;
   }
@@ -735,15 +776,31 @@ export class Bogota {
     this._vendor(W(52), W(CALLES[2][0]-1.5), 0, 'fritanga', 'Fritanga del Sur', ['lataComida','pan','refresco']);
   }
 
+  _buildLakePark() {
+    this.group.add(buildLakeBridge());
+    // Arbolado espaciado; solo crece en césped, nunca dentro del lago o sobre el puente.
+    for (let z = 230; z < 314; z += 12) for (let x = 14; x < 230; x += 12) {
+      if (this.map[Math.round(z / T)]?.[Math.round(x / T)] !== 'grass' || onLakeBridge(x, z)) continue;
+      this._add(P.tree(1 + ((x + z) % 3) * .12), x, z);
+    }
+    for (const [x, z] of [[20, 226], [132, 236], [134, 288], [20, 310], [156, 310]]) {
+      const bench = new Banca(new THREE.Vector3(x, this.getGroundHeight(x, z), z), 0);
+      this.group.add(bench.group);
+    }
+    this._add(P.streetSign([LAKE_PARK.name, 'Lago · Puente TransMilenio']), 150, 226);
+  }
+
   _createPedestrianNavigation() {
     const carreras = [...CARRERAS, [CARACAS.lanes[0][0], CARACAS.lanes[1][1]]];
     return new PedestrianNavigation(this.map, T, {
       // Prolongación de los andenes en los cruces; no pasean por los carriles ni la estación.
       isCrossing: (x, z) => CALLES.some(([a, b]) =>
         (z >= a - SIDEWALK_TILES && z < a) || (z > b && z <= b + SIDEWALK_TILES)) ||
+        (z === 113 || z === 155) ||
         carreras.some(([a, b]) =>
           (x >= a - SIDEWALK_TILES && x < a) || (x > b && x <= b + SIDEWALK_TILES)),
-      isBlocked: (x, z) => x === Math.round(this.reserved.shop.x / T) && z === Math.round(this.reserved.shop.z / T),
+      isBlocked: (x, z) => (x === Math.round(this.reserved.shop.x / T) && z === Math.round(this.reserved.shop.z / T)) ||
+        GAS_OBSTACLES.some(o => Math.abs(x * T - o.x) < o.w / 2 + .3 && Math.abs(z * T - o.z) < o.d / 2 + .3),
       groundHeight: (x, z) => this.getGroundHeight(x, z)
     });
   }

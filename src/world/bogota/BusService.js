@@ -7,7 +7,7 @@ const STOP_SECONDS = 4, END_FADE_METERS = 6;
 
 /** Servicio hacia el norte por el carril exclusivo, con relevo en los extremos. */
 export class BusService {
-  constructor({ x, startZ, endZ, stationZ, height = 0.02 }) {
+  constructor({ x, startZ, endZ, stationZ, height = 0.02, groundHeight = null }) {
     if (!(startZ > stationZ && stationZ > endZ)) throw new Error('La estación debe quedar dentro del recorrido del bus.');
     this.group = articulatedBus();
     this.group.userData.noMerge = true;
@@ -18,7 +18,9 @@ export class BusService {
     this.startZ = startZ;
     this.endZ = endZ;
     this.stationZ = stationZ;
-    this.position.set(x, height, startZ);
+    this.height = height;
+    this.groundHeight = groundHeight;
+    this.position.set(x, groundHeight?.(x, startZ) ?? height, startZ);
     this.speed = 0;
     this.servedStation = false;
     this.dwellRemaining = 0;
@@ -28,6 +30,7 @@ export class BusService {
       const material = mesh.material;
       this.materials.set(material, material.opacity);
     });
+    this._alignToGround();
     this._updateVisibility();
   }
 
@@ -60,6 +63,23 @@ export class BusService {
   dispose() {
     this._disposed = true;
     if (this.model) disposeImportedInstance(this.model);
+  }
+
+  _alignToGround() {
+    if (this.groundHeight) {
+      this.position.y = this.groundHeight(this.position.x, this.position.z);
+      const front = this.groundHeight(this.position.x, this.position.z - this.length / 2);
+      const rear = this.groundHeight(this.position.x, this.position.z + this.length / 2);
+      this.group.rotation.x = Math.atan2(front - rear, this.length);
+      // El chasis tiene longitud: sus ruedas delanteras alcanzan la rampa antes que el centro.
+      // Cinco apoyos evitan que la carrocería corte el tablero en las entradas y la cresta.
+      const slope = Math.tan(this.group.rotation.x);
+      for (const fraction of [-.5, -.25, 0, .25, .5]) {
+        const offset = fraction * this.length;
+        this.position.y = Math.max(this.position.y,
+          this.groundHeight(this.position.x, this.position.z + offset) + offset * slope);
+      }
+    }
   }
 
   _updateVisibility() {
@@ -120,6 +140,7 @@ export class BusService {
         this.speed = 0;
       }
     }
+    this._alignToGround();
     this._updateVisibility();
   }
 }

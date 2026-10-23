@@ -47,7 +47,7 @@ Para las pruebas de navegador, instalar Chromium con `npx playwright install chr
 
 ## Decisiones que deben conservarse
 
-- La ciudad mide 240 × 222 metros. Usar sus funciones de altura y navegación; no cambiar coordenadas sin considerar partidas guardadas.
+- La ciudad mide 240 × 322 metros, con el nuevo Parque del Lago al sur desde Z 222. Usar sus funciones de altura y navegación; no cambiar coordenadas sin considerar partidas guardadas.
 - El cambuche está en X 112.98, Z 94.64. El inicio y la recuperación están en X 112.98, Z 97.84. Conservar la construcción progresiva y la reserva renovable de materiales en la basura.
 - El juego y la medición de FPS comienzan después de cargar modelos, materiales y GPU. Menús, inventario, creador y pestaña oculta suspenden la simulación correspondiente.
 - La muerte requiere recuperación explícita; no teletransportar automáticamente al jugador. Dejar terminar una caída mortal antes de mostrar su pantalla.
@@ -70,3 +70,11 @@ Para cambios de lógica, ejecutar las pruebas relacionadas y la compilación cua
 Ver `docs/integracion-upstream.md`. RadioSystem y RadioModal agregan radio con pilas; PoopSystem y PsychosisSystem coordinan proyectiles y abstinencia. Mantener el volumen y silencio generales también en la radio, evitar actualizaciones duplicadas de El Chato y ejecutar la distorsión de cámara después de seguir al jugador. El radar reutiliza sus puntos estáticos y actualiza al perro dentro del caché. La inercia debe reiniciarse al recuperar al jugador de un atropello.
 
 Las animaciones ActionForge se adaptan en `src/character/actionforge.js`; el banco contiene solo ocho clips y el esqueleto. Conservar las prendas modulares y el respaldo de clips anteriores. Preparar clips sobre copias del cuerpo para no alterar la pose de otros personajes. Mantener el movimiento horizontal en el controlador y permitir la altura animada de cadera para agacharse. Ver `docs/animaciones-actionforge.md`.
+
+## Parque del Lago
+
+`src/world/bogota/LakePark.js` concentra dimensiones y perfil del puente. Toda la altura debe consultarse con bridgeHeight/getGroundHeight; el agua es no transitable y tiene colisión baja para no crear paredes invisibles frente a la cámara. El bus conserva su carril y estación, pero ajusta altura e inclinación a lo largo de la rampa. No extender líneas de calzada ni separadores planos sobre el parque o bajo el tablero. La ampliación no desplaza coordenadas previas ni aumenta automáticamente los NPC.
+
+## Avenida y gasolinera
+
+`AvenueLandmarks.js` define alturas variadas y la pasarela visual en Z 128. Mantener libre el corredor del bus y sus soportes fuera de la calzada. `GasStation.js` reserva el lote X 145–163, Z 89–117; sus cajas bloquean surtidores, columnas, tienda y tótem, pero dejan circular bajo la cubierta. No crear basura ni navegación peatonal dentro de esos obstáculos. Los modelos se agrupan con la geometría estática y no necesitan luces adicionales.

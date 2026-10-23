@@ -21,12 +21,13 @@ mock.module('../src/character/RealisticCharacter.js',{namedExports:{
 }});
 const { Bogota }=await import('../src/world/districts/Bogota.js');
 
-test('la ciudad tiene exactamente 3 veces la superficie y conserva el interior original sin desplazarlo',()=>{
+test('la ciudad añade el parque del lago a la ampliación de tres veces la superficie y conserva el interior original sin desplazarlo',()=>{
   const center=Array.from({length:ORIGINAL_CITY_HEIGHT},(_,z)=>Array.from({length:ORIGINAL_CITY_WIDTH},(_,x)=>
     x===0||z===0||x===ORIGINAL_CITY_WIDTH-1||z===ORIGINAL_CITY_HEIGHT-1?'wall':`original-${x}-${z}`));
   const map=expandCity(center);
-  assert.equal(map.length*map[0].length,3*ORIGINAL_CITY_WIDTH*ORIGINAL_CITY_HEIGHT);
-  assert.equal(CITY_AREA_MULTIPLIER,3);
+  assert.equal(map.length*map[0].length,CITY_WIDTH*CITY_HEIGHT);
+  assert.equal(CITY_AREA_MULTIPLIER, CITY_WIDTH * CITY_HEIGHT / (ORIGINAL_CITY_WIDTH * ORIGINAL_CITY_HEIGHT));
+  assert.ok(CITY_AREA_MULTIPLIER > 3);
   for(let z=1;z<ORIGINAL_CITY_HEIGHT-1;z++) for(let x=1;x<ORIGINAL_CITY_WIDTH-1;x++) assert.equal(map[z][x],center[z][x]);
   for(const version of [2,3]) {
     const saved=[141,.04,104];
@@ -97,7 +98,7 @@ test('el distrito completo construye y actualiza barrios, vendedores, peatones y
     camera.lookAt(170,0,100);
     const before=city.busService.position.z;
     city.update(.1,new THREE.Vector3(170,0,100),camera);
-    assert.ok(Math.abs(city.busService.position.z - before) < 1e-8); // Nuevo cruce: espera el rojo al salir.
+    assert.ok(city.busService.position.z < before); // Sale desde el parque, antes de llegar a los cruces urbanos.
     city.t = 25;
     city.update(.1,new THREE.Vector3(170,0,100),camera);
     assert.ok(city.busService.position.z<before);

@@ -1,3 +1,4 @@
+import { buildSmallBuilding, SMALL_BUILDING } from '../bogota/SmallBuilding.js';
 // src/world/districts/Bogota.js
 // Centro de Bogotá (inspirado en Santa Inés / El Cartucho y la Av. Caracas).
 //
@@ -43,7 +44,7 @@ import { ORIGINAL_SIZE as S, ORIGINAL_CARRERAS, ORIGINAL_CARACAS, ORIGINAL_CALLE
   migrateStreetPosition, WORLD_LAYOUT_VERSION, SIDEWALK_TILES } from '../bogota/StreetLayout.js';
 const T = TILE_SIZE;
 const WALKABLE = new Set(['road', 'busway', 'sidewalk', 'dirt', 'grass', 'plaza', 'floor']);
-const SOLID = new Set(['building', 'ruin', 'wall', 'water', 'storeD69', 'colpatria', 'colpatriaAnnex']);
+const SOLID = new Set(['building', 'ruin', 'wall', 'water', 'storeD69', 'colpatria', 'colpatriaAnnex', 'smallBuilding']);
 const SIDEWALK_Y = 0.12;
 // La colocación de objetos debe usar las mismas cotas que la malla del terreno.
 const GROUND_HEIGHTS = Object.freeze({
@@ -177,6 +178,7 @@ export class Bogota {
     this.group.add(buildAvenueOverpass());
     this.group.add(buildGasStation({ createSign: signTexture }));
     this.group.add(buildD69Store({ createSign: signTexture }));
+    this.group.add(buildSmallBuilding({ brickTextures: TX.brick(53) }));
     const tower = buildColpatria({ createSign: signTexture });
     this.towerLights = tower.userData.lightMaterials;
     this.group.add(tower);
@@ -638,10 +640,11 @@ export class Bogota {
         while (x2 + 1 < map[0].length && SOLID.has(map[z][x2 + 1]) && (map[z][x2 + 1] === 'water') === water &&
           (map[z][x2 + 1] === 'storeD69') === (map[z][x] === 'storeD69') &&
           (map[z][x2 + 1] === 'colpatria') === (map[z][x] === 'colpatria') &&
-          (map[z][x2 + 1] === 'colpatriaAnnex') === (map[z][x] === 'colpatriaAnnex')) x2++;
+          (map[z][x2 + 1] === 'colpatriaAnnex') === (map[z][x] === 'colpatriaAnnex') &&
+          (map[z][x2 + 1] === 'smallBuilding') === (map[z][x] === 'smallBuilding')) x2++;
         const o = new THREE.Object3D();
         o.position.set((W(x) + W(x2)) / 2, water ? -.4 : 0, W(z));
-        collisions.add(o, new THREE.Vector3((x2 - x + 1) * T, water ? .4 : map[z][x] === 'storeD69' ? 5 : map[z][x] === 'colpatria' ? COLPATRIA.height : map[z][x] === 'colpatriaAnnex' ? COLPATRIA_ANNEX.height : 8, T));
+        collisions.add(o, new THREE.Vector3((x2 - x + 1) * T, water ? .4 : map[z][x] === 'smallBuilding' ? SMALL_BUILDING.height : map[z][x] === 'storeD69' ? 5 : map[z][x] === 'colpatria' ? COLPATRIA.height : map[z][x] === 'colpatriaAnnex' ? COLPATRIA_ANNEX.height : 8, T));
         x = x2 + 1;
       }
     }

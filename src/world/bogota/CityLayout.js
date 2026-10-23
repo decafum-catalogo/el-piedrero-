@@ -1,3 +1,4 @@
+import { paintSmallBuilding } from './SmallBuilding.js';
 import { CARRERAS, CALLES, CARACAS, STREET_X, STREET_Z, SIDEWALK_TILES } from './StreetLayout.js';
 import { paintLakePark } from './LakePark.js';
 import { paintGasStation } from './GasStation.js';
@@ -57,6 +58,7 @@ export function expandCity(center) {
   paintD69Store(map);
   paintColpatria(map);
   paintViaductClearance(map);
+  paintSmallBuilding(map);
   for(let x=0;x<CITY_WIDTH;x++) map[0][x]=map[CITY_HEIGHT-1][x]='wall';
   for(let z=0;z<CITY_HEIGHT;z++) map[z][0]=map[z][CITY_WIDTH-1]='wall';
   paintTerminalEntrance(map);

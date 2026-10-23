@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { VIADUCT, viaductHeight, viaductSurface, buildColpatriaViaduct } from '../src/world/bogota/ColpatriaViaduct.js';
+import { VIADUCT, paintViaductGardens, viaductHeight, viaductSurface, buildColpatriaViaduct } from '../src/world/bogota/ColpatriaViaduct.js';
 import { busPathX, bridgeCenter, bridgeNormal } from '../src/world/bogota/Colpatria.js';
 import { Bogota } from '../src/world/districts/Bogota.js';
 import { BusService } from '../src/world/bogota/BusService.js';
@@ -112,4 +112,17 @@ test('el puente conserva su ancho real perpendicular al eje, incluso en las curv
     assert.ok(Math.abs((p.getX(1)+p.getX(0))/2-bridgeCenter(z))<.00002);
     assert.ok(Math.abs((p.getZ(1)+p.getZ(0))/2-z)<.00002);
   }
+});
+
+test('las franjas rojas bajo el viaducto se convierten en pasto sin alterar calles, rampas ni agua',()=>{
+  const map=Array.from({length:161},()=>Array(120).fill('road'));
+  for(const z of [10,50,120])map[z][37]='busway';
+  map[50][38]='water';map[50][39]='smallBuilding';
+  paintViaductGardens(map);
+  assert.equal(map[50][37],'grass');
+  assert.equal(map[10][37],'busway');assert.equal(map[120][37],'busway');
+  assert.equal(map[50][36],'road');assert.equal(map[50][38],'water');assert.equal(map[50][39],'smallBuilding');
+  const city=new Bogota();city.map=city._layout();
+  assert.equal(city.map[50][37],'grass');
+  assert.equal(city.getMovementGroundHeight(74,100,.06),.06);
 });

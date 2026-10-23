@@ -416,8 +416,11 @@ export class Bogota {
       }
       return g;
     };
+    const paintWhite = (w, d, x, z) => {
+      if (this.map[Math.round(z / T)]?.[Math.round(x / T)] !== 'grass') white.push(plane(w, d, x, z));
+    };
     for (const z of [158, 178]) for (let x = 56; x <= 114; x += .9) {
-      if (['road', 'busway'].includes(this.map[Math.round(z / T)]?.[Math.round(x / T)])) white.push(plane(.5, 1.6, x, z));
+      if (['road', 'busway'].includes(this.map[Math.round(z / T)]?.[Math.round(x / T)])) paintWhite(.5, 1.6, x, z);
     }
     const carrX = [...CARRERAS, [CARACAS.lanes[0][0], CARACAS.lanes[1][1]]];
     // línea amarilla al centro de las calles
@@ -434,11 +437,11 @@ export class Bogota {
       for (const [xa, xb] of carrX) {
         const x0 = W(xa) - T / 2, x1 = W(xb) + T / 2;
         for (const zEdge of [W(za) - T / 2 - SIDEWALK_TILES * T / 2, W(zb) + T / 2 + SIDEWALK_TILES * T / 2]) {
-          for (let x = x0 + 0.4; x < x1; x += 0.9) white.push(plane(0.5, SIDEWALK_TILES * T - 0.4, x, zEdge));
+          for (let x = x0 + 0.4; x < x1; x += 0.9) paintWhite(0.5, SIDEWALK_TILES * T - 0.4, x, zEdge);
         }
         for (const xEdge of [W(xa) - T / 2 - SIDEWALK_TILES * T / 2, W(xb) + T / 2 + SIDEWALK_TILES * T / 2]) {
           for (let z = W(za) - T / 2 + 0.4; z < W(zb) + T / 2; z += 0.9) {
-            white.push(plane(SIDEWALK_TILES * T - 0.4, 0.5, xEdge, z));
+            paintWhite(SIDEWALK_TILES * T - 0.4, 0.5, xEdge, z);
           }
         }
       }

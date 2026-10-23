@@ -24,6 +24,14 @@ function edge(z,side) {
   return new THREE.Vector3(bridgeCenter(z)+normal.x*offset,viaductHeight(z),z+normal.z*offset);
 }
 
+export function paintViaductGardens(map) {
+  // La troncal que ya no circula a nivel de calle se convierte en zona verde.
+  // No alterar calles transversales, edificios, rampas ni el agua del lago.
+  for(let z=Math.ceil(VIADUCT.crestStart/2);z<VIADUCT.join/2;z++) {
+    for(let x=1;x<map[z].length-1;x++) if(map[z][x]==='busway') map[z][x]='grass';
+  }
+}
+
 export function paintViaductClearance(map) {
   for (let z = VIADUCT.start; z <= VIADUCT.end; z += .5) {
     const a = edge(z, -1), b = edge(z, 1);

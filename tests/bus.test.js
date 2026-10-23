@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import * as THREE from 'three';
 import { Bogota } from '../src/world/districts/Bogota.js';
 import { BusService } from '../src/world/bogota/BusService.js';
+import { viaductSurface } from '../src/world/bogota/ColpatriaViaduct.js';
 import { CARACAS } from '../src/world/bogota/StreetLayout.js';
 
 test('el bus completo recorre la troncal sin invadir estación, separadores, andenes ni muros', () => {
@@ -18,7 +19,7 @@ test('el bus completo recorre la troncal sin invadir estación, separadores, and
       const x = bus.position.x + heading.x * along - heading.z * side;
       const wz = z + heading.z * along + heading.x * side;
       const tile=wz < 0 && x >= 60 && x <= 90 && wz >= -74 ? 'busway' : map[Math.round(wz/2)]?.[Math.round(x/2)];
-      assert.ok(['road','busway'].includes(tile), `${x},${wz}: ${tile}`);
+      assert.ok(['road','busway'].includes(tile) || (tile==='grass' && viaductSurface(x,wz)!==null), `${x},${wz}: ${tile}`);
     }
   }
   city.group.add(bus.group);

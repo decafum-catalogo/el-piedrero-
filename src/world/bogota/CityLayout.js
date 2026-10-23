@@ -4,7 +4,7 @@ import { paintLakePark } from './LakePark.js';
 import { paintGasStation } from './GasStation.js';
 import { paintD69Store } from './D69Store.js';
 import { paintColpatria } from './Colpatria.js';
-import { paintViaductClearance } from './ColpatriaViaduct.js';
+import { paintViaductClearance, paintViaductGardens } from './ColpatriaViaduct.js';
 import { paintTerminalEntrance } from './TransitTerminal.js';
 
 export const ORIGINAL_CITY_WIDTH = STREET_X.size;
@@ -59,6 +59,7 @@ export function expandCity(center) {
   paintColpatria(map);
   paintViaductClearance(map);
   paintSmallBuilding(map);
+  paintViaductGardens(map);
   for(let x=0;x<CITY_WIDTH;x++) map[0][x]=map[CITY_HEIGHT-1][x]='wall';
   for(let z=0;z<CITY_HEIGHT;z++) map[z][0]=map[z][CITY_WIDTH-1]='wall';
   paintTerminalEntrance(map);

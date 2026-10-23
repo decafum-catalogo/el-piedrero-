@@ -30,7 +30,7 @@ test('la ciudad añade el parque del lago a la ampliación de tres veces la supe
   assert.ok(CITY_AREA_MULTIPLIER > 3);
   for(let z=1;z<ORIGINAL_CITY_HEIGHT-1;z++) for(let x=1;x<ORIGINAL_CITY_WIDTH-1;x++) {
     // La nueva curva del viaducto puede reservar suelo junto al extremo sur de la troncal.
-    if ((z >= 45 && x >= 33 && x <= 55) || (z <= 7 && x >= 27 && x <= 48)) continue;
+    if ((z >= 35 && x >= 33 && x <= 66) || (z <= 7 && x >= 27 && x <= 48)) continue;
     assert.equal(map[z][x],center[z][x]);
   }
   for(const version of [2,3]) {

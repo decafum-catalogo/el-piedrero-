@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { busPathX, busHeading, southBusPathX, BUS_DETOUR } from './Colpatria.js';
+import { busPathX, bridgeCenter, bridgeNormal } from './Colpatria.js';
 import { BRIDGE_RISE, BRIDGE_DECK_HEIGHT } from './BridgeElevation.js';
 import { LAKE_BRIDGE, bridgeHeight } from './LakePark.js';
 
-export const VIADUCT = Object.freeze({ start: 15.43, crestStart: 39, rampEase: 1, crestEnd: 280, join: 220, end: LAKE_BRIDGE.z1, rise: BRIDGE_RISE, connectionHeight: BRIDGE_DECK_HEIGHT, width: 10, landingWidth: 12, thickness: .65 });
+export const VIADUCT = Object.freeze({ start: 15.43, crestStart: 39, rampEase: 1, crestEnd: 280, join: 220, end: LAKE_BRIDGE.z1, rise: BRIDGE_RISE, connectionHeight: BRIDGE_DECK_HEIGHT, width: 14, landingWidth: 14, thickness: .65 });
 export function viaductHeight(z) {
   const b = VIADUCT;
   if (z <= b.start) return .02;
@@ -18,41 +18,10 @@ export function viaductHeight(z) {
   return .02 + grade * (distance - ease / 2);
 }
 
-const sectionCache = new Map();
-function section(z) {
-  if (sectionCache.has(z)) return sectionCache.get(z);
-  const h = busHeading(z), anchorX = busPathX(z);
-  // La rampa mantiene bordes rectos y el ancho de la calle. El estrechamiento
-  // ocurre después, sobre la plataforma horizontal.
-  const landing = THREE.MathUtils.clamp((z - VIADUCT.crestStart - 8) / 20, 0, 1);
-  // El eje de todos los tramos rectos coincide con X 75; solo se desplaza en el rodeo.
-  const width = THREE.MathUtils.lerp(VIADUCT.landingWidth, VIADUCT.width, landing);
-  let min = anchorX - 3.5 - width/(2*Math.abs(h.z)), max = anchorX - 3.5 + width/(2*Math.abs(h.z));
-  // Reserva únicamente la envolvente barrida por las dos carrocerías en cada
-  // sección, en vez de ensanchar toda la curva con un margen arbitrario.
-  if (z > BUS_DETOUR.z0 - 24 && z < BUS_DETOUR.z1 + 24) {
-    for (let s=z-14;s<=z+14;s+=.5) for (const path of [busPathX,southBusPathX]) {
-      const lane=path===busPathX?78.5:71.5, x=path(s,lane);
-      const dx=path(s+.01,lane)-path(s-.01,lane), scale=Math.hypot(dx,.02), hx=dx/scale,hz=.02/scale;
-      const corners=[[-1.26,-9.1],[1.26,-9.1],[1.26,9.1],[-1.26,9.1]].map(([side,along])=>{
-        const px=x-hz*side+hx*along,pz=s+hx*side+hz*along-z;
-        return { across:px, forward:pz };
-      });
-      for(let i=0;i<4;i++) {
-        const a=corners[i],b=corners[(i+1)%4];
-        if(a.forward*b.forward>0 || Math.abs(a.forward-b.forward)<1e-9) continue;
-        const t=a.forward/(a.forward-b.forward),value=THREE.MathUtils.lerp(a.across,b.across,t);
-        min=Math.min(min,value-.7);max=Math.max(max,value+.7);
-      }
-    }
-  }
-  const result={ min,max };sectionCache.set(z,result);return result;
-}
-
-function edge(z, side) {
-  const bounds=section(z);
-  const offset = side < 0 ? bounds.min : bounds.max;
-  return new THREE.Vector3(offset, viaductHeight(z), z);
+// Anchura real constante, medida perpendicularmente al eje del puente.
+function edge(z,side) {
+  const normal=bridgeNormal(z),offset=side*VIADUCT.width/2;
+  return new THREE.Vector3(bridgeCenter(z)+normal.x*offset,viaductHeight(z),z+normal.z*offset);
 }
 
 export function paintViaductClearance(map) {

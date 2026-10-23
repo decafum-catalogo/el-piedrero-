@@ -2,27 +2,38 @@ import * as THREE from 'three';
 
 export const COLPATRIA = Object.freeze({ x: 81, z: 168, width: 24, depth: 26, height: 112 });
 export const COLPATRIA_ANNEX = Object.freeze({ x: 98, z: 168, width: 10, depth: 18, height: 22 });
-export const BUS_DETOUR = Object.freeze({ z0: 104, z1: 220, offset: 44 });
+export const BUS_DETOUR = Object.freeze({ z0: 80, z1: 260, offset: 44 });
 
-export function busPathX(z, laneX = 78.5) {
-  const { z0, z1, offset } = BUS_DETOUR;
-  if (z <= z0 || z >= z1) return laneX;
-  const t = z < 154 ? (z - z0) / (154 - z0) : z > 182 ? (z1 - z) / (z1 - 182) : 1;
-  return laneX + offset * (.5 - .5 * Math.cos(Math.PI * t));
+export function bridgeCenter(z) {
+  const {z0,z1,offset}=BUS_DETOUR;
+  const t=THREE.MathUtils.clamp(z<154?(z-z0)/(154-z0):(z1-z)/(z1-182),0,1);
+  const ease=t*t*t*(10+t*(-15+6*t));
+  return 75+offset*ease;
 }
-
-export function busHeading(z, laneX = 78.5) {
-  const dx = busPathX(z - .01, laneX) - busPathX(z + .01, laneX);
-  const scale = Math.hypot(dx, .02);
-  return { x: dx / scale, z: -.02 / scale };
+export function bridgeNormal(z) {
+  const dx=(bridgeCenter(z+.01)-bridgeCenter(z-.01))/.02;
+  const scale=Math.hypot(1,dx);
+  return {x:1/scale,z:-dx/scale};
 }
-
-export function busLaneSpread(z) {
-  return 4 * Math.max(...[-10,0,10].map(d => Math.abs(busHeading(z+d).x)));
+// Los carriles son desplazamientos perpendiculares del mismo eje. Se invierte
+// su Z para mantener el contrato de rutas expresadas en coordenadas del mundo.
+export function busPathX(z,laneX=78.5) {
+  if(z<=BUS_DETOUR.z0-5 || z>=BUS_DETOUR.z1+5) return laneX;
+  const offset=laneX-75;
+  let lo=z-10,hi=z+10;
+  for(let i=0;i<28;i++) {
+    const t=(lo+hi)/2;
+    if(t+bridgeNormal(t).z*offset<z)lo=t;else hi=t;
+  }
+  const t=(lo+hi)/2;
+  return bridgeCenter(t)+bridgeNormal(t).x*offset;
 }
-export function southBusPathX(z, laneX = 71.5) {
-  return busPathX(z,laneX)-busLaneSpread(z);
+export function busHeading(z,laneX=78.5) {
+  const dx=busPathX(z-.01,laneX)-busPathX(z+.01,laneX),scale=Math.hypot(dx,.02);
+  return {x:dx/scale,z:-.02/scale};
 }
+export function busLaneSpread() {return 0;}
+export function southBusPathX(z,laneX=71.5) {return busPathX(z,laneX);}
 
 export function paintColpatria(map) {
   // Reserva el volumen barrido por el bus completo, también en las curvas.

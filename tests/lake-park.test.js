@@ -17,7 +17,7 @@ test('el parque amplía la ciudad al sur con agua bloqueada y pasos transitables
   assert.ok(waterBounds.max.x - waterBounds.min.x >= 100);
   water.geometry.dispose(); water.material.dispose();
   assert.equal(city.map[131][20], 'water');
-  assert.equal(city.map[131][34], 'water');
+  assert.equal(city.map[131][33], 'water');
   assert.equal(city.map[131][39], 'busway');
   const collisions = new CollisionSystem();
   city._buildCollisions(city.map, collisions);
@@ -27,9 +27,9 @@ test('el parque amplía la ciudad al sur con agua bloqueada y pasos transitables
   city.reserved = { shop: { x: 104, z: 69 } };
   const nav = city._createPedestrianNavigation();
   assert.equal(nav.isWalkableAt(40, 262), false);
-  assert.equal(nav.isWalkableAt(68, 262), false);
+  assert.equal(nav.isWalkableAt(66, 262), false);
   assert.equal(nav.isWalkableAt(70, 262), true);
-  assert.equal(nav.isWalkableAt(78, 226), true);
+  assert.equal(nav.isWalkableAt(78, 270), true);
 });
 
 test('el perfil del puente tiene rampas suaves, centro elevado y barandas reales', () => {
@@ -50,7 +50,7 @@ test('el bus sube y cruza el lago hasta la conexión elevada sin cambiar de carr
   const bus = new BusService(new Bogota().getBusRoute());
   const lane = bus.position.x;
   let climbing = false, high = false, descending = false;
-  for (let i = 0; i < 2500 && bus.position.z > 220.5; i++) {
+  for (let i = 0; i < 2500 && bus.position.z > 265.5; i++) {
     const before = bus.position.clone();
     bus.update(.05);
     assert.equal(bus.position.x, lane);
@@ -67,5 +67,5 @@ test('el bus sube y cruza el lago hasta la conexión elevada sin cambiar de carr
     descending ||= bus.group.rotation.x < -.03;
   }
   assert.ok(climbing && high);
-  assert.ok(bus.position.z <= 220.5);
+  assert.ok(bus.position.z <= 265.5);
 });

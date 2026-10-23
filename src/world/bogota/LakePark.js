@@ -1,13 +1,14 @@
 import * as THREE from 'three';
+import { busPathX } from './Colpatria.js';
 import { BRIDGE_RISE } from './BridgeElevation.js';
 
 export const LAKE_PARK = Object.freeze({ name: 'Parque del Lago', z0: 222, z1: 318,
   lakeX: 75, lakeZ: 262, radiusX: 50, radiusZ: 26 });
-export const LAKE_BRIDGE = Object.freeze({ x0: 70, x1: 80, z0: 220, z1: 318,
+export const LAKE_BRIDGE = Object.freeze({ x0: 68, x1: 82, z0: 220, z1: 318,
   crestStart: 220, crestEnd: 280, rise: BRIDGE_RISE });
 
 export function onLakeBridge(x, z) {
-  return x >= LAKE_BRIDGE.x0 && x <= LAKE_BRIDGE.x1 && z >= LAKE_BRIDGE.z0 && z <= LAKE_BRIDGE.z1;
+  return z >= LAKE_BRIDGE.z0 && z <= LAKE_BRIDGE.z1 && x >= busPathX(z,LAKE_BRIDGE.x0) && x <= busPathX(z,LAKE_BRIDGE.x1);
 }
 
 export function bridgeHeight(z) {
@@ -37,8 +38,6 @@ export function paintLakePark(map) {
     const promenade = Math.abs(radius - 1.14) < .045 || z === 113 || z === 155 || x === 10 || x === 112 ||
       (x === 86 && (wz < 234 || wz > 290));
     map[z][x] = radius < 1 ? 'water' : promenade ? 'plaza' : 'grass';
-    if (wx >= b.x0 && wx <= b.x1) {
-      map[z][x] = wx >= 70 && wx <= 80 ? 'busway' : 'plaza';
-    }
+    if (onLakeBridge(wx,wz)) map[z][x] = 'busway';
   }
 }

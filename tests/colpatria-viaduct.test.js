@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { VIADUCT, viaductHeight, viaductSurface, buildColpatriaViaduct } from '../src/world/bogota/ColpatriaViaduct.js';
-import { busPathX } from '../src/world/bogota/Colpatria.js';
+import { busPathX, bridgeCenter, bridgeNormal } from '../src/world/bogota/Colpatria.js';
 import { Bogota } from '../src/world/districts/Bogota.js';
 import { BusService } from '../src/world/bogota/BusService.js';
 import { bridgeHeight } from '../src/world/bogota/LakePark.js';
@@ -31,15 +31,15 @@ test('el viaducto comienza en la ubicación indicada, sube suavemente y conecta 
   assert.ok(sections.every(o => o.material === sections[0].material));
   assert.equal(sections[0].material, asphalt);
   const landing = sections[0].geometry.attributes.position;
-  assert.equal(landing.getX(0), 69);
-  assert.equal(landing.getX(1), 81);
+  assert.equal(landing.getX(0), 68);
+  assert.equal(landing.getX(1), 82);
   assert.ok(Math.abs(landing.getY(0) - .02) < 1e-8);
   const lake = sections.find(o => o.userData.stationStart === 250).geometry.attributes.position;
-  assert.equal(lake.getX(1) - lake.getX(0), 10);
+  assert.ok(Math.abs(Math.hypot(lake.getX(1)-lake.getX(0),lake.getZ(1)-lake.getZ(0))-VIADUCT.width)<.00002);
   assert.equal(sections[0].geometry.attributes.uv.count, 4);
   for (const section of sections.filter(o => o.userData.stationStart < VIADUCT.crestStart)) {
     const p = section.geometry.attributes.position;
-    assert.equal(p.getX(0), 69); assert.equal(p.getX(1), 81);
+    assert.equal(p.getX(0), 68); assert.equal(p.getX(1), 82);
     const slab = bridge.children.find(o => o.name === 'Tablero de concreto' && o.userData.stationStart === section.userData.stationStart);
     const q = slab.geometry.attributes.position;
     for (let i = 0; i < 4; i++) {
@@ -68,7 +68,7 @@ test('la conexión entre los puentes conserva altura y continuidad sin una bajad
     if (previous !== null) assert.ok(Math.abs(bus.position.y - previous) < .02);
     previous = bus.position.y;
   }
-  assert.ok(Math.abs(viaductSurface(78.5, 219.99) - bridgeHeight(220)) < .01);
+  assert.ok(Math.abs(viaductSurface(busPathX(219.99), 219.99) - bridgeHeight(220)) < .01);
   for (let z = 95; z <= 280; z += .5) {
     const height = z <= VIADUCT.end ? viaductHeight(z) : bridgeHeight(z);
     assert.ok(Math.abs(height - 7.82) < 1e-8, `desnivel en Z ${z}`);
@@ -90,5 +90,26 @@ test('el bus usa el tablero y no frena por peatones que pasan debajo', () => {
       const wz = z + h.z * along + h.x * side;
       assert.notEqual(viaductSurface(x, wz), null, `fuera del tablero: ${x},${wz}`);
     }
+  }
+});
+
+test('los bordes del rodeo cambian de dirección gradualmente sin quiebres locales', () => {
+  const sections = buildColpatriaViaduct().children.filter(o => o.name === 'Superficie del puente' && o.userData.stationStart >= 80 && o.userData.stationStart <= 244);
+  for (let i = 1; i < sections.length - 1; i++) for (const side of [0, 1]) {
+    const x = offset => sections[i + offset].geometry.attributes.position.getX(side);
+    const change = Math.abs(x(1) - 2 * x(0) + x(-1));
+    assert.ok(change < .4, `quiebre del borde ${side} en Z ${sections[i].userData.stationStart}: ${change}`);
+  }
+});
+
+test('el puente conserva su ancho real perpendicular al eje, incluso en las curvas', () => {
+  const sections=buildColpatriaViaduct().children.filter(o=>o.name==='Superficie del puente');
+  for(const section of sections) {
+    const p=section.geometry.attributes.position,z=section.userData.stationStart,n=bridgeNormal(z);
+    const dx=p.getX(1)-p.getX(0),dz=p.getZ(1)-p.getZ(0);
+    assert.ok(Math.abs(Math.hypot(dx,dz)-VIADUCT.width)<.00003);
+    assert.ok(Math.abs(dx*n.z-dz*n.x)<.00003);
+    assert.ok(Math.abs((p.getX(1)+p.getX(0))/2-bridgeCenter(z))<.00002);
+    assert.ok(Math.abs((p.getZ(1)+p.getZ(0))/2-z)<.00002);
   }
 });

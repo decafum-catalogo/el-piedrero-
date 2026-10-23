@@ -76,6 +76,7 @@ export class InteractionSystem {
   }
 
   update(dt, input, clock) {
+    this.stealPrompt = null;
     // Encontrar target más cercano
     let nearest = null;
     let nearestType = null;

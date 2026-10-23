@@ -37,6 +37,8 @@ import { CraftingSystem } from '../systems/CraftingSystem.js';
 import { RadioSystem } from '../systems/RadioSystem.js';
 import { PoopSystem } from '../systems/PoopSystem.js';
 import { PsychosisSystem } from '../systems/PsychosisSystem.js';
+import { StealSystem } from '../features/steal.js';
+import { Pet } from '../features/pet.js';
 import { openRadioModal } from '../ui/RadioModal.js';
 
 
@@ -103,6 +105,9 @@ export class Game {
       this.diseases, this.talents, this.crafting
     );
 
+    this.pet = new Pet(this.sceneMgr.scene, this.player);
+    this.steal = new StealSystem(this);
+
     // HUD, menús y creador de personaje
     this.hud = new HUD();
     this.performanceHUD = new PerformanceHUD();
@@ -134,7 +139,7 @@ export class Game {
       if (e.code === 'KeyN' && !this.paused) this.minimap.toggle();
       if (e.code === 'Escape' && !e._panelHandled && !this.paused && !this.isSleeping) openPauseMenu(this);
       if (e.code === 'KeyV') this._toggleCamera();
-      if (e.code === 'KeyP' && !this.paused && this.look) this.editLook();
+      if (e.code === 'KeyP' && !this.paused) this.pet?.toggleCustomizationMenu();
       if (e.code === 'KeyM' && !this.paused) this._toggleModel();
       if (e.code === 'KeyR') {
         if (this._radioModalOpen) this.menu.close();
@@ -773,6 +778,8 @@ export class Game {
 
     // 7. Interacción (basura, autos, recicladora, tienda, cambuche, dealer)
     if (!this.player.isStunned) this.interaction.update(dt, this.input, this.clock);
+    this.steal?.update(dt);
+    this.pet?.update(dt, this.player.position, this.world.active?.npcs ?? []);
     if (this._handleDeath()) return;
 
     // 7b. Mecánica de popó y lanzamiento a peatones
@@ -919,6 +926,7 @@ export class Game {
 
   stop() {
     this._running = false;
+    this.pet?.dispose?.();
     this.psychosis?.dispose?.();
     this.poopSystem?.dispose?.();
     this.radio?.destroy?.();

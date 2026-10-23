@@ -248,9 +248,9 @@ export class HUD {
     if (this.promptEl) {
       if (window.__game?.paused) {
         this.promptEl.classList.remove('visible');
-      } else if (interaction?.currentTarget) {
+      } else if (interaction?.currentTarget || interaction?.stealPrompt) {
         const type = interaction.currentTargetType;
-        let text = '';
+        let text = interaction?.stealPrompt ?? '';
         if (type === 'pickup') text = '[E] Recoger basura · [Mantener Q] Seleccionar';
         else if (type === 'car') text = interaction.currentTarget?.traffic ? '[E] Robar retrovisor del carro en circulación' : '[E] Robar retrovisor de auto';
         else if (type === 'sell') text = '[E] Recicladora El Progreso · Vender material';

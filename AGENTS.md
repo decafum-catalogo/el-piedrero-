@@ -58,7 +58,7 @@ Para las pruebas de navegador, instalar Chromium con `npx playwright install chr
 - Hay diez palomas en cada uno de los tres parques. Huyen del jugador o NPC a menos de 3,5 metros. Conservar instancias compartidas, filtro de personas cercanas y suspensión a distancia.
 - La ayuda «!» comienza plegada. El botón de cámara indica el modo de destino. Abrir paneles libera el ratón; Escape cierra primero el panel activo.
 - La calidad gráfica elegida limita la resolución automática. Mantener el descarte fuera de cámara, la geometría agrupada y los presupuestos de luces y audio.
-- Las primeras partidas usan calidad media; la calidad efectiva puede bajar bajo carga sin cambiar la preferencia guardada. Cámara, sombras, silueta y animación visual usan ese perfil efectivo. Ver `docs/rendimiento.md`.
+- Las primeras partidas usan calidad baja; la calidad efectiva puede bajar bajo carga sin cambiar la preferencia guardada. Cámara, sombras, silueta y animación visual usan ese perfil efectivo. Ver `docs/rendimiento.md`.
 - Las cajas estáticas usan un índice espacial: al mover una caja existente invalidarlo con `invalidateStaticIndex()`. Las luces añadidas dentro de ramas existentes se registran con `LocalLights.register`; refrescar posiciones tras mover fuentes estáticas.
 
 ## Forma de trabajar

@@ -35,7 +35,8 @@ export class AudioSystem {
       empty: sound('empty.wav', { volume: .4 }),
       carAlarm: sound('Sonido De Alarma De Auto.opus', { volume: .6, loop: false, pool: 6 }),
       steps: sound('Sounds_of_a_steps.opus', { volume: .65, loop: true }),
-      ambient: sound('city_atmosphere_soun.opus', { volume: .18, loop: true })
+      ambient: sound('city_atmosphere_soun.opus', { volume: .18, loop: true }),
+      rain: sound('rain_sound_01.mp3', { volume: .45, loop: true })
     };
     // Reproducción normal: sin posiciones, panners ni atenuación 3D.
     const vehicleOptions = { volume: 0, loop: true, pool: 10 };
@@ -221,9 +222,27 @@ export class AudioSystem {
     this._ambientStarted = true;
   }
 
+  setRaining(raining) {
+    this._raining = !!raining;
+    this._syncRain();
+  }
+
+  _syncRain() {
+    const sound = this.sounds.rain;
+    if (!this._raining) {
+      if (this._rainId !== undefined) sound.stop(this._rainId);
+      this._rainId = undefined;
+    } else if (this._paused) {
+      if (this._rainId !== undefined && sound.playing(this._rainId)) sound.pause(this._rainId);
+    } else if (sound.state() === 'loaded' && (this._rainId === undefined || !sound.playing(this._rainId))) {
+      this._rainId = sound.play(this._rainId);
+    }
+  }
+
   setPaused(paused) {
     if (this._paused === paused) return;
     this._paused = paused;
+    this._syncRain();
     this.vehicles.setPaused(paused);
     if (paused) {
       for (const voice of this._theftVoices.values()) voice.sound.stop(voice.id);

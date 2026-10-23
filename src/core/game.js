@@ -708,6 +708,7 @@ export class Game {
       this.cameraRig.follow(this.player.position, dt, this.collisions);
       this.audio.updateSteps(false, false);
       this.audio.updateWorld(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? [], this.world.active?.busServices ?? this.world.active?.busService);
+      this.audio.setRaining(!!this.weather?.isRaining);
       this._handleDeath();
       this._renderFrame(now, false); this.input.endFrame();
       return;
@@ -805,6 +806,7 @@ export class Game {
     // 10. Audio
     const moving = !this.player.isStunned && Math.hypot(this.player.position.x - previousX, this.player.position.z - previousZ) > .001;
     this.audio.updateWorld(dt, this.player.position, this.cameraRig.camera, this.traffic?.vehicles ?? [], this.world.active?.busServices ?? this.world.active?.busService);
+    this.audio.setRaining(!!this.weather?.isRaining);
     this.audio.updateSteps(moving, this.input.isRunning);
     this.audio.updateBoost(this.interaction.boostActive);
 

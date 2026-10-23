@@ -425,3 +425,33 @@ test('quedarse ante el parachoques activa el claxon aunque el semáforo ya haya 
     traffic.dispose(); audio.dispose();
   }
 });
+
+test('la lluvia mantiene un único bucle, respeta pausa y se detiene al despejar', () => {
+  const {audio}=fixture(),rain=audio.sounds.rain;
+  assert.equal(rain.options.src[0],'/audio/rain_sound_01.mp3');
+  assert.equal(rain.options.loop,true);
+  audio.setRaining(false);assert.equal(rain.starts,0);
+  for(let i=0;i<60;i++)audio.setRaining(true);
+  const id=audio._rainId;
+  assert.equal(rain.starts,1);assert.ok(rain.playing(id));
+  audio.setMuted(true);assert.equal(audio.isMuted(),true);
+  audio.setVolume(.3);assert.equal(audio.volume,.3);
+  audio.setMuted(false);
+  audio.setPaused(true);assert.equal(rain.playing(id),false);
+  audio.setRaining(true);assert.equal(rain.playing(id),false);
+  audio.setPaused(false);assert.ok(rain.playing(id));assert.equal(rain.starts,1);
+  audio.setPaused(true);audio.setRaining(false);audio.setPaused(false);
+  assert.equal(rain.playing(),false);assert.equal(audio._rainId,undefined);
+  audio.setRaining(true);assert.equal(rain.starts,2);
+  audio.dispose();assert.equal(rain.unloaded,true);
+});
+
+test('una lluvia que todavía carga no acumula reproducciones pendientes', () => {
+  const {audio}=fixture(),rain=audio.sounds.rain;rain.loaded=false;
+  for(let i=0;i<60;i++)audio.setRaining(true);
+  assert.equal(rain.starts,0);
+  rain.loaded=true;audio.setRaining(true);audio.setRaining(true);
+  assert.equal(rain.starts,1);
+  audio.setRaining(false);assert.equal(rain.playing(),false);
+  audio.dispose();
+});

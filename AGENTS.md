@@ -94,3 +94,7 @@ CollisionSystem mantiene una AABB de referencia y una OBB de dimensiones constan
 transit-terminal.test.js comprueba acceso a pie, parada y salida en ambos sentidos, carrocerías dentro del tablero y separación al cruzarse en las curvas. Las pruebas de lógica no sustituyen la revisión visual en el juego.
 
 El rodeo de Colpatria usa un eje con transiciones de curvatura suaves entre Z 80 y Z 260. Las barandas, el asfalto y el tablero comparten bordes a distancia perpendicular constante del eje. Los carriles de ambos sentidos siguen ese mismo trazado; el corredor del lago y sus consultas de altura acompañan la curva.
+
+## Ilustraciones de carga
+
+LoadingArtwork.js administra parejas numeradas según loading-artwork.json. Las imágenes WebP optimizadas se guardan en public/images/pantalla-carga; ambos planos deben decodificarse antes de mostrar una pareja. La galería es opcional y nunca bloquea Game.start ni añade espera mínima. Cancelar temporizadores y resultados de cargas anteriores al mostrar el creador o terminar la partida inicial. Conservar el progreso y reintento de LoadingScreen, las rutas relativas a BASE_URL y la preferencia de movimiento reducido.

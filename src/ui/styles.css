@@ -694,3 +694,33 @@ body.is-loading #minimap-container { visibility: hidden; }
   box-shadow: 0 0 8px rgba(231, 76, 60, 0.8);
   animation: pulse 0.5s infinite alternate;
 }
+
+/* Ilustraciones de carga en dos planos independientes. */
+#loading-screen { overflow: hidden; isolation: isolate; --loading-x: 0px; --loading-y: 0px; }
+.loading-card { position: relative; z-index: 3; }
+.loading-art-scene { position: absolute; inset: 0; z-index: 0; overflow: hidden; animation: loading-art-appear .9s ease both; }
+.loading-art-scene.is-leaving { z-index: 1; animation: loading-art-disappear .9s ease both; }
+.loading-art-layer { position: absolute; pointer-events: none; transition: transform .35s ease-out; }
+.loading-art-layer img { display: block; width: 100%; height: 100%; }
+.loading-art-background { inset: -4%; transform: translate(calc(var(--loading-x) * -.45), calc(var(--loading-y) * -.45)); }
+.loading-art-background img { object-fit: cover; animation: loading-background-drift 9s ease-in-out both; }
+.loading-art-foreground { right: -2%; bottom: -3%; width: 74%; height: 99%; transform: translate(var(--loading-x), var(--loading-y)); }
+.loading-art-foreground img { object-fit: contain; object-position: center bottom; filter: drop-shadow(0 16px 30px #0008); animation: loading-character-drift 9s ease-in-out both; }
+#loading-screen.has-loading-art::after { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(0deg, #06090deb, transparent 55%), linear-gradient(90deg, #06090d94, transparent 65%); }
+#loading-screen.has-loading-art .loading-card { position: absolute; left: clamp(20px, 4vw, 70px); bottom: clamp(20px, 5vh, 60px); width: min(480px, calc(100vw - 40px)); padding: 0; text-align: left; text-shadow: 0 2px 10px #000; }
+#loading-screen.has-loading-art .loading-card h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 48px); }
+#loading-screen.has-loading-art .loading-hint { color: #dfd9cd; }
+@keyframes loading-art-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes loading-art-disappear { from { opacity: 1; } to { opacity: 0; } }
+@keyframes loading-background-drift { from { transform: translate3d(-1%, 0, 0) scale(1.04); } to { transform: translate3d(1%, -.5%, 0) scale(1.09); } }
+@keyframes loading-character-drift { from { transform: translate3d(2%, 1%, 0) scale(1); } to { transform: translate3d(-2%, 0, 0) scale(1.035); } }
+#loading-screen[hidden] .loading-art-layer img { animation-play-state: paused; }
+@media (max-width: 640px) {
+  .loading-art-foreground { width: 110%; right: -20%; height: 85%; bottom: 10%; }
+  #loading-screen.has-loading-art .loading-card { bottom: 22px; }
+  #loading-screen.has-loading-art .loading-hint { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-art-layer, .loading-art-layer img { animation: none; transition: none; transform: none; }
+  .loading-art-scene, .loading-art-scene.is-leaving { animation-duration: .01s; }
+}

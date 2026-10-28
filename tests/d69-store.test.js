@@ -19,7 +19,7 @@ test('los avisos D69 miran a ambos andenes y el edificio no invade la calle', ()
   const signs = [];
   const model = buildD69Store({ createSign: options => { signs.push(options); return new THREE.Texture(); } });
   assert.equal(signs.length, 2);
-  assert.ok(signs.every(o => o.title === 'D69'));
+  assert.ok(signs.every(o => o.title === 'EL FUTURO'));
   const bounds = new THREE.Box3().setFromObject(model);
   assert.ok(bounds.max.x < 53.4);
   assert.ok(bounds.min.z > 158.5);

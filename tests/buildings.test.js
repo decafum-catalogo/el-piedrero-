@@ -7,7 +7,7 @@ import { TILE_SIZE } from '../src/utils/constants.js';
 // Conserva la geometría real; evita depender de Canvas para pintar las texturas.
 const textureSet = () => ({ map: new THREE.Texture(), bumpMap: new THREE.Texture(), emissiveMap: new THREE.Texture() });
 mock.module('../src/world/bogota/textures.js', {
-  namedExports: { ...textures, brick: textureSet, slab: textureSet, roofTiles: textureSet, facade: textureSet }
+  namedExports: { ...textures, brick: textureSet, slab: textureSet, zinc: textureSet, roofTiles: textureSet, facade: textureSet }
 });
 mock.module('../src/utils/signs.js', { namedExports: { signTexture: () => null } });
 const { Bogota } = await import('../src/world/districts/Bogota.js');

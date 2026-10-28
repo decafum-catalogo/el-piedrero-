@@ -1,4 +1,5 @@
 // src/ui/HUD.js
+import { Watch } from './Watch.js';
 import { TALENTS, BRANCHES } from '../data/talents.js';
 import { XP_PER_LEVEL, XP_CRAFT } from '../utils/constants.js';
 import { NEEDS } from '../systems/StatsSystem.js';
@@ -15,6 +16,7 @@ export class HUD {
     });
 
     this.clockEl = document.getElementById('clock');
+    this.watch = new Watch();
     this.moneyEl = document.getElementById('money');
     this.statusEl = document.getElementById('status');
     this.boostEl = document.getElementById('boost-indicator');
@@ -164,7 +166,7 @@ export class HUD {
     window.addEventListener('sleep-start', () => this._toast('💤 Durmiendo...', 'info'));
     window.addEventListener('sleep-end', (e) => this._toast(`🌅 Dormiste ${e.detail?.hours ?? ''} h · Partida guardada`, 'info'));
     window.addEventListener('sleep-fail', (e) => this._toast(
-      e.detail.reason === 'nobase' ? '📦 Primero arma la base del cambuche (8 cartones)' : 'No puedes dormir aquí',
+      e.detail.reason === 'nobase' ? '📦 Primero arma la base del chante (8 cartones)' : 'No puedes dormir aquí',
       'warn'
     ));
   }
@@ -225,6 +227,7 @@ export class HUD {
     const h = Math.floor(clock.hour).toString().padStart(2, '0');
     const m = Math.floor((clock.hour % 1) * 60).toString().padStart(2, '0');
     this._setText(this.clockEl, `Día ${clock.day} — ${h}:${m}`);
+    this.watch?.update(clock);
     this._setText(this.moneyEl, cop(stats.dinero));
 
     // Nivel y XP
@@ -254,7 +257,7 @@ export class HUD {
         if (type === 'pickup') text = '[E] Recoger basura · [Mantener Q] Seleccionar';
         else if (type === 'car') text = interaction.currentTarget?.traffic ? '[E] Robar retrovisor del carro en circulación' : '[E] Robar retrovisor de auto';
         else if (type === 'sell') text = '[E] Recicladora El Progreso · Vender material';
-        else if (type === 'shop') text = `[E] ${interaction.currentTarget.title ?? 'Tienda La Esquinita'} · Comprar`;
+        else if (type === 'shop') text = `[E] ${interaction.currentTarget.title ?? 'Pulpería Donde Tilin'} · Comprar`;
         else if (type === 'dog') {
           const hasFood = inventory?.items.some(item => item.qty > 0 && ['pan', 'lataComida', 'carne', 'hueso'].includes(item.id));
           text = interaction.currentTarget?.isFriend
@@ -263,7 +266,7 @@ export class HUD {
               ? '🐕 [E] Darle 1 pan o 1 lata de atún para que te siga (consume una unidad)'
               : '🐕 Para que El Chato te siga, trae pan o una lata de atún y pulsa E · Ahora: [E] acariciar';
         }
-        else if (type === 'cambuche') text = '[E] Tu cambuche · Armar / Dormir';
+        else if (type === 'cambuche') text = '[E] Tu chante · Armar / Dormir';
         else if (type === 'dealer') text = '[Q / E] Tienda del Dealer · Comprar / Vender';
 
         if (text) {

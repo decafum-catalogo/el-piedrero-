@@ -8,7 +8,7 @@ export function paintD69Store(map) {
 
 /** Fachada comercial propia; el acceso principal mira al andén oriental. */
 export function buildD69Store({ createSign }) {
-  const group = new THREE.Group(); group.name = 'Tienda D69';
+  const group = new THREE.Group(); group.name = 'Súper El Futuro';
   const white = new THREE.MeshStandardMaterial({ color: '#eeeadf', roughness: .85 });
   const red = new THREE.MeshStandardMaterial({ color: '#b50c32', roughness: .6 });
   const frame = new THREE.MeshStandardMaterial({ color: '#b6bab8', roughness: .45, metalness: .45 });
@@ -35,7 +35,7 @@ export function buildD69Store({ createSign }) {
   box(5.45, 2.65, .04, 48, 1.57, 158.89, glass);
   const sign = (x, z, yaw) => {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.4, .95),
-      new THREE.MeshBasicMaterial({ map: createSign({ title: 'D69', sub: 'TIENDA · AHORRO DIARIO', bg: '#b50c32', fg: '#ffffff', border: false, w: 512, h: 160 }) }));
+      new THREE.MeshBasicMaterial({ map: createSign({ title: 'EL FUTURO', sub: 'SÚPER · AHORRO DIARIO', bg: '#b50c32', fg: '#ffffff', border: false, w: 512, h: 160 }) }));
     mesh.position.set(x, 4.4, z); mesh.rotation.y = yaw; group.add(mesh);
   };
   sign(53.13, 162, Math.PI / 2);

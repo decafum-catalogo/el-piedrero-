@@ -59,10 +59,12 @@ export const SHELTER_RESPAWN = Object.freeze({ x: 112.98, z: 97.84 });
 
 const CARTUCHO = { x0: 8, x1: 21, z0: 14, z1: 29 };
 const SHOP_NAMES = [
-  ['DROGUERÍA', 'SALUD Y VIDA'], ['PANADERÍA', 'EL TRIGAL'], ['CIGARRERÍA', 'LA 10'], ['ASADERO', 'POLLO DORADO'],
-  ['MISCELÁNEA', 'TODO A MIL'], ['COMPRAVENTA', 'EL CENTAVO'], ['RESIDENCIAS', 'EL DORADO'], ['BILLARES', 'LA BOLA 8'],
-  ['TIENDA', 'DONDE PACHO'], ['FERRETERÍA', 'EL TORNILLO'], ['SASTRERÍA', 'ARREGLOS'], ['CAFETERÍA', 'TINTO Y PAN'],
-  ['CHATARRERÍA', 'COMPRAMOS'], ['MINUTOS', 'A TODO OPERADOR'], ['LAVANDERÍA', 'AL INSTANTE'], ['PAPELERÍA', 'FOTOCOPIAS']
+  ['FARMACIA', 'SALUD Y VIDA'], ['PANADERÍA', 'MUSSMANI'], ['PULPERÍA', 'LA 10'], ['ASADERO', 'POLLO DORADO'],
+  ['MISCELÁNEA', 'TODO A MIL'], ['COMPRAVENTA', 'EL CENTAVO'], ['CABINAS', 'EL DORADO'], ['BILLAR', 'LA BOLA 8'],
+  ['PULPERÍA', 'DOÑA LELA'], ['FERRETERÍA', 'LOS HERMANOS'], ['SASTRERÍA', 'ARREGLOS AL FALLO'], ['SODA', 'CAFECITO Y PAN'],
+  ['CHATARRERA', ''], ['RECARGAS', 'TODAS LAS LÍNEAS'], ['LAVANDERÍA', 'AL TOQUE'], ['LIBRERÍA', 'FOTOCOPIAS'],
+  ['BARBERÍA', 'FAMILY BARBER'], ['CARNICERÍA', 'EL NOVILLO ALEGRE'], ['VERDURAS', 'DON BETO'], ['TALLER', 'LOS VARGAS'],
+  ['SALA DE BELLEZA', 'YORLENY Y EL NICA'], ['LICORERA', 'EL BORRACHO FELIZ'], ['SODA', 'EL BUEN SABOR'], ['PULPERÍA', 'MALIN']
 ];
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -474,7 +476,7 @@ export class Bogota {
     const walk = (x, z) => WALKABLE.has(map[z]?.[x]);
     const brick = TX.brick(3);
     const sideMat = new THREE.MeshStandardMaterial({ map: repeatAll(brick.map), bumpMap: repeatAll(brick.bumpMap), bumpScale: 0.3, roughness: 0.9, color: '#c8b2a2' });
-    const roofMat = new THREE.MeshStandardMaterial({ map: repeatAll(TX.slab(13).map), roughness: 0.95 });
+    const roofMat = new THREE.MeshStandardMaterial({ map: repeatAll(TX.zinc(31).map), roughness: 0.55, metalness: 0.25 });
     const tileRoof = new THREE.MeshStandardMaterial({ map: repeatAll(TX.roofTiles(9).map), roughness: 0.85 });
     this._interiorMat = new THREE.MeshStandardMaterial({ map: roofMat.map, color: '#675e50', roughness: 1 });
     this._uvUnits = { brick: [TX.BRICK_TILE.w, TX.BRICK_TILE.h], slab: [4, 4], tiles: [2, 2] };
@@ -482,7 +484,7 @@ export class Bogota {
     this.urbanBuildings = planUrbanBuildings(map);
     const urbanPalette = {
       facades: URBAN_DESIGNS.map((design,i)=>{
-        const tex=TX.facade({seed:170+i,width:6,floors:3,pxPerM:32,shopFront:false,style:i===0?'ladrillo':'concreto',wallColor:['#975c40','#b6b3a8','#c3b8a5','#857c70','#687d81'][i]});
+        const tex=TX.facade({seed:170+i,width:6,floors:3,pxPerM:32,shopFront:false,style:i===0?'ladrillo':'concreto',wallColor:['#b5523f','#efc9a0','#d98aa6','#4fb3a9','#e8dcb8'][i]});
         return new THREE.MeshStandardMaterial({map:repeatAll(tex.map),emissiveMap:repeatAll(tex.emissiveMap),emissive:'#ffffff',emissiveIntensity:0,bumpMap:repeatAll(tex.bumpMap),bumpScale:.16,roughness:i===4?.55:.9});
       }),
       roof:roofMat,interior:this._interiorMat,
@@ -740,9 +742,47 @@ export class Bogota {
     return height;
   }
 
+  /** Cables enredados entre postes (tendido eléctrico y de telecomunicaciones del barrio). */
+  _buildOverheadCables(poles) {
+    const pos = [];
+    const heights = [3.9, 3.7, 3.45, 3.2];
+    const a = new THREE.Vector3(), b = new THREE.Vector3();
+    for (let i = 0; i < poles.length; i++) {
+      for (let j = i + 1; j < poles.length; j++) {
+        const d = poles[i].distanceTo(poles[j]);
+        if (d > 18 || d < 2) continue;
+        const n = 1 + Math.floor(Math.random() * heights.length);
+        for (let k = 0; k < n; k++) {
+          const h = heights[k] + (Math.random() - 0.5) * 0.15;
+          const sag = d * (0.03 + Math.random() * 0.04);
+          const off = (Math.random() - 0.5) * 0.3;
+          a.copy(poles[i]); b.copy(poles[j]);
+          let prev = null;
+          for (let s = 0; s <= 8; s++) {
+            const t = s / 8;
+            const pt = new THREE.Vector3().lerpVectors(a, b, t);
+            pt.y += h - sag * 4 * t * (1 - t);
+            pt.x += off * Math.sin(Math.PI * t);
+            if (prev) pos.push(prev.x, prev.y, prev.z, pt.x, pt.y, pt.z);
+            prev = pt;
+          }
+        }
+      }
+    }
+    if (!pos.length) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const cables = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x1b1b1b }));
+    cables.name = 'Cables aéreos';
+    cables.userData.noMerge = true;
+    cables.frustumCulled = false;
+    this.group.add(cables);
+  }
+
   /** Faroles, placas de nomenclatura, estación y bus de la troncal */
   _buildStreetProps(map) {
     // faroles cada ~14 m en los andenes junto a la calzada
+    const poles = [];
     for (let z = 2; z < map.length - 2; z += 7) {
       for (let x = 2; x < map[0].length - 2; x += 7) {
         let best = null;
@@ -756,8 +796,10 @@ export class Bogota {
         farol.group.userData.noMerge = true; // cambia de material de noche
         this.group.add(farol.group);
         this.props.push({ instance: farol });
+        poles.push(farol.group.position.clone());
       }
     }
+    this._buildOverheadCables(poles);
     // placas en las esquinas
     for (const [za, zb, calle] of CALLES) {
       for (const [xa, xb, carrera] of [...CARRERAS, [CARACAS.lanes[0][0], CARACAS.lanes[1][1], 'Av. Caracas']]) {
@@ -774,9 +816,9 @@ export class Bogota {
     this.busServices = [this.busService, this.reverseBusService];
     // cerca de la estación: vendedor de tinto y una chaza
     this.vendors = [];
-    this._vendor(WX(21), WZ(18.5), Math.PI / 2, 'chaza', 'Chaza de don Efraín', ['cigarrillo', 'cafe', 'pan', 'agua']);
+    this._vendor(WX(21), WZ(18.5), Math.PI / 2, 'chaza', 'Carretillo de don Efraín', ['cigarrillo', 'cafe', 'pan', 'agua']);
     this._vendor(WX(28), WZ(29), 0, 'fritanga', 'Fritanga La Mona', ['lataComida', 'pan', 'refresco']);
-    this._vendor(WX(39), WZ(36), -Math.PI / 2, 'chaza', 'Dulces y minutos', ['cigarrillo', 'refresco', 'agua']);
+    this._vendor(WX(39), WZ(36), -Math.PI / 2, 'chaza', 'Carretillo de dulces', ['cigarrillo', 'refresco', 'agua']);
   }
 
   /** Vendedor ambulante: puesto + persona; se le puede comprar (lo atiende la tienda con otro catálogo) */
@@ -811,7 +853,7 @@ export class Bogota {
       this._add(line, cx(x), cz(21.5));
     }
     // chaza dentro del callejón
-    this._vendor(cx(18.5), cz(21.5), 0, 'chaza', 'Chaza del callejón', ['cigarrillo', 'pan', 'agua']);
+    this._vendor(cx(18.5), cz(21.5), 0, 'chaza', 'Carretillo del callejón', ['cigarrillo', 'pan', 'agua']);
   }
 
   _buildPark() {
@@ -843,7 +885,7 @@ export class Bogota {
       }
       this._add(P.streetSign([park.name, 'Bogotá']), W(park.x0), W(pathZ));
     }
-    this._vendor(W(CARRERAS[2][0]-1.5), W(55), Math.PI/2, 'chaza', 'Chaza de la Carrera 8', ['agua','pan','cafe']);
+    this._vendor(W(CARRERAS[2][0]-1.5), W(55), Math.PI/2, 'chaza', 'Carretillo de la Avenida 49', ['agua','pan','cafe']);
     this._vendor(W(52), W(CALLES[2][0]-1.5), 0, 'fritanga', 'Fritanga del Sur', ['lataComida','pan','refresco']);
   }
 

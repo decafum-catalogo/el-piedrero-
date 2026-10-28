@@ -55,7 +55,7 @@ export const DEFAULT_LOOK = {
   cabezaColor: 0,
 };
 
-export const NAME_IDEAS = ['Jairo', 'Yeison', 'Luz Dary', 'Wilmer', 'Yuli', 'Brayan', 'Marleny', 'Don Chepe', 'Nelson', 'Leidy', 'El Mono', 'Doña Gloria', 'Kevin', 'La Flaca', 'Fredy', 'Sandra'];
+export const NAME_IDEAS = ['Kenneth', 'Mayela', 'Marvin', 'Yorleny', 'Ronald', 'Maureen', 'Wálter', 'Hazel', 'Don Memo', 'Doña Xinia', 'El Chele', 'Doña Lela', 'Don Beto', 'Choche', 'Yendry', 'Julián'];
 
 const ids = (k) => STYLES[k].map((s) => s.id);
 const clampIdx = (v, arr, d) => (Number.isInteger(v) && v >= 0 && v < arr.length ? v : d);

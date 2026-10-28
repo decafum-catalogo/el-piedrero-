@@ -11,7 +11,7 @@ import { FrustumCulling } from '../src/core/FrustumCulling.js';
 // La construcción completa usa geometría real; solo Canvas y GLB se sustituyen.
 const textureSet=()=>({map:new THREE.Texture(),bumpMap:new THREE.Texture(),emissiveMap:new THREE.Texture()});
 const replacements={...textures};
-for(const name of ['asphalt','sidewalk','brick','facade','roofTiles','slab','cardboard','trashBag','dirt','concrete']) replacements[name]=textureSet;
+for(const name of ['asphalt','sidewalk','brick','facade','roofTiles','slab','zinc','cardboard','trashBag','dirt','concrete']) replacements[name]=textureSet;
 for(const name of ['radialSprite','lightbox','neon']) replacements[name]=()=>new THREE.Texture();
 mock.module('../src/world/bogota/textures.js',{namedExports:replacements});
 mock.module('../src/utils/signs.js',{namedExports:{signTexture:()=>new THREE.Texture()}});

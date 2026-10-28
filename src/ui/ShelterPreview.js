@@ -70,10 +70,10 @@ async function takePicture(game) {
 }
 
 export function shelterPreview(game) {
-  const image = el('img', { alt: 'Vista previa del cambuche terminado, con su lona azul y todas las mejoras', width: 768, height: 432, hidden: true });
+  const image = el('img', { alt: 'Vista previa del chante terminado, con su lona azul y todas las mejoras', width: 768, height: 432, hidden: true });
   const status = el('p', { class: 'shelter-preview__status', text: 'Preparando vista previa…', role: 'status' });
   const figure = el('figure', { class: 'shelter-preview' }, image, status,
-    el('figcaption', { text: 'Así quedará tu cambuche · Vista del refugio terminado' }));
+    el('figcaption', { text: 'Así quedará tu chante · Vista del refugio terminado' }));
   if (!pictures.has(game)) {
     pictures.set(game, takePicture(game).catch(error => { pictures.delete(game); throw error; }));
   }

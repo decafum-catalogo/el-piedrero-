@@ -160,14 +160,14 @@ export class Npc {
       this.root.add(this.splatMesh);
     }
 
-    // Gritos y quejas de los peatones en Bogotá
+    // Gritos y quejas de los peatones
     const screams = [
-      '¡¡AY QUÉ ASCO, ME CAYÓ UN MOJÓN!! 🤮',
-      '¡¡GONORREA COCHINO, ME TIRÓ POPÓ!! 🤬',
-      '¡¡POLICÍA, UN LOCO ME ESTÁ TIRANDO MIERDA!! 🚨',
-      '¡¡GAS, QUÉ COCHINADA TAN HIJUEPUTA!! 🤢',
-      '¡¡QUÉ PESTILENCIA, AUXILIO ME EMBARRARON!! 🤮',
-      '¡¡MALDITO ENFERMO, ME LAS VAS A PAGAR!! 🏃‍♂️💨'
+      '¡¡PUTA VIDA, MAE, ME CAYÓ UNA CAGADA!! 🤮',
+      '¡¡HIJUEPUTA, MAE, ME TIRÓ CACA!! 🤬',
+      '¡¡LLAMEN A LA PACA, UN LOCO ESTÁ TIRANDO MIERDA!! 🚨',
+      '¡¡QUÉ COCHINADA TAN HIJUEPUCHA, MAE!! 🤢',
+      '¡¡QUÉ PESTE, MAE AYUDA, COCHINO MALPARIDO!! 🤮',
+      '¡¡MALDITO ENFERMO, ME LAS VA A PAGAR, MAE!! 🏃‍♂️💨'
     ];
     const msg = screams[Math.floor(Math.random() * screams.length)];
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {

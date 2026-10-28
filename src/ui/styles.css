@@ -724,3 +724,33 @@ body.is-loading #minimap-container { visibility: hidden; }
   .loading-art-layer, .loading-art-layer img { animation: none; transition: none; transform: none; }
   .loading-art-scene, .loading-art-scene.is-leaving { animation-duration: .01s; }
 }
+
+/* Reloj de pulsera digital */
+#clock { display: none; }
+#watch {
+  position: fixed; top: 44px; right: 16px; z-index: 20;
+  width: 132px; pointer-events: none; font-family: monospace;
+  display: flex; flex-direction: column; align-items: center;
+}
+#watch .w-strap { width: 70px; height: 10px; background: repeating-linear-gradient(#17181a 0 3px, #222427 3px 4px); }
+#watch .w-strap-top { border-radius: 4px 4px 0 0; }
+#watch .w-strap-bottom { border-radius: 0 0 4px 4px; }
+#watch .w-case {
+  position: relative; width: 132px; padding: 7px;
+  background: linear-gradient(#26282b, #0f1012); border-radius: 10px;
+  box-shadow: 0 3px 10px #000a;
+}
+#watch .w-push { position: absolute; width: 4px; height: 9px; background: #b9bcc0; border-radius: 1px; }
+#watch .w-strap { display: none; }
+#watch .w-push.l1 { left: -3px; top: 16px; } #watch .w-push.l2 { left: -3px; top: 52px; } #watch .w-push.r1 { right: -3px; top: 52px; }
+#watch .w-bezel { background: #121317; border: 2px solid #26408a; border-radius: 6px; padding: 2px 5px 3px; }
+#watch .w-labels { display: flex; justify-content: space-between; align-items: center; font-size: 5px; color: #d6d6d6; letter-spacing: .3px; }
+#watch .w-labels b { color: #e8b930; font-weight: bold; }
+#watch .w-labels.w-bottom { font-size: 6px; font-weight: bold; margin-top: 2px; }
+#watch .w-labels em { font-style: normal; color: #fff; background: #c62828; border-radius: 6px; padding: 0 5px; font-size: 7px; }
+#watch .w-lcdbox { background: #aab58c; border-radius: 3px; margin: 2px 0; box-shadow: inset 0 0 6px #3a4a2866, inset 0 0 0 1px #0006; }
+#watch .w-top { display: flex; justify-content: space-between; padding: 1px 7px 0; color: #232a1a; font-size: 10px; font-weight: bold; }
+#watch .w-lcd { display: block; width: 100%; padding: 0 5px 3px; box-sizing: border-box; }
+#watch .w-lcd .on { fill: #232a1a; }
+#watch .w-lcd .off { fill: #232a1a14; }
+@media (max-width: 700px) { #watch { width: 110px; top: 40px; } #watch .w-case { width: 110px; } }

@@ -84,7 +84,7 @@ export function openShop(game, target = null) {
   };
   game.menu.open(target?.items
     ? { title: target.title, sub: 'Venta ambulante: lo justo para el día.', ic: 'bag', render }
-    : { title: 'Tienda La Esquinita', sub: 'Doña Rosa fía, pero solo a los conocidos.', ic: 'store', render });
+    : { title: 'Pulpería Donde Tilin', sub: 'Doña Rosa fía, pero solo a los conocidos.', ic: 'store', render });
 }
 
 /** Texto corto con los efectos de un objeto consumible */
@@ -137,7 +137,7 @@ export function openCambuche(game) {
     ];
     return { body, foot };
   };
-  game.menu.open({ title: 'Tu cambuche', sub: 'Busca materiales en la basura de toda la ciudad: hay suficientes para todas las mejoras.', ic: 'tent', render });
+  game.menu.open({ title: 'Tu chante', sub: 'Busca materiales en la basura de toda la ciudad: hay suficientes para todas las mejoras.', ic: 'tent', render });
 }
 
 function reqLine(inventory, req) {

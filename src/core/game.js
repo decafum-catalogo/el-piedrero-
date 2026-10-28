@@ -219,7 +219,7 @@ export class Game {
       this.audio.ready
     ]), 'La carga de personajes tardó demasiado.');
 
-    await loading.stage('Cargando carros, TransMilenio y cambuche…', 3.2);
+    await loading.stage('Cargando carros, buses y el chante…', 3.2);
     const importedEntities = [
       ...(this.cars ?? []),
       ...(this.traffic?.vehicles ?? []).map(vehicle => vehicle.car),
@@ -278,7 +278,7 @@ export class Game {
     const look = await this.creator.open(DEFAULT_LOOK, {
       doneLabel: 'Empezar', onReady: () => loading?.forCreator()
     });
-    await this._applyLook(look ?? { ...DEFAULT_LOOK, nombre: 'Parcero' });
+    await this._applyLook(look ?? { ...DEFAULT_LOOK, nombre: 'Gabo Mora' });
     this._save();
   }
 
@@ -638,11 +638,11 @@ export class Game {
       render: () => ({
         body: el('div', {},
           el('p', { text: causes.length ? `Estado al caer: ${causes.join(', ')}.` : 'Tu salud llegó a cero.' }),
-          el('p', { text: 'Volverás al cambuche con salud y necesidades recuperadas al menos al 60 %. Perderás la mitad de los tipos de objetos del inventario.' }),
+          el('p', { text: 'Volverás al chante con salud y necesidades recuperadas al menos al 60 %. Perderás la mitad de los tipos de objetos del inventario.' }),
           el('p', { text: this._deathCause === 'atropello'
             ? 'Mira ambos sentidos y cruza con distancia: los carros necesitan espacio para frenar.'
             : 'Come, bebe agua y descansa para mantener tus necesidades. Puedes consumir comida y agua haciendo clic en ellas en el inventario.' })),
-        foot: [button('Volver al cambuche', { primary: true, onClick: () => this._respawn() })]
+        foot: [button('Volver al chante', { primary: true, onClick: () => this._respawn() })]
       })
     });
     window.dispatchEvent(new CustomEvent('death'));
@@ -876,9 +876,9 @@ export class Game {
     const friend = !!this.dog?.isFriend;
     if (!this._poiCache || now - this._poiCacheTime >= 350 || this._poiDogFriend !== friend) {
       const reserved = this.world?.active?.reserved ?? {};
-      this._poiCache = [[this.cambuche, reserved.bed, 'Cambuche', '⛺', '#ffd166'],
+      this._poiCache = [[this.cambuche, reserved.bed, 'Chante', '⛺', '#ffd166'],
         [this.sellPoint, reserved.sell, 'Recicladora', '♻️', '#2ab7ca'],
-        [this.shop, reserved.shop, 'Tienda', '🏪', '#2ecc71'],
+        [this.shop, reserved.shop, 'Pulpería', '🏪', '#2ecc71'],
         [this.craftingStation, reserved.craft, 'Crafteo', '🔨', '#e67e22'],
         [this.dealer, reserved.dealer, 'Dealer', '💀', '#9b59b6']]
         .flatMap(([entity, fallback, name, icon, color]) => {

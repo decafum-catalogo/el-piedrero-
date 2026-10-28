@@ -9,7 +9,7 @@ export class Farol {
     this.group.position.copy(position);
 
     const metalMat = new THREE.MeshLambertMaterial({
-      color: 0x2a2a30,
+      color: 0x8a8478, // poste de concreto
       flatShading: true
     });
 

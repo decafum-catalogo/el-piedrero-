@@ -86,7 +86,7 @@ export class StealSystem {
     this.targetNpc = nearest;
     if (!nearest || this.cooldown > 0) return;
     if (this.game.interaction) {
-      this.game.interaction.stealPrompt = '[E] Cosquilleo (sigiloso) · [Q] Robo directo';
+      this.game.interaction.stealPrompt = '[E] Pedir prestado sin permiso (sigiloso) · [Q] Robo directo';
     }
     if (this.game.input.consumePress('KeyE')) this.startCosquilleo(nearest);
     else if (this.game.input.consumePress('KeyQ')) this.executeRoboDirecto(nearest);
@@ -142,7 +142,7 @@ export class StealSystem {
     if (npc) npc._robadoTimer = CONFIG.npcCooldown;
     if (success) {
       this._giveLoot(CONFIG.lootMoneyCosquilleo, true);
-      this._toast('🧤 ¡Cosquilleo exitoso! Nadie se dio cuenta.', 'rare');
+      this._toast('🧤 ¡Pidió prestado sin permiso! Nadie se dio cuenta. ¡Sí la armó!', 'rare');
     } else {
       const bonus = this.game?.pet?.getDistractionBonus?.() ?? 0;
       const noticeChance = Math.max(0.2, (npc?.alerta ?? 0.5) - bonus);
@@ -150,7 +150,7 @@ export class StealSystem {
         npc?.hitByPoop?.(this.game.player.position);
         this._toast('🚨 ¡Lo cogieron con las manos en la masa! El peatón gritó.', 'death');
       } else {
-        this._toast('💨 Fallaste el cosquilleo, pero lograste disimular.', 'warn');
+        this._toast('💨 Fallaste al robar, pero lograste disimular.', 'warn');
       }
     }
   }

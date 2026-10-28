@@ -165,9 +165,10 @@ export function brick(seed = 3) {
   return { map: toTexture(c), bumpMap: toTexture(c, { srgb: false }) };
 }
 
-const WALLS = ['#c9a46a', '#b8695a', '#7f9aa8', '#d8c9a3', '#8fa37a', '#c27f4a', '#a7a29a', '#b58fa8', '#d2b48c', '#6d8c9e'];
-const SMALL_SIGNS = ['SE ARRIENDA', 'SE VENDE', 'MINUTOS', 'RECARGAS', 'CERRAJERÍA', 'MODISTERÍA', 'SE HACEN UÑAS', 'FOTOCOPIAS'];
-const TAGS = ['KLAN', 'LUZ', 'ZONA 7', 'RBQ', 'LA 33', 'PARCE', 'ÑERO', 'CALLE'];
+// Paleta de La Carpio: rosado, turquesa, salmón, durazno, crema, rojo óxido, mostaza y concreto sucio
+const WALLS = ['#d98aa6', '#4fb3a9', '#e0866a', '#efc9a0', '#e8dcb8', '#b5523f', '#d9a63c', '#a9a59b', '#8fb4d9', '#c9a46a'];
+const SMALL_SIGNS = ['SE ALQUILA', 'SE VENDE', 'RECARGAS', 'RECARGAS Y PAGOS', 'LLAVES Y CERRAJERÍA', 'SASTRERÍA', 'UÑAS Y PESTAÑAS', 'FOTOCOPIAS'];
+const TAGS = ['ZONA ROJA', 'AFUERA RODRIGO', 'CHORICEROS', 'PURA GENTE DEL DIABLO', 'LAURA HP', 'NO BOTAR BASURA', 'EL PUNTO', 'L13'];
 
 /**
  * Fachada de casa o edificio de barrio, dibujada a la medida.
@@ -402,6 +403,35 @@ export function slab(seed = 13) {
     const g = x.createRadialGradient(px, py, 0, px, py, pr);
     g.addColorStop(0, 'rgba(30,28,25,0.45)');
     g.addColorStop(1, 'rgba(30,28,25,0)');
+    x.fillStyle = g;
+    x.fillRect(px - pr, py - pr, pr * 2, pr * 2);
+  }
+  return { map: toTexture(c) };
+}
+
+/** Lámina de zinc corrugado oxidada (techos de barrio). */
+export function zinc(seed = 31) {
+  const r = rng(seed);
+  const s = 256;
+  const [c, x] = canvas(s, s);
+  const base = pick(r, ['#9aa0a3', '#8a5a44', '#a3503c', '#7d8588']);
+  x.fillStyle = base;
+  x.fillRect(0, 0, s, s);
+  // ondas verticales
+  for (let i = 0; i < s; i += 16) {
+    const g = x.createLinearGradient(i, 0, i + 16, 0);
+    g.addColorStop(0, 'rgba(255,255,255,0.18)');
+    g.addColorStop(0.5, 'rgba(0,0,0,0.12)');
+    g.addColorStop(1, 'rgba(255,255,255,0.18)');
+    x.fillStyle = g;
+    x.fillRect(i, 0, 16, s);
+  }
+  speckle(x, s, s, r, 5000, ['rgba(120,60,30,0.35)', 'rgba(70,40,25,0.3)', 'rgba(220,220,220,0.15)'], 3);
+  for (let i = 0; i < 6; i++) {
+    const px = r() * s, py = r() * s, pr = 15 + r() * 40;
+    const g = x.createRadialGradient(px, py, 0, px, py, pr);
+    g.addColorStop(0, 'rgba(110,50,25,0.45)');
+    g.addColorStop(1, 'rgba(110,50,25,0)');
     x.fillStyle = g;
     x.fillRect(px - pr, py - pr, pr * 2, pr * 2);
   }

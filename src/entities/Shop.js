@@ -60,7 +60,7 @@ export class Shop {
     }
 
     // Letrero
-    const sign = signMesh({ title: 'LA ESQUINITA', sub: 'TIENDA · MISCELÁNEA' }, 2.6);
+    const sign = signMesh({ title: 'DONDE TILIN', sub: 'PULPERÍA' }, 2.6);
     sign.position.set(0, 2.85, -0.4);
     this.group.add(sign);
 

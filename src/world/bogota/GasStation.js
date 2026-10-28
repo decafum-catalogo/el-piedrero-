@@ -56,7 +56,7 @@ export function buildGasStation({ createSign = signTexture } = {}) {
   box(13, 3.4, 4, 154, 1.82, 114, white);
   box(13.3, .3, 4.3, 154, 3.65, 114, red);
   for (const x of [150, 154, 158]) box(2.9, 1.9, .06, x, 1.72, 111.95, glass);
-  label('TIENDA', 'CAFÉ · AGUA · VÍVERES', 8, .6, 154, 3.12, 111.9);
+  label('PULPERÍA', 'DONDE FREDY', 8, .6, 154, 3.12, 111.9);
   box(.36, 8.8, .36, 146, 4.52, 91, dark);
   box(2, 3.2, .3, 146, 7.6, 91, red);
   label('TEXACO', 'ABIERTO 24 H', 1.9, .8, 146, 8.4, 90.83);

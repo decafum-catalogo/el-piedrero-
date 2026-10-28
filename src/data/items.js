@@ -41,7 +41,7 @@ export const ITEMS = {
     consumable: 'sed', amount: 50, energia: 10, animo: 10
   },
   cafe: {
-    id: 'cafe', name: 'Café caliente', weight: 0.3, value: 1500,
+    id: 'cafe', name: 'Cafecito caliente', weight: 0.3, value: 1500,
     consumable: 'energia', amount: 40, animo: 15
   },
   vendaje: {
@@ -134,7 +134,7 @@ const ITEM_EMOJIS = {
 };
 for (const item of Object.values(ITEMS)) {
   item.emoji = ITEM_EMOJIS[item.id] ?? (item.cure ? '💊' : item.substance ? '🧪' : '📦');
-  item.desc ??= item.build ? 'Material para mejorar el cambuche.' : item.consumable ? 'Consumible.' : item.cure ? 'Tratamiento.' : 'Se puede vender.';
+  item.desc ??= item.build ? 'Material para mejorar el chante.' : item.consumable ? 'Consumible.' : item.cure ? 'Tratamiento.' : 'Se puede vender.';
 }
 export const isUsable = item => !!(item?.consumable || item?.cure || item?.usable);
 export function describeEffects(item) {
@@ -205,7 +205,7 @@ export const SHOP_ITEMS = [
   { item: 'lataComida', price: 6000 },
   { item: 'agua',       price: 2000 },
   { item: 'refresco',   price: 3500 },
-  { item: 'cafe',       price: 2000, desc: 'Un tinto caliente: quita el sueño.' },
+  { item: 'cafe',       price: 2000, desc: 'Un cafecito caliente: quita el sueño.' },
   { item: 'cigarrillo', price: 500,  desc: 'Calma el vicio. Le quita un poquito a la salud.' },
   { item: 'vendaje',    price: 4500 },
   { item: 'jabon',      price: 3500 },
@@ -216,9 +216,9 @@ export const SHOP_ITEMS = [
   { item: 'antiparasitario', price: 13000 },
   { item: 'vacuna',     price: 20000 },
   { item: 'antibiotico', price: 25000 },
-  { item: 'vela',       price: 1000, desc: 'Ilumina el cambuche: duermes más tranquilo.' },
-  { item: 'lona',       price: 9000, desc: 'Para el techo del cambuche.' },
-  { item: 'madera',     price: 6000, qty: 3, label: 'Tablas ×3', desc: 'Para las paredes del cambuche.' },
+  { item: 'vela',       price: 1000, desc: 'Ilumina el chante: duermes más tranquilo.' },
+  { item: 'lona',       price: 9000, desc: 'Para el techo del chante.' },
+  { item: 'madera',     price: 6000, qty: 3, label: 'Tablas ×3', desc: 'Para las paredes del chante.' },
   { item: 'pilas',           price: 2000,  desc: 'Pilas AA: recargan la radio transistor.' },
   { item: 'radioTransistor', price: 18000, desc: 'Radio transistor: sintoniza emisoras y calma la mente.' },
   { upgrade: 'costal',  price: 12000, label: 'Costal grande', icon: 'backpack', desc: 'Cargas 20 kg más.' }

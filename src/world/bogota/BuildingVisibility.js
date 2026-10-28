@@ -34,10 +34,10 @@ function faceGeometry(source, face, height, bottom, top) {
 
 /** Caja arquitectónica separada en zócalo cerrado, cuatro paredes altas y techo. */
 export function createBuildingShell(source, materials, {
-  x, z, height, interiorMaterial, facadeFace, wallInteriorMaterial, wallInteriorUV
+  x, z, y = 0, height, interiorMaterial, facadeFace, wallInteriorMaterial, wallInteriorUV
 }) {
   const root = new THREE.Group();
-  root.position.set(x, 0, z);
+  root.position.set(x, y, z);
   const base = new THREE.Group();
   root.add(base);
   const walls = new Map();

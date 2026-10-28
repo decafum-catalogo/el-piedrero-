@@ -329,6 +329,8 @@ export class Bogota {
   _shopFront() { return true; }
   _houseStyle(ruin) { return ruin ? 'ruina' : Math.random() < 0.55 ? 'ladrillo' : 'pintada'; }
   _afterHouse() {}
+  _warp() {}
+  _baseY() { return 0; }
   _baseRoofTexture() { return TX.zinc(31); }
   _clayChance() { return 0.4; }
   _obstacles() {
@@ -364,6 +366,7 @@ export class Bogota {
         const g = new THREE.PlaneGeometry(T, T);
         g.rotateX(-Math.PI / 2);
         g.translate(W(x), heightOf[t], W(z));
+        this._warp(g);
         const uv = g.attributes.uv, pos = g.attributes.position;
         if (this._onBridge(W(x), W(z))) {
           for (let i = 0; i < pos.count; i++) pos.setY(i, bridgeHeight(pos.getZ(i)));
@@ -379,6 +382,7 @@ export class Bogota {
             const c = new THREE.PlaneGeometry(T, SIDEWALK_Y);
             c.rotateY(dx ? (dx > 0 ? Math.PI / 2 : -Math.PI / 2) : (dz > 0 ? 0 : Math.PI));
             c.translate(W(x) + dx * T / 2, SIDEWALK_Y / 2, W(z) + dz * T / 2);
+            this._warp(c);
             (quads.curb ??= []).push(c);
           }
         }
@@ -560,7 +564,8 @@ export class Bogota {
       const sx = width * T, sz = depth * T;
       const geometry = worldUVs(new THREE.BoxGeometry(sx, h, sz), sx, h, sz, Array(6).fill(this._uvUnits.slab));
       const shell = createBuildingShell(geometry, Array(6).fill(material), {
-        x: W(x) + (width - 1) * T / 2, z: W(z) + (depth - 1) * T / 2, height: h, interiorMaterial: this._interiorMat
+        x: W(x) + (width - 1) * T / 2, z: W(z) + (depth - 1) * T / 2, height: h, interiorMaterial: this._interiorMat,
+        y: this._baseY(W(x) + (width - 1) * T / 2, W(z) + (depth - 1) * T / 2, sx, sz)
       });
       shell.root.userData.perimeter = type === 'wall';
       this.group.add(shell.root);
@@ -615,7 +620,7 @@ export class Bogota {
     const units = [U.brick, U.brick, clay ? U.tiles : U.slab, U.slab, U.brick, U.brick];
     units[face] = null; // la fachada usa su textura completa
     const shell = createBuildingShell(worldUVs(new THREE.BoxGeometry(sx, h, sz), sx, h, sz, units), mats, {
-      x: cx, z: cz, height: h, interiorMaterial: this._interiorMat,
+      x: cx, z: cz, y: this._baseY(cx, cz, sx, sz), height: h, interiorMaterial: this._interiorMat,
       facadeFace: face, wallInteriorMaterial: sideMat, wallInteriorUV: U.brick
     });
     this.group.add(shell.root);
@@ -681,8 +686,8 @@ export class Bogota {
       collisions.add(object,new THREE.Vector3(plan.width,plan.height,plan.depth));
     }
     const obstacles = this._obstacles();
-    for (const { x, z, w, d, h } of obstacles) {
-      const object = new THREE.Object3D(); object.position.set(x, .12, z);
+    for (const { x, z, w, d, h, y = 0 } of obstacles) {
+      const object = new THREE.Object3D(); object.position.set(x, y + .12, z);
       collisions.add(object, new THREE.Vector3(w, h, d));
     }
     for (let z = 0; z < map.length; z++) {

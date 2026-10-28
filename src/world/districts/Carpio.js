@@ -21,6 +21,21 @@ const T = TILE_SIZE;
 const W = (t) => t * T;
 const WALKABLE = new Set(['road', 'sidewalk', 'dirt', 'grass', 'plaza', 'floor']);
 const GROUND_HEIGHTS = Object.freeze({ road: 0, sidewalk: 0.12, floor: 0.12, dirt: 0.04, grass: 0.06, plaza: 0.12, water: -0.18 });
+// Terreno ondulado y suave (cuestas moderadas, ~4 % de pendiente típica). Las zonas planas
+// (gasolinera, parque, casas ancla) se aplanan para que lo construido encima no se hunda.
+const smooth = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
+const rawTerrain = (x, z) => Math.max(0, 1.6 * Math.sin(x / 116) + 1.1 * Math.sin(z / 148 + 1) + 0.35 * Math.sin((x + z) / 52) + 2.2);
+const FLATS = [AREAS.gas, AREAS.park, AREAS.mana, AREAS.treeCorner, AREAS.lot].map(a => ({ a, h: rawTerrain(W((a.x0 + a.x1) / 2), W((a.z0 + a.z1) / 2)) }));
+export function terrainAt(x, z) {
+  let t = rawTerrain(x, z);
+  for (const { a, h } of FLATS) {
+    const dx = Math.max(W(a.x0) - x, 0, x - W(a.x1)), dz = Math.max(W(a.z0) - z, 0, z - W(a.z1));
+    const w = 1 - smooth(Math.hypot(dx, dz) / 16);
+    t = t * (1 - w) + h * w;
+  }
+  return t * (1 - smooth((x - W(AREAS.river.x0 - 22)) / W(14)));
+}
+export const flatHeight = (area) => FLATS.find(f => f.a === area).h;
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
@@ -48,7 +63,7 @@ export class Carpio extends Bogota {
   _houseStyle(ruin) { return ruin ? 'ruina' : Math.random() < 0.18 ? 'ladrillo' : 'pintada'; }
   _baseRoofTexture() { return TX.zinc(30, '#9fa5a8'); }
   _clayChance() { return 0.08; }
-  _obstacles() { return gasObstaclesCR(); }
+  _obstacles() { return gasObstaclesCR().map(o => ({ ...o, y: flatHeight(AREAS.gas) })); }
   migrateSavedPosition(position) { return [...position]; }
 
   _buildWater(material) {
@@ -83,7 +98,20 @@ export class Carpio extends Bogota {
   _layout() { return buildCarpioMap(); }
 
   getGroundHeight(x, z) {
-    return GROUND_HEIGHTS[this.map[Math.round(z / T)]?.[Math.round(x / T)]] ?? 0;
+    return (GROUND_HEIGHTS[this.map[Math.round(z / T)]?.[Math.round(x / T)]] ?? 0) + terrainAt(x, z);
+  }
+
+  /** Eleva cada vértice (en coordenadas de mundo) según el terreno. */
+  _warp(g) {
+    const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + terrainAt(p.getX(i), p.getZ(i)));
+    g.computeVertexNormals();
+  }
+
+  _baseY(cx, cz, w, d) {
+    let low = Infinity;
+    for (const [ox, oz] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]]) low = Math.min(low, terrainAt(cx + ox * w / 2, cz + oz * d / 2));
+    return low - 0.12;
   }
   getMovementGroundHeight(x, z) { return this.getGroundHeight(x, z); }
 
@@ -157,16 +185,16 @@ export class Carpio extends Bogota {
   _buildMarkings() {
     const white = [], pits = [], puddles = [];
     const plane = (w, d, x, z, y = 0.016) => {
-      const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2); g.translate(x, y, z); return g;
+      const g = new THREE.PlaneGeometry(w, d, Math.max(1, Math.round(w / 1.2)), Math.max(1, Math.round(d / 1.2)));
+      g.rotateX(-Math.PI / 2); g.translate(x, y, z); this._warp(g); return g;
     };
     // nombres de las calles pintados en el asfalto, como en Street View
     const label = (title, x, z, rotY) => {
       const map = signTexture({ title, bg: null, fg: '#d9d9d2', border: false, w: 512, h: 160 });
       const mat = new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.5), mat);
-      mesh.rotation.set(-Math.PI / 2, 0, rotY);
-      mesh.position.set(x, 0.02, z);
-      this.group.add(mesh);
+      const geo = new THREE.PlaneGeometry(5, 1.5, 8, 3);
+      geo.rotateX(-Math.PI / 2); geo.rotateY(rotY); geo.translate(x, 0.02, z); this._warp(geo);
+      this.group.add(new THREE.Mesh(geo, mat));
     };
     for (const r of H_ROADS) for (let x = 20; x < CARPIO_W - 20; x += 45) label(r.name.replace('Avenida', 'AV.'), W(x), W(r.z), 0);
     for (const r of V_ROADS) for (let z = 20; z < CARPIO_H - 20; z += 45) label(r.name.replace('Calle', 'C.'), W(r.x), W(z), Math.PI / 2);
@@ -179,8 +207,8 @@ export class Carpio extends Bogota {
       if (this.map[z][x] !== 'road' || Math.random() > 0.035) continue;
       const rx = rand(0.25, 0.75), rz = rand(0.2, 0.55);
       const x0 = W(x) + rand(-0.9, 0.9), z0 = W(z) + rand(-0.9, 0.9);
-      const ring = new THREE.CircleGeometry(1, 10); ring.rotateX(-Math.PI / 2); ring.scale(rx * 1.25, 1, rz * 1.25); ring.translate(x0, 0.014, z0);
-      const pit = new THREE.CircleGeometry(1, 10); pit.rotateX(-Math.PI / 2); pit.scale(rx, 1, rz); pit.translate(x0, 0.02, z0);
+      const ring = new THREE.CircleGeometry(1, 10); ring.rotateX(-Math.PI / 2); ring.scale(rx * 1.25, 1, rz * 1.25); ring.translate(x0, 0.014, z0); this._warp(ring);
+      const pit = new THREE.CircleGeometry(1, 10); pit.rotateX(-Math.PI / 2); pit.scale(rx, 1, rz); pit.translate(x0, 0.02, z0); this._warp(pit);
       pits.push(ring);
       (Math.random() < 0.3 ? puddles : pits).push(pit);
     }
@@ -199,7 +227,7 @@ export class Carpio extends Bogota {
   _buildStreetProps(map) {
     const poles = [];
     const place = (tx, tz, light) => {
-      const farol = new Farol(new THREE.Vector3(W(tx), 0.12, W(tz)), { addLight: light });
+      const farol = new Farol(new THREE.Vector3(W(tx), this.getGroundHeight(W(tx), W(tz)), W(tz)), { addLight: light });
       farol.group.userData.noMerge = true;
       this.group.add(farol.group);
       this.props.push({ instance: farol });
@@ -249,7 +277,7 @@ export class Carpio extends Bogota {
       gate.rotation.y = signFace === 'n' ? Math.PI : -Math.PI / 2;
       g.add(gate);
     }
-    g.position.set(cx, GROUND_HEIGHTS.sidewalk, cz);
+    g.position.set(cx, this.getGroundHeight(cx, cz), cz);
     this.group.add(g);
     return g;
   }
@@ -260,7 +288,7 @@ export class Carpio extends Bogota {
     this._put(CP.solarPole(), 54, 107.3, 0);
     this._put(CP.orangeFence(7), 56.5, 111.8, Math.PI / 2);
     this._put(CP.orangeFence(5), 56.4, 108.4, 0);
-    const red = makeVehicle('carro', 3).group;
+    const red = makeVehicle('carro', 3, { beams: false }).group;
     this._put(red, 52.9, 111, Math.PI / 2);
     const t = AREAS.treeCorner;
     this._deco({ x0: t.x0 + 3, x1: t.x0 + 8, z0: t.z0 + 2, z1: t.z1, wall: '#e9dcae', roof: '#e2b92a',
@@ -282,10 +310,10 @@ export class Carpio extends Bogota {
     this._put(CP.hoop(), c.x1 - 1.5, (c.z0 + c.z1) / 2, -Math.PI / 2);
     // sendero con guía táctil amarilla
     const strip = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, (p.z1 - p.z0) * T), new THREE.MeshStandardMaterial({ color: '#e5b822', roughness: 0.8 }));
-    strip.position.set(W(105.5), 0.14, W((p.z0 + p.z1) / 2)); strip.receiveShadow = true; this.group.add(strip);
+    strip.position.set(W(105.5), flatHeight(AREAS.park) + 0.14, W((p.z0 + p.z1) / 2)); strip.receiveShadow = true; this.group.add(strip);
     for (let i = 0; i < 10; i++) this._put(BP.tree(rand(0.9, 1.3)), rand(p.x0 + 1, p.x1 - 1), rand(c.z1 + 2, p.z1 - 1));
     for (const [x, z, r] of [[102, 90, 0], [110, 90, Math.PI], [101.5, 97, 0], [112, 98, Math.PI]]) {
-      const b = new Banca(new THREE.Vector3(W(x), 0.12, W(z)), r); this.group.add(b.group);
+      const b = new Banca(new THREE.Vector3(W(x), this.getGroundHeight(W(x), W(z)), W(z)), r); this.group.add(b.group);
     }
 
     // --- Escena 3: el callejón de lastre ---
@@ -309,7 +337,9 @@ export class Carpio extends Bogota {
       sign: { title: 'EL MANÁ', sub: 'PULPERÍA · VÍVERES', bg: '#2b5aa8', fg: '#ffffff' }, signFace: 'w', signW: 4.6 });
 
     // --- Gasolinera tica ---
-    this.group.add(buildGasStationCR({ createSign: signTexture, cx: GAS_CR.cx, cz: GAS_CR.cz }));
+    const gas = buildGasStationCR({ createSign: signTexture, cx: GAS_CR.cx, cz: GAS_CR.cz });
+    gas.position.y = flatHeight(AREAS.gas) + 0.12;
+    this.group.add(gas);
   }
 
   /** Basura, matas, árboles y cambuches regados por el barrio. */

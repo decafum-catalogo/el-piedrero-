@@ -412,7 +412,7 @@ export class Game {
     for (let i = 0; i < carCount; i++) {
       let spot = parking.find((p) => placed.every((q) => Math.hypot(p.x - q.x, p.z - q.z) > 8));
       if (spot) placed.push(spot);
-      const pos = spot ? new THREE.Vector3(spot.x, 0, spot.z) : findValidSpawn(null, 6);
+      const pos = spot ? new THREE.Vector3(spot.x, district.getGroundHeight?.(spot.x, spot.z) ?? 0, spot.z) : findValidSpawn(null, 6);
       const rot = spot ? spot.rot : Math.random() * Math.PI * 2;
       const car = new Car(this.sceneMgr.scene, pos, rot);
       this.cars.push(car);
@@ -420,6 +420,7 @@ export class Game {
     }
     if (district.getTrafficRoutes) {
       this.traffic = new TrafficSystem(this.sceneMgr.scene, district.getTrafficRoutes());
+      this.traffic.groundHeight = (x, z) => district.getGroundHeight?.(x, z) ?? 0;
       this.traffic.setParkedCars(this.cars);
       for (const { car } of this.traffic.vehicles) this.interaction.register(car);
     }

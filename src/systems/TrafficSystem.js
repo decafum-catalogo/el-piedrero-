@@ -32,6 +32,7 @@ export class TrafficSystem {
       for (let i = 0; i < count; i++) {
         const distance = (i + 0.4) * route.length / count;
         route.sample(distance, this._position, this._direction);
+        this._position.y = this.groundHeight?.(this._position.x, this._position.z) ?? 0;
         const car = new Car(scene, this._position, Math.atan2(-this._direction.z, this._direction.x), { traffic: true });
         const cruiseSpeed = 10 + random() * 4;
         this.vehicles.push({ car, route, distance, speed: 0, cruiseSpeed, nextDistance: distance, nextSpeed: 0,
@@ -400,6 +401,7 @@ export class TrafficSystem {
         vehicle.speed = vehicle.nextSpeed;
         this._checkPlayerImpact(vehicle, player, startDistance, travel, onPlayerHit);
         vehicle.route.sample(vehicle.distance, this._position, this._direction);
+        this._position.y = this.groundHeight?.(this._position.x, this._position.z) ?? 0;
         vehicle.car.position.copy(this._position);
         vehicle.car.group.rotation.y = Math.atan2(-this._direction.z, this._direction.x);
         vehicle.car.animateDrive(vehicle.speed * stepTime, vehicle.speed < vehicle.cruiseSpeed * 0.7);

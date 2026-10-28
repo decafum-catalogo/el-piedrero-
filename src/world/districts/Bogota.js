@@ -45,7 +45,7 @@ import { ORIGINAL_SIZE as S, ORIGINAL_CARRERAS, ORIGINAL_CARACAS, ORIGINAL_CALLE
   migrateStreetPosition, WORLD_LAYOUT_VERSION, SIDEWALK_TILES } from '../bogota/StreetLayout.js';
 const T = TILE_SIZE;
 const WALKABLE = new Set(['road', 'busway', 'sidewalk', 'dirt', 'grass', 'plaza', 'floor']);
-const SOLID = new Set(['building', 'ruin', 'wall', 'water', 'storeD69', 'colpatria', 'colpatriaAnnex', 'smallBuilding']);
+const SOLID = new Set(['building', 'ruin', 'wall', 'water', 'storeD69', 'colpatria', 'colpatriaAnnex', 'smallBuilding', 'cornerHouse', 'mana']);
 const SIDEWALK_Y = 0.12;
 // La colocación de objetos debe usar las mismas cotas que la malla del terreno.
 const GROUND_HEIGHTS = Object.freeze({
@@ -320,6 +320,22 @@ export class Bogota {
     };
   }
 
+  // ---------- ganchos para distritos derivados (La Carpio) ----------
+  _onBridge(x, z) { return onLakeBridge(x, z); }
+  _buildWater(material) { return buildLakeWater(material); }
+  _planUrban(map) { return planUrbanBuildings(map); }
+  _floors(x, z, ruin) { return skylineFloors(x, z, ruin); }
+  _fillHeight(type) { return type === 'wall' ? 9 : type === 'ruin' ? 4.5 : 6.5; }
+  _shopFront() { return true; }
+  _houseStyle(ruin) { return ruin ? 'ruina' : Math.random() < 0.55 ? 'ladrillo' : 'pintada'; }
+  _afterHouse() {}
+  _baseRoofTexture() { return TX.zinc(31); }
+  _clayChance() { return 0.4; }
+  _obstacles() {
+    return [...GAS_OBSTACLES,
+      ...[AVENUE_OVERPASS.x0, AVENUE_OVERPASS.x1].map(x => ({ x, z: AVENUE_OVERPASS.z, w: 1.4, d: 4.6, h: 11.4 }))];
+  }
+
   /** Suelo: una malla por material, con UV en metros para que la textura no se repita por tile */
   _buildGround(map) {
     const asphalt = TX.asphalt(7, 1024);
@@ -344,19 +360,19 @@ export class Bogota {
     for (let z = 0; z < map.length; z++) {
       for (let x = 0; x < map[0].length; x++) {
         const t = map[z][x];
-        if (!mats[t] || t === 'water' || onLakeBridge(W(x), W(z))) continue;
+        if (!mats[t] || t === 'water' || this._onBridge(W(x), W(z))) continue;
         const g = new THREE.PlaneGeometry(T, T);
         g.rotateX(-Math.PI / 2);
         g.translate(W(x), heightOf[t], W(z));
         const uv = g.attributes.uv, pos = g.attributes.position;
-        if (onLakeBridge(W(x), W(z))) {
+        if (this._onBridge(W(x), W(z))) {
           for (let i = 0; i < pos.count; i++) pos.setY(i, bridgeHeight(pos.getZ(i)));
           g.computeVertexNormals();
         }
         for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getX(i) / scaleOf[t], pos.getZ(i) / scaleOf[t]);
         (quads[t] ??= []).push(g);
         // bordillo: cara vertical hacia la calle
-        if (heightOf[t] >= SIDEWALK_Y && !onLakeBridge(W(x), W(z))) {
+        if (heightOf[t] >= SIDEWALK_Y && !this._onBridge(W(x), W(z))) {
           for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
             const n = map[z + dz]?.[x + dx];
             if (n !== 'road' && n !== 'busway') continue;
@@ -370,7 +386,8 @@ export class Bogota {
     }
     mats.curb = new THREE.MeshStandardMaterial({ color: '#d8d4c8', roughness: 0.8 });
     this.groundMaterials = mats;
-    this.group.add(buildLakeWater(mats.water));
+    const water = this._buildWater(mats.water);
+    if (water) this.group.add(water);
     for (const [t, list] of Object.entries(quads)) {
       this.group.add(mergeByChunk(list, mats[t], { receiveShadow: true }));
     }
@@ -476,12 +493,12 @@ export class Bogota {
     const walk = (x, z) => WALKABLE.has(map[z]?.[x]);
     const brick = TX.brick(3);
     const sideMat = new THREE.MeshStandardMaterial({ map: repeatAll(brick.map), bumpMap: repeatAll(brick.bumpMap), bumpScale: 0.3, roughness: 0.9, color: '#c8b2a2' });
-    const roofMat = new THREE.MeshStandardMaterial({ map: repeatAll(TX.zinc(31).map), roughness: 0.55, metalness: 0.25 });
+    const roofMat = new THREE.MeshStandardMaterial({ map: repeatAll(this._baseRoofTexture().map), roughness: 0.55, metalness: 0.25 });
     const tileRoof = new THREE.MeshStandardMaterial({ map: repeatAll(TX.roofTiles(9).map), roughness: 0.85 });
     this._interiorMat = new THREE.MeshStandardMaterial({ map: roofMat.map, color: '#675e50', roughness: 1 });
     this._uvUnits = { brick: [TX.BRICK_TILE.w, TX.BRICK_TILE.h], slab: [4, 4], tiles: [2, 2] };
     const covered = new Set();
-    this.urbanBuildings = planUrbanBuildings(map);
+    this.urbanBuildings = this._planUrban(map);
     const urbanPalette = {
       facades: URBAN_DESIGNS.map((design,i)=>{
         const tex=TX.facade({seed:170+i,width:6,floors:3,pxPerM:32,shopFront:false,style:i===0?'ladrillo':'concreto',wallColor:['#b5523f','#efc9a0','#d98aa6','#4fb3a9','#e8dcb8'][i]});
@@ -538,7 +555,7 @@ export class Bogota {
       while (width < 4 && available(x + width, z)) width++;
       while (depth < 4 && Array.from({ length: width }, (_, i) => available(x + i, z + depth)).every(Boolean)) depth++;
       for (let dz = 0; dz < depth; dz++) for (let dx = 0; dx < width; dx++) covered.add(`${x + dx},${z + dz}`);
-      const h = type === 'wall' ? 9 : type === 'ruin' ? 4.5 : 6.5;
+      const h = this._fillHeight(type);
       const material = type === 'wall' ? wallMat : roofMat;
       const sx = width * T, sz = depth * T;
       const geometry = worldUVs(new THREE.BoxGeometry(sx, h, sz), sx, h, sz, Array(6).fill(this._uvUnits.slab));
@@ -562,16 +579,17 @@ export class Bogota {
     for (const [x, z] of tiles) for (let d = 0; d < depth; d++) covered.add(`${x - dx * d},${z - dz * d}`);
 
     const widthM = tiles.length * T;
-    const floors = skylineFloors(tiles[0][0], tiles[0][1], ruin);
+    const floors = this._floors(tiles[0][0], tiles[0][1], ruin);
     const h = floors * 3;
-    const style = ruin ? 'ruina' : Math.random() < 0.55 ? 'ladrillo' : 'pintada';
+    const shopFront = ruin ? true : this._shopFront();
+    const style = this._houseStyle(ruin);
     // el ladrillo necesita más resolución para que cada ladrillo (36 × 12 cm) se distinga
     // Variantes compartidas: ampliar el barrio no triplica las texturas de fachada en la GPU.
     const variant = Math.floor(Math.random() * 2);
-    const textureKey = `${widthM}:${floors}:${style}:${variant}`;
+    const textureKey = `${widthM}:${floors}:${style}:${variant}:${shopFront}`;
     let tex = this._facadeTextures.get(textureKey);
     if (!tex) {
-      tex = TX.facade({ seed: Math.floor(Math.random() * 1e6), width: widthM, floors, pxPerM: style === 'pintada' ? 28 : 40, shopFront: true, style });
+      tex = TX.facade({ seed: Math.floor(Math.random() * 1e6), width: widthM, floors, pxPerM: style === 'pintada' ? 28 : 40, shopFront, style });
       this._facadeTextures.set(textureKey, tex);
     }
     for (const t of [tex.map, tex.emissiveMap, tex.bumpMap]) { t.anisotropy = 8; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; }
@@ -590,7 +608,7 @@ export class Bogota {
     const cz = (W(z0) + W(z1)) / 2 - dz * (depth - 1) * T / 2;
     const sx = alongX ? widthM : depth * T;
     const sz = alongX ? depth * T : widthM;
-    const clay = Math.random() < 0.4 || ruin;
+    const clay = Math.random() < this._clayChance() || ruin;
     const mats = [sideMat, sideMat, clay ? tileRoof : roofMat, roofMat, sideMat, sideMat];
     mats[face] = facadeMat;
     const U = this._uvUnits;
@@ -646,6 +664,7 @@ export class Bogota {
       tank.castShadow = true;
       shell.roof.add(tank);
     }
+    this._afterHouse(shell, { sx, sz, h, dx, dz, alongX, face, yaw, fx, fz, cx, cz, widthM, depth, ruin });
     const building = this.buildingVisibility.register(shell);
     for (const part of building.parts) for (const material of part.materials) {
       if (material.emissiveMap) this.facadeMats.push(material);
@@ -656,13 +675,12 @@ export class Bogota {
   _buildCollisions(map, collisions) {
     if (!collisions) return;
     const urbanTiles=new Set();
-    for(const plan of planUrbanBuildings(map)) {
+    for(const plan of this._planUrban(map)) {
       for(let dz=0;dz<plan.tiles;dz++)for(let dx=0;dx<plan.tiles;dx++)urbanTiles.add((plan.tileX+dx)+','+(plan.tileZ+dz));
       const object=new THREE.Object3D();object.position.set(plan.x,0,plan.z);
       collisions.add(object,new THREE.Vector3(plan.width,plan.height,plan.depth));
     }
-    const obstacles = [...GAS_OBSTACLES,
-      ...[AVENUE_OVERPASS.x0, AVENUE_OVERPASS.x1].map(x => ({ x, z: AVENUE_OVERPASS.z, w: 1.4, d: 4.6, h: 11.4 }))];
+    const obstacles = this._obstacles();
     for (const { x, z, w, d, h } of obstacles) {
       const object = new THREE.Object3D(); object.position.set(x, .12, z);
       collisions.add(object, new THREE.Vector3(w, h, d));

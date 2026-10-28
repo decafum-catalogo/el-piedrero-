@@ -181,7 +181,7 @@ export class Game {
 
   async _initialize(loading) {
     await loading.stage('Construyendo la ciudad…', 1);
-    this.world.loadDistrict('Bogota', this.collisions);
+    this.world.loadDistrict('Carpio', this.collisions);
     this._spawnEntities();
 
     const district = this.world.active;

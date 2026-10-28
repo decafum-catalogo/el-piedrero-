@@ -410,12 +410,12 @@ export function slab(seed = 13) {
 }
 
 /** Lámina de zinc corrugado oxidada (techos de barrio). */
-export function zinc(seed = 31) {
+export function zinc(seed = 31, base = null) {
   const r = rng(seed);
   const s = 256;
   const [c, x] = canvas(s, s);
-  const base = pick(r, ['#9aa0a3', '#8a5a44', '#a3503c', '#7d8588']);
-  x.fillStyle = base;
+  const color = base ?? pick(r, ['#9aa0a3', '#9aa0a3', '#8d9295', '#a3503c', '#7d8588']);
+  x.fillStyle = color;
   x.fillRect(0, 0, s, s);
   // ondas verticales
   for (let i = 0; i < s; i += 16) {

@@ -1,10 +1,12 @@
 // src/world/World.js
 import { ZonaCero } from './districts/ZonaCero.js';
 import { Bogota } from './districts/Bogota.js';
+import { Carpio } from './districts/Carpio.js';
 
 const DISTRICT_CLASSES = {
   ZonaCero: ZonaCero,
-  Bogota: Bogota
+  Bogota: Bogota,
+  Carpio: Carpio
   // Industrial, Centro, Norte → fase 2
 };
 

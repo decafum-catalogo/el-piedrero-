@@ -186,7 +186,7 @@ export function createCreator({ audio }) {
           maxlength: '16',
           autocomplete: 'off',
           spellcheck: 'false',
-          placeholder: 'Ej: Jairo, Luz Dary…',
+          placeholder: 'Ej: Kenneth, Yorleny…',
           value: L.nombre,
         });
         input.addEventListener('input', () => { look.nombre = cleanName(input.value); });

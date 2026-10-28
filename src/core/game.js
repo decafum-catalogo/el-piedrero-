@@ -187,11 +187,11 @@ export class Game {
     const district = this.world.active;
     this._loadIfSave();
     // Cada entrada comienza de noche y con lluvia, también al retomar un guardado.
-    this.clock.hour = 22;
+    this.clock.hour = 15.5;
     if (this.weather) {
-      this.weather.setWeather('llovizna', false);
+      this.weather.setWeather('nublado', false);
       this.weather.timer = 0;
-      this.weather.wetness = .6;
+      this.weather.wetness = 0;
     }
     // Cada entrada a la partida comienza delante del cambuche, incluso si
     // la partida guardada conserva una ubicación anterior de exploración.

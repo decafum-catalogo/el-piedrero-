@@ -175,7 +175,7 @@ export function openPauseMenu(game) {
 
   game.menu.open({
     title: 'Partida en Pausa',
-    sub: 'Vagabundo / Habitante de Calle · Bogotá',
+    sub: 'Vagabundo / Habitante de Calle · La Carpio',
     ic: 'pause',
     render
   });

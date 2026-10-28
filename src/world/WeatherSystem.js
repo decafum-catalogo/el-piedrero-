@@ -60,8 +60,8 @@ export class WeatherSystem {
       window.dispatchEvent(new CustomEvent('toast', {
         detail: {
           text: this.isRaining
-            ? '🌧️ Comienza a lloviznar en el centro de Bogotá…'
-            : '⛅ La llovizna cesa sobre los cerros orientales.',
+            ? '🌧️ Comienza a lloviznar en La Carpio…'
+            : '⛅ La llovizna cesa sobre las montañas.',
           type: 'info'
         }
       }));

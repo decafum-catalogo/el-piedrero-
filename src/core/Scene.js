@@ -2,10 +2,10 @@ import * as THREE from 'three';
 
 const _NIGHT = new THREE.Color(0x0c131d);     // Noche azul oscuro fría
 const _DAWN = new THREE.Color(0x5a6d80);      // Amanecer andino gris azulado nítido
-const _DAY = new THREE.Color(0x8898a7);       // Día bogotano nublado con luz natural
+const _DAY = new THREE.Color(0x8fbbe0);       // Día soleado cálido de San José
 const _DUSK_SKY = new THREE.Color(0x8b5545);  // Cielo del atardecer
 
-const _SUN_DAY = new THREE.Color(0xfff2e0);
+const _SUN_DAY = new THREE.Color(0xffe6bd);
 const _SUN_DAWN = new THREE.Color(0xffd9b3);
 const _SUN_DUSK = new THREE.Color(0xff8c4a);
 const _SUN_NIGHT = new THREE.Color(0x506580);

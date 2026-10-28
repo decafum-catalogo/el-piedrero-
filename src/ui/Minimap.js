@@ -1,5 +1,5 @@
 // src/ui/Minimap.js
-// Radar y minimapa urbano para Bogotá (240x222m)
+// Radar y minimapa urbano de La Carpio
 
 export class Minimap {
   constructor() {
@@ -34,7 +34,7 @@ export class Minimap {
     div.className = this.visible ? '' : 'hidden';
     div.innerHTML = `
       <div class="minimap-header">
-        <span class="minimap-title">🧭 Radar Bogotá</span>
+        <span class="minimap-title">🧭 Radar La Carpio</span>
         <button type="button" class="minimap-toggle-btn" id="minimap-toggle-btn" title="Alternar minimapa (N)">N</button>
       </div>
       <canvas id="minimap-canvas" width="130" height="130" aria-label="Minimapa y radar"></canvas>

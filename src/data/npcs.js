@@ -10,8 +10,9 @@ export const TALK_NPCS = [
       piel: 6, pelo: 'crespo', peloColor: 6, barba: 'completa', arriba: 'rayas',
       real: { sexo: 'hombre', edad: 'adulto', pelo: 'crespo', barba: 'larga', ropa: 'rayas', calzado: 'tenis' }
     },
-    accessory: 'lentes',
     albino: true,
+    accessories: ['lentes'],
+    build: { x: 0.95, z: 0.95 },
     lines: [
       'Mae, de noche no ande por la Calle 54 solo. Ahí es muy pesado',
       'Ojo con el perro del portón verde: yo le pegue el sida',
@@ -26,10 +27,14 @@ export const TALK_NPCS = [
     name: 'Licho',
     role: 'Tonteras',
     pos: [124, 110.5],
+    // Flaco, ropa rota, gorra al revés y un cigarro pegado a la boca
     look: {
-      piel: 3, pelo: 'corto', cabeza: 'gorra-atras', arriba: 'camiseta', zapatos: 'chanclas',
-      real: { sexo: 'hombre', edad: 'adulto', pelo: 'corto', barba: 'ninguna', ropa: 'camiseta', calzado: 'tenis-rotos' }
+      piel: 3, pelo: 'corto', barba: 'ninguna', contextura: 'delgado',
+      real: { sexo: 'hombre', edad: 'adulto', pelo: 'corto', barba: 'ninguna', ropa: 'rota', calzado: 'tenis-rotos' }
     },
+    build: { x: 0.88, z: 0.88 },
+    accessories: ['gorra-atras', 'cigarro'],
+    skinMul: [0.85, 0.8, 0.76],
     lines: [
       'Me encontré ₡500 en la calle y me pasé una hora pensando qué comprar. Al final se me hizo de noche, voy a buscar otros ₡500',
       'digale a Ruben que me pase los 3 rojos  que no se haga el ruso',
@@ -45,10 +50,14 @@ export const TALK_NPCS = [
     name: 'Celso',
     role: 'Misión: la vuelta',
     pos: [54, 112.5],
+    // Joven moreno y delgado, cejas finas, pelo corto con arriba más largo, aretes de brillante
     look: {
-      piel: 2, pelo: 'rapado', cabeza: 'gorra', arriba: 'camiseta',
-      real: { sexo: 'hombre', edad: 'adulto', pelo: 'rapado', barba: 'bigote', ropa: 'camiseta', calzado: 'tenis' }
+      piel: 4, pelo: 'corto', cejas: 'delgadas', barba: 'ninguna', contextura: 'delgado', arriba: 'chaqueta',
+      real: { sexo: 'hombre', edad: 'joven', pelo: 'corto', barba: 'ninguna', ropa: 'chaqueta', calzado: 'tenis' }
     },
+    build: { x: 0.9, z: 0.9 },
+    accessories: ['aretes'],
+    skinMul: [0.66, 0.6, 0.56],
     lines: [
       'Mae, ¿listo pa? usted ya sabe que hacer hagale',
       'Tome, y que no lo vea ningún mae. Esto lo lleva al parque para la vuelta',
@@ -61,10 +70,14 @@ export const TALK_NPCS = [
     name: 'El Chupacabras Cochón',
     role: 'Compra latas, cobre y chatarra',
     pos: [100, 109],
+    // Panzón, viejo, sombrero de paja y overol sucio; tiene un saco de latas al lado
     look: {
-      piel: 1, pelo: 'calvo', cabeza: 'sombrero', arriba: 'buzo', contextura: 'robusto',
+      piel: 1, pelo: 'calvo', barba: 'descuidada', contextura: 'robusto',
       real: { sexo: 'hombre', edad: 'mayor', pelo: 'calvo', barba: 'descuidada', ropa: 'overol', calzado: 'botas' }
     },
+    build: { x: 1.22, z: 1.3, y: 0.97 },
+    accessories: ['sombrero'],
+    hairEmissive: [0.35, 0.35, 0.33],
     lines: [
       'Traiga esas latas y ese cobre, yo se lo pago usted decide me da el  culillo o platica',
       'pele esos cables como si fuera la pinga de Ruben, deme ese cobre',

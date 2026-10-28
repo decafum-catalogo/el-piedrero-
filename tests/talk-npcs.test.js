@@ -15,6 +15,6 @@ test('Rubén es albino: piel albina, pelo blanco y lentes', () => {
   const r = TALK_NPCS.find(n => n.id === 'ruben');
   assert.equal(COLOR_NAMES.piel[r.look.piel], 'Albina');
   assert.equal(COLOR_NAMES.pelo[r.look.peloColor], 'Blanco');
-  assert.equal(r.accessory, 'lentes');
+  assert.ok(r.accessories.includes('lentes'));
   assert.equal(PALETTES.piel.length, COLOR_NAMES.piel.length);
 });

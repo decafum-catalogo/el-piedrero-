@@ -88,7 +88,8 @@ export class InteractionSystem {
         nearestDist = d;
         nearest = t;
         // Determinar tipo por `kind` o por métodos disponibles
-        if (t.kind === 'shop') nearestType = 'shop';
+        if (t.kind === 'talk') nearestType = 'talk';
+        else if (t.kind === 'shop') nearestType = 'shop';
         else if (t.kind === 'cambuche') nearestType = 'cambuche';
         else if (t.kind === 'dog') nearestType = 'dog';
         else if (t.kind === 'recycler') nearestType = 'sell';
@@ -147,6 +148,9 @@ export class InteractionSystem {
           break;
         case 'cambuche':
           window.dispatchEvent(new CustomEvent('open-cambuche'));
+          break;
+        case 'talk':
+          window.dispatchEvent(new CustomEvent('toast', { detail: { text: `🗣️ ${nearest.name}: «${nearest.say()}»`, type: 'info' } }));
           break;
         case 'dog':
           this._interactDog(nearest);

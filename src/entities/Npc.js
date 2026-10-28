@@ -79,7 +79,7 @@ export class Npc {
     this.fleeDir = new THREE.Vector3();
     this.splatMesh = null;
     this.ready = (async () => {
-      this.look = opts.look ?? await randomStreetLook({ gastada: opts.gastada });
+      this.look = opts.look ?? (opts.lookFactory ? await opts.lookFactory() : await randomStreetLook({ gastada: opts.gastada }));
       this.lodChar = await createRealisticCharacter(this.look, { lod: true });
       if (this._disposed) { this.lodChar.dispose?.(); return; }
       this._show(this.lodChar);

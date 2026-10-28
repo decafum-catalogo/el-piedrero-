@@ -14,6 +14,8 @@ import { PedestrianNavigation } from '../bogota/PedestrianNavigation.js';
 import { TrafficRoute } from '../bogota/TrafficRoute.js';
 import { makeVehicle } from '../bogota/vehicles.js';
 import { Npc } from '../../entities/Npc.js';
+import { TalkNpc } from '../../entities/TalkNpc.js';
+import { TALK_NPCS } from '../../data/npcs.js';
 import { buildGasStationCR, gasObstaclesCR, GAS_CR } from '../carpio/GasStationCR.js';
 import { buildCarpioMap, CARPIO_W, CARPIO_H, H_ROADS, V_ROADS, AREAS, hBand, vBand } from '../carpio/CarpioLayout.js';
 
@@ -411,6 +413,19 @@ export class Carpio extends Bogota {
       const position = new THREE.Vector3(W(node.x), this.getGroundHeight(W(node.x), W(node.z)), W(node.z));
       this.npcs.push(new Npc(this.scene, position, {
         navigation, groundHeight: navigation.groundHeight, isWalkable: walk, gastada: true
+      }));
+    }
+    this._spawnTalkers();
+  }
+
+  /** Personajes con nombre: Rubén, Licho, Celso y El Chupacabras Cochón. */
+  _spawnTalkers() {
+    const navigation = this.pedestrianNavigation;
+    for (const def of TALK_NPCS) {
+      const [tx, tz] = def.pos;
+      const position = new THREE.Vector3(W(tx), this.getGroundHeight(W(tx), W(tz)), W(tz));
+      this.npcs.push(new TalkNpc(this.scene, position, def, {
+        groundHeight: navigation.groundHeight, isWalkable: (x, z) => navigation.isWalkableAt(x, z)
       }));
     }
   }

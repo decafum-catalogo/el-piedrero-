@@ -445,6 +445,9 @@ export class Game {
     );
     this.interaction.register(this.dealer);
 
+    // Personajes con los que se puede hablar
+    for (const npc of district.npcs ?? []) if (npc.kind === 'talk') this.interaction.register(npc);
+
     // ===== Mesa de crafteo =====
     this.craftingStation = new CraftingStation(
       this.sceneMgr.scene,

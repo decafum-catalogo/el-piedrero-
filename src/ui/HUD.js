@@ -256,6 +256,7 @@ export class HUD {
         let text = interaction?.stealPrompt ?? '';
         if (type === 'pickup') text = '[E] Recoger basura · [Mantener Q] Seleccionar';
         else if (type === 'car') text = interaction.currentTarget?.traffic ? '[E] Robar retrovisor del carro en circulación' : '[E] Robar retrovisor de auto';
+        else if (type === 'talk') text = `[E] Hablar con ${interaction.currentTarget.name}`;
         else if (type === 'sell') text = '[E] Recicladora El Progreso · Vender material';
         else if (type === 'shop') text = `[E] ${interaction.currentTarget.title ?? 'Pulpería Donde Tilin'} · Comprar`;
         else if (type === 'dog') {

@@ -22,8 +22,8 @@ export const TALK_NPCS = [
       tee: 'reggae'
     },
     curls: { count: 1500, color: 0xf7f6f2, radius: 0.104, size: 0.0125 },
-    hairCap: { radii: [0.097, 0.124, 0.113], center: [0, 0.098, 0.03], front: 0.148, side: 0.092, back: 0.05, bump: { amp: 0.0075, freq: 80 }, color: 0xf7f6f2, rows: 90, cols: 150, seed: 2 },
-    mustacheMesh: { offset: 0.008, amp: 0.003, freq: 200, color: 0xf6f4f0, skinColor: 0xeec6b8 },
+    hairCap: { radii: [0.097, 0.124, 0.113], center: [0, 0.098, 0.03], front: 0.148, side: 0.092, back: 0.05, bump: { amp: 0.0085, freq: 70 }, color: 0xf7f6f2, lowColor: 0xe9e4de, fade: 0.1, taper: 0.1, taperTo: 0.87, rows: 90, cols: 150, seed: 2 },
+    beardMesh: { region: 'full', offset: 0.008, amp: 0.003, freq: 125, color: 0xf6f4f0, skinColor: 0xeec6b8, drop: 0.01, curls: 3600, curlSize: 0.0034 },
     accessories: ['lentes'],
     lines: [
       'Mae, de noche no ande por la Calle 54 solo. Ahí es muy pesado',
@@ -98,6 +98,7 @@ export const TALK_NPCS = [
       real: { sexo: 'hombre', edad: 'mayor', pelo: 'calvo', barba: 'descuidada', ropa: 'overol', calzado: 'botas' }
     },
     style: { skin: { tone: [208, 150, 112], strength: 0.7, ref: 0.78 }, eyes: [78, 54, 38], beard: [214, 212, 206], beardLift: 0.8, brows: [200, 198, 192] },
+    beardMesh: { region: 'full', offset: 0.009, amp: 0.003, freq: 125, color: 0xcfcdc7, skinColor: 0x8c8178, drop: 0.02, curls: 5200, curlSize: 0.0036, seed: 9 },
     build: { x: 1.22, z: 1.3, y: 0.97 },
     accessories: ['sombrero'],
     lines: [

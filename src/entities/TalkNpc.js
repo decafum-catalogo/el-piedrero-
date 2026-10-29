@@ -103,7 +103,7 @@ const BEARD_REGIONS = {
   // barba corta: mandíbula, mejillas, mentón y bigote; deja libre la boca
   full: (x, y, z) => {
     const ax = Math.abs(x);
-    const top = lerpW(ss(0.03, 0.045, ax), 0.047, 0.076);         // mejillas llegan más arriba que el bigote
+    const top = lerpW(ss(0.03, 0.045, ax), 0.047, 0.062);         // mejillas llegan más arriba que el bigote
     const wy = (1 - ss(top - 0.012, top, y)) * ss(-0.034, -0.014, y);
     const wz = ss(0.02, 0.042, z) * (ax > 0.07 ? ss(0.04, 0.05, z) : 1);
     return Math.max(0, wy * wz * (1 - mouthHole(x, y)));

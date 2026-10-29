@@ -38,7 +38,7 @@ export function hairCap({
   radii = [0.094, 0.118, 0.094], center = [0, 0.1, 0.012],
   front = 0.165, side = 0.088, back = 0.045,
   bump = { amp: 0.0, freq: 60 }, color = 0x15110f, lowColor = null, fade = 0.0,
-  rows = 70, cols = 120, seed = 1, roughness = 0.95
+  rows = 70, cols = 120, seed = 1, roughness = 0.95, taper = 0, taperTo = 0.88
 } = {}) {
   const [rx, ry, rz] = radii, [cx, cy, cz] = center;
   const cutY = (x, z) => {
@@ -71,6 +71,11 @@ export function hairCap({
         const edge = smooth(0, 0.12, i / rows < 0.999 ? (1 - i / rows) : 0);
         x += dx * n * bump.amp * (0.4 + 0.6 * edge); y += dy * n * bump.amp * (0.4 + 0.6 * edge); z += dz * n * bump.amp * (0.4 + 0.6 * edge);
       }
+      if (taper) {
+        // el borde se hunde hacia el cráneo para que la línea de pelo no tenga escalón
+        const f = lerp(taperTo, 1, smooth(0, taper, 1 - i / rows));
+        x = cx + (x - cx) * f; y = cy + (y - cy) * f; z = cz + (z - cz) * f;
+      }
       pos.push(x, y, z);
       // color: degradado hacia el borde (pelo rapado a los lados) + variación fina
       const k = fade ? smooth(0, fade, 1 - i / rows) : 1;
@@ -96,7 +101,7 @@ export function hairCap({
 
 /** Barba hecha con la propia piel de la cara: copia los triángulos de la zona, los separa un poco de la piel,
  *  les da relieve y funde el color hacia el de la piel en los bordes (`weight(x,y,z)` → 0..1). */
-export function beardFromFace(bodyMesh, weight, { offset = 0.007, amp = 0.004, freq = 110, color = 0xf2f0ec, skinColor = 0xe8b8a8, seed = 3 } = {}) {
+export function beardFromFace(bodyMesh, weight, { offset = 0.007, amp = 0.004, freq = 110, color = 0xf2f0ec, skinColor = 0xe8b8a8, seed = 3, drop = 0, curls = 0, curlSize = 0.0075 } = {}) {
   const g = bodyMesh.geometry, p = g.attributes.position, idx = g.index;
   const W = new Float32Array(p.count).fill(-1);
   const w = (v) => {
@@ -125,14 +130,45 @@ export function beardFromFace(bodyMesh, weight, { offset = 0.007, amp = 0.004, f
   for (let i = 0; i < q.count; i++) {
     const x = q.getX(i), y = q.getY(i), z = q.getZ(i), wt = wts[i];
     const k = (offset + (fbm(x * freq + seed, y * freq, z * freq) - 0.5) * 2 * amp) * wt;
-    q.setXYZ(i, x + n.getX(i) * k, y + n.getY(i) * k, z + n.getZ(i) * k);
+    const dy = drop * wt * smooth(0.035, -0.015, y);               // barba más larga bajo el mentón
+    q.setXYZ(i, x + n.getX(i) * k, y + n.getY(i) * k - dy, z + n.getZ(i) * k);
     tmp.copy(cS).lerp(cB, smooth(0.15, 0.85, wt));
-    const v = 0.93 + 0.07 * noise3(x * 140, y * 140, z * 140);
+    const v = 0.9 + 0.1 * noise3(x * 260, y * 260, z * 260);
     col.push(tmp.r * v, tmp.g * v, tmp.b * v);
   }
   ng.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   ng.computeVertexNormals();
   const m = new THREE.Mesh(ng, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide }));
   m.castShadow = true;
-  return m;
+  if (!curls) return m;
+  // rizos pequeños repartidos sobre la superficie de la barba (más densos donde la barba es más gruesa)
+  const grp = new THREE.Group();
+  grp.add(m);
+  const ci = ng.index, tris = ci.count / 3;
+  const inst = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 6, 5), new THREE.MeshStandardMaterial({ color, roughness: 0.95 }), curls);
+  let a = 4242 + seed;
+  const rnd = () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; };
+  const m4 = new THREE.Matrix4(), v = new THREE.Vector3(), nn = new THREE.Vector3(), sc = new THREE.Vector3(), qq = new THREE.Quaternion();
+  let placed = 0, guard = 0;
+  while (placed < curls && guard++ < curls * 20) {
+    const t = Math.floor(rnd() * tris) * 3;
+    const ia = ci.getX(t), ib = ci.getX(t + 1), ic = ci.getX(t + 2);
+    const wt = (wts[ia] + wts[ib] + wts[ic]) / 3;
+    if (wt < 0.7 || rnd() > wt) continue;
+    let u = rnd(), w2 = rnd(); if (u + w2 > 1) { u = 1 - u; w2 = 1 - w2; }
+    const ww = 1 - u - w2;
+    v.set(0, 0, 0); nn.set(0, 0, 0);
+    for (const [id, f] of [[ia, u], [ib, w2], [ic, ww]]) {
+      v.x += q.getX(id) * f; v.y += q.getY(id) * f; v.z += q.getZ(id) * f;
+      nn.x += ng.attributes.normal.getX(id) * f; nn.y += ng.attributes.normal.getY(id) * f; nn.z += ng.attributes.normal.getZ(id) * f;
+    }
+    v.addScaledVector(nn.normalize(), curlSize * 0.5);
+    const r = curlSize * (0.7 + rnd() * 0.6);
+    sc.set(r, r * (0.8 + rnd() * 0.5), r);
+    m4.compose(v, qq, sc);
+    inst.setMatrixAt(placed++, m4);
+  }
+  inst.count = placed;
+  grp.add(inst);
+  return grp;
 }

@@ -172,7 +172,7 @@ async function buildInstance(catalog, look, lod = false) {
   // LOD: cuerpo proxy y piezas simplificadas (si el catálogo las trae)
   const useLod = lod && body.piezas[real.ropa]?.lod;
   const bodyGltf = await load(folder + (useLod ? 'lod/cuerpo.gltf' : 'cuerpo.gltf'));
-  const parts = ['pelo', 'barba', 'ropa', 'calzado']
+  const parts = ['pelo', 'barba', 'ropa', 'capa', 'calzado']
     .map((cat) => ({ cat, info: body.piezas[real[cat]] }))
     .filter((p) => p.info?.file);
   const [clips, ...partGltfs] = await Promise.all([

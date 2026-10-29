@@ -430,6 +430,13 @@ export class Carpio extends Bogota {
     }
   }
 
+  get hasDangers() { return true; }
+
+  dispose(scene) {
+    this.dangers?.dispose();
+    super.dispose(scene);
+  }
+
   async preloadDetails() {
     await Promise.all(this.props.map(prop => prop.instance.preloadModel?.()));
     this.group.updateWorldMatrix(true, true);

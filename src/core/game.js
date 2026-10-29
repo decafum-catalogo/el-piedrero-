@@ -1,4 +1,5 @@
 // src/core/Game.js
+import { DangerSystem } from '../systems/DangerSystem.js';
 import * as THREE from 'three';
 import { Renderer } from './Renderer.js';
 import { SceneManager } from './Scene.js';
@@ -448,6 +449,16 @@ export class Game {
     // Personajes con los que se puede hablar
     for (const npc of district.npcs ?? []) if (npc.kind === 'talk') this.interaction.register(npc);
 
+    // Peligros de La Carpio: perros bravos, chapulines de noche y zonas a evitar
+    if (district.hasDangers) {
+      district.dangers = new DangerSystem(district, {
+        isNight: () => !!this.clock?.isNight,
+        hurt: (n) => { this.stats.salud = Math.max(0, this.stats.salud - n); if (this.stats.salud === 0) this._deathCause = 'perro'; },
+        robFraction: (f) => { const lost = Math.floor(this.stats.dinero * f); this.stats.dinero -= lost; return lost; },
+        toast: (text, type = 'warn') => window.dispatchEvent(new CustomEvent('toast', { detail: { text, type } }))
+      });
+    }
+
     // ===== Mesa de crafteo =====
     this.craftingStation = new CraftingStation(
       this.sceneMgr.scene,
@@ -822,6 +833,7 @@ export class Game {
     this.cambuche?.update(dt);
     this.dealer?.update(dt);
     this.dog?.update(dt, this.player.position, this.pickups);
+    if (this.stats.salud > 0) this.world.active?.dangers?.update(dt, this.player.position);
 
     // 10. Audio
     const moving = !this.player.isStunned && Math.hypot(this.player.position.x - previousX, this.player.position.z - previousZ) > .001;

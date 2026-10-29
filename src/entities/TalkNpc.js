@@ -2,6 +2,7 @@
 // Persona fija con nombre y apariencia propia. Al pulsar E dice una de sus frases (sin repetir
 // hasta haber dicho todas). Reutiliza el modelo realista y el LOD de Npc.
 import * as THREE from 'three';
+import { RUBEN_WARNINGS } from '../data/zones.js';
 import { Npc } from './Npc.js';
 import { normalizeLook } from '../character/look.js';
 import * as C from '../character/customize.js';
@@ -22,7 +23,11 @@ export class TalkNpc extends Npc {
   }
 
   /** Siguiente frase (barajadas, sin repetir hasta agotarlas). */
-  say() {
+  say(isNight = false) {
+    if (this.id === 'ruben' && Math.random() < 0.4) {
+      const w = RUBEN_WARNINGS[isNight ? 'night' : 'day'];
+      return w[Math.floor(Math.random() * w.length)];
+    }
     if (!this._queue.length) {
       this._queue = [...this.lines];
       for (let i = this._queue.length - 1; i > 0; i--) {

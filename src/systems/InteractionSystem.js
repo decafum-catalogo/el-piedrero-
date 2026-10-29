@@ -150,7 +150,7 @@ export class InteractionSystem {
           window.dispatchEvent(new CustomEvent('open-cambuche'));
           break;
         case 'talk':
-          window.dispatchEvent(new CustomEvent('toast', { detail: { text: `🗣️ ${nearest.name}: «${nearest.say()}»`, type: 'info' } }));
+          window.dispatchEvent(new CustomEvent('toast', { detail: { text: `🗣️ ${nearest.name}: «${nearest.say(clock?.isNight)}»`, type: 'info' } }));
           break;
         case 'dog':
           this._interactDog(nearest);

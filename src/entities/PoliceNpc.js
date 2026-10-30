@@ -1,22 +1,31 @@
 // src/entities/PoliceNpc.js
 // Fuerza Pública: patrulla entre puntos y, si ve al jugador con la bolsita, lo persigue.
 import { Npc } from './Npc.js';
-import { lookFromDef } from './TalkNpc.js';
+import { TalkNpc, lookFromDef } from './TalkNpc.js';
 
 export const POLICE = { sight: 13, catchDist: 1.2, speed: 3.3, patrolSpeed: 1.3, giveUpDist: 28, giveUpTime: 6 };
 
+// Uniforme de la Fuerza Pública de Costa Rica: camisa y pantalón azul marino, botas negras y gorra azul con escudo.
 const LOOK = {
+  id: 'fuerza-publica',
   name: 'Fuerza Pública',
   look: {
     piel: 3, pelo: 'rapado', barba: 'ninguna', contextura: 'normal',
-    real: { sexo: 'hombre', edad: 'adulto', pelo: 'rapado', barba: 'ninguna', ropa: 'chaqueta', calzado: 'botas' }
-  }
+    real: { sexo: 'hombre', edad: 'adulto', pelo: 'rapado', barba: 'ninguna', ropa: 'camisa', calzado: 'botas' }
+  },
+  style: {
+    skin: { tone: [190, 140, 105], strength: 0.7, ref: 0.78 },
+    eyes: [45, 30, 20],
+    shirt: { factor: 0.42, tint: [0.62, 0.78, 1.3], jeans: true }
+  },
+  accessories: ['gorraFP']
 };
 
 export class PoliceNpc extends Npc {
   constructor(scene, position, route, opts = {}) {
     super(scene, position, { ...opts, wander: 0, navigation: null, speed: POLICE.patrolSpeed, lookFactory: () => lookFromDef(LOOK) });
     this.kind = 'police';
+    this._def = LOOK;
     this.route = route.map(([x, z]) => ({ x, z }));
     this.idx = 0;
     this.state = 'patrol';
@@ -76,5 +85,14 @@ export class PoliceNpc extends Npc {
   update(dt, ctx = {}) {
     super.update(dt, ctx);
     if (!this.active) this.root.visible = false;
+  }
+
+  /** Aplica el uniforme una sola vez por modelo (mismo mecanismo que los personajes con nombre). */
+  _show(char) {
+    if (char && !char._styled) {
+      char._styled = true;
+      try { TalkNpc.prototype._style.call(this, char); } catch (e) { console.warn('[PoliceNpc] uniforme', e); }
+    }
+    super._show(char);
   }
 }

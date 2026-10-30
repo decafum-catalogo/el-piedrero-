@@ -58,7 +58,7 @@ export class TalkNpc extends Npc {
     const find = (re) => Object.entries(by).find(([n]) => re.test(n))?.[1];
     const body = find(/body$/), eyes = find(/low-poly/), brows = find(/eyebrow/), lashes = find(/eyelash/);
     const hair = find(/afro|short|long0|ponytail|bob0/), beard = find(/beard|moustache/);
-    const jacket = find(/casualsuit05/), tee = find(/casualsuit06/);
+    const jacket = find(/casualsuit05/), tee = find(/casualsuit06/), shirt = find(/casualsuit01/);
 
     if (lashes) lashes.visible = false;                       // sin pestañas: evita la cara afeminada
     if (body && s.skin) C.skinTone(body, s.skin.tone, s.skin);
@@ -85,6 +85,7 @@ export class TalkNpc extends Npc {
     }
     if (brows && s.brows) C.hairColor(brows, s.brows, { lift: 0.4 });
     if (jacket && s.jacket) C.darkenCloth(jacket, s.jacket.factor, s.jacket.tint, { jeans: s.jacket.jeans });
+    if (shirt && s.shirt) C.darkenCloth(shirt, s.shirt.factor, s.shirt.tint, { jeans: s.shirt.jeans });
     if (tee && s.tee?.factor) C.darkenCloth(tee, s.tee.factor, [1, 1, 1.03]);
     if (tee && s.tee === 'reggae') {
       C.cutTriangles(tee, (x, y) => y < 0.98);                // solo la camiseta, sin el jean repetido
@@ -193,6 +194,29 @@ const ACCESSORIES = {
     visor.scale.z = 1; visor.rotation.set(0.12, Math.PI, 0); visor.position.set(0, 0.09, -0.083);
     g.add(visor);
     g.name = 'Gorra al revés';
+    return g;
+  },
+  // gorra azul marino de la Fuerza Pública: casquete con visera al frente y escudo dorado
+  gorraFP() {
+    const g = new THREE.Group();
+    const navy = 0x14224a;
+    // casquete cerrado que abraza el cráneo; el borde queda justo sobre las cejas
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.1, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2), mat(navy, { roughness: 0.8 }));
+    dome.scale.set(1.06, 1.1, 1.24); dome.position.set(0, 0.116, 0.032);
+    g.add(dome);
+    // visera al frente, apenas inclinada hacia abajo
+    const visor = new THREE.Mesh(new THREE.CircleGeometry(0.1, 28, 0, Math.PI), mat(0x0b1430, { roughness: 0.45, side: THREE.DoubleSide }));
+    visor.scale.set(1, 0.85, 1); visor.rotation.set(Math.PI / 2 + 0.12, 0, 0); visor.position.set(0, 0.12, 0.152);
+    g.add(visor);
+    // franja del borde
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.014, 28, 1, true), mat(0x0b1430, { roughness: 0.7, side: THREE.DoubleSide }));
+    band.scale.set(1.065, 1, 1.245); band.position.set(0, 0.121, 0.032);
+    g.add(band);
+    // escudo dorado al frente de la gorra
+    const badge = new THREE.Mesh(new THREE.CircleGeometry(0.013, 14), mat(0xd9b13b, { metalness: 0.7, roughness: 0.3, side: THREE.DoubleSide }));
+    badge.position.set(0, 0.176, 0.1425); badge.rotation.x = -0.5;
+    g.add(badge);
+    g.name = 'Gorra Fuerza Pública';
     return g;
   },
   sombrero() {

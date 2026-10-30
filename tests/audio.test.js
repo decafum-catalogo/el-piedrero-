@@ -39,7 +39,7 @@ function fixture() {
 }
 
 test('volumen y silencio persistentes controlan el maestro sin reemplazar motores ni claxones', async () => {
-  const store = new Map([['bazuko.audio_volume', '.45'], ['bazuko.audio_muted', 'true']]);
+  const store = new Map([['elpiedrero.audio_volume', '.45'], ['elpiedrero.audio_muted', 'true']]);
   globalThis.localStorage = { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) };
   const volumes = [], target = new EventTarget(); let changes = 0;
   target.addEventListener('audio-settings-change', () => changes++);
@@ -50,8 +50,8 @@ test('volumen y silencio persistentes controlan el maestro sin reemplazar motore
   audio.setVolume(.8); assert.equal(volumes.at(-1), 0);
   audio.toggleMute(); assert.equal(volumes.at(-1), .8);
   audio.setPaused(true); audio.setPaused(false);
-  assert.equal(audio.volume, .8); assert.equal(store.get('bazuko.audio_muted'), 'false');
-  assert.equal(store.get('bazuko.audio_volume'), '.8'.replace(/^\./, '0.'));
+  assert.equal(audio.volume, .8); assert.equal(store.get('elpiedrero.audio_muted'), 'false');
+  assert.equal(store.get('elpiedrero.audio_volume'), '.8'.replace(/^\./, '0.'));
   assert.equal(audio.vehicleSounds.horn1, horn); assert.equal(changes, 2);
   audio.dispose(); delete globalThis.localStorage;
 });

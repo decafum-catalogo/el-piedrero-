@@ -12,7 +12,7 @@ export const ORIGINAL_CITY_HEIGHT = STREET_Z.size;
 export const CITY_WIDTH = 120;
 export const CITY_HEIGHT = 161;
 export const CITY_AREA_MULTIPLIER = CITY_WIDTH * CITY_HEIGHT / (ORIGINAL_CITY_WIDTH * ORIGINAL_CITY_HEIGHT);
-export const CITY_CARRERAS = [...CARRERAS, [84, 89, 'Carrera 8'], [106, 111, 'Carrera 6']];
+export const CITY_CARRERAS = [...CARRERAS, [84, 89, 'Avenida 8'], [106, 111, 'Avenida 6']];
 export const CITY_CALLES = [...CALLES, [72, 77, 'Calle 8'], [94, 99, 'Calle 7']];
 export const EXTENSION_PARKS = [
   { x0: 92, x1: 103, z0: 21, z1: 34, name: 'Parque de la Estación' },

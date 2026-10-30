@@ -1,5 +1,5 @@
 const KEY = 'habitante-de-calle-save-v1';
-const VERSION = 3; // v3: dinero en colones (v2 era en pesos colombianos)
+const VERSION = 3; // v3: dinero en colones (v2 era en pesos)
 
 // Cuántos pesos vale un "dólar" de las partidas v1
 const V1_TO_COP = 250;

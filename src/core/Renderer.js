@@ -39,7 +39,7 @@ export class Renderer {
     this.instance.setPixelRatio(this.resolution.ratio);
     this.instance.shadowMap.enabled = this.effectiveQuality !== 'baja';
     this.instance.shadowMap.needsUpdate = true;
-    try { localStorage.setItem('bazuko.graphics_quality', this.quality); } catch { /* sin almacenamiento */ }
+    try { localStorage.setItem('elpiedrero.graphics_quality', this.quality); } catch { /* sin almacenamiento */ }
   }
 
   get effectiveQuality() { return effectiveQuality(this.quality ?? 'alta', this.resolution?.pressure ?? 0); }

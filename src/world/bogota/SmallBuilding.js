@@ -9,7 +9,7 @@ export function paintSmallBuilding(map) {
 
 /** Edificio de cinco pisos, con zócalo, ventanales y azotea rematada. */
 export function buildSmallBuilding({ brickTextures = {} } = {}) {
-  const group=new THREE.Group();group.name='Edificio de cinco pisos junto a Colpatria';
+  const group=new THREE.Group();group.name='Edificio de cinco pisos junto a la Torre Central';
   const brick=new THREE.MeshStandardMaterial({map:brickTextures.map,bumpMap:brickTextures.bumpMap,bumpScale:.18,color:'#ffffff',roughness:.95});
   const plaster=new THREE.MeshStandardMaterial({color:'#d5cab5',roughness:.9});
   const dark=new THREE.MeshStandardMaterial({color:'#263c45',roughness:.4,metalness:.15});

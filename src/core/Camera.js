@@ -32,7 +32,7 @@ export class CameraRig {
 
 
     try {
-      if (localStorage.getItem('bazuko.camera') === 'isometric') this.mode = 'isometric';
+      if (localStorage.getItem('elpiedrero.camera') === 'isometric') this.mode = 'isometric';
     } catch { /* sin almacenamiento */ }
     this.camera.userData.cameraMode = this.mode;
 
@@ -54,7 +54,7 @@ export class CameraRig {
     this.camera.userData.cameraMode = this.mode;
     this._snap = true;
     this.releaseControls();
-    try { localStorage.setItem('bazuko.camera', this.mode); } catch { /* sin almacenamiento */ }
+    try { localStorage.setItem('elpiedrero.camera', this.mode); } catch { /* sin almacenamiento */ }
     return this.mode;
   }
 

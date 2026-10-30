@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Adaptado de juanagogo/bazuko, commit 2df40da (Jonme-Mopri).
+// Adaptado del proyecto original (Jonme-Mopri).
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 180_000,

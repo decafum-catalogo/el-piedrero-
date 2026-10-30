@@ -209,7 +209,7 @@ export function clothesline(a, b, height = 2.4) {
   return g;
 }
 
-/** Placa de nomenclatura vial de Bogotá: "Calle 10", "Carrera 15"… */
+/** Placa de nomenclatura vial de Bogotá: "Calle 10", "Avenida 15"… */
 export function streetSign(lines) {
   const g = new THREE.Group();
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.8, 6), std('#666666', { metalness: 0.5 }));
@@ -264,7 +264,7 @@ export function busStation(length = 16) {
       g.add(col);
     }
   }
-  const map = signTexture({ title: 'ESTACIÓN CALLE 10', sub: 'TRONCAL CARACAS', bg: '#c0392b', w: 1024, h: 256 });
+  const map = signTexture({ title: 'PARADA CALLE 10', sub: 'AVENIDA CENTRAL', bg: '#c0392b', w: 1024, h: 256 });
   const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 0.7), new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }));
   sign.rotation.y = Math.PI / 2;
   sign.position.set(0, 3.8, length / 2 - 1);

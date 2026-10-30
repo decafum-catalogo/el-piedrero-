@@ -91,7 +91,7 @@ export const ITEMS = {
 
   // ===== SUSTANCIAS =====
   tintico: {
-    id: 'tintico', name: 'Tintico', weight: 0.1, value: 300,
+    id: 'tintico', name: 'Guaro', weight: 0.1, value: 300,
     consumable: 'vicio', amount: 20, animo: 15, energia: 20, substance: true
   },
   pegante: {

@@ -1,5 +1,5 @@
 // src/ui/RadioModal.js
-// Modal interactivo de Radio Transistor a Pilas Lo-Fi Bogotano
+// Modal interactivo de Radio Transistor a Pilas Lo-Fi Tico
 import { el, button } from './dom.js';
 import { STATIONS } from '../systems/RadioSystem.js';
 
@@ -138,7 +138,7 @@ export function openRadioModal(game) {
     });
 
     const presetsSection = el('div', { class: 'pause-section' },
-      el('h3', { class: 'pause-section-title', text: '📡 Emisoras Populares de Bogotá' }),
+      el('h3', { class: 'pause-section-title', text: '📡 Emisoras Populares de Costa Rica' }),
       el('div', { class: 'radio-presets-grid' }, ...presetButtons)
     );
 
@@ -216,7 +216,7 @@ export function openRadioModal(game) {
   game._radioModalOpen = true;
   game.menu.open({
     title: 'Radio Transistor a Pilas',
-    sub: 'Sintonizador AM / FM Lo-Fi Bogotano',
+    sub: 'Sintonizador AM / FM Lo-Fi Tico',
     ic: 'radio',
     render,
     onClose: () => { game._radioModalOpen = false; }

@@ -42,12 +42,12 @@ test('Minimap alterna su visibilidad y persiste el estado', () => {
   const hidden = map.toggle();
   assert.equal(hidden, false);
   assert.equal(map.visible, false);
-  assert.equal(localStorage.getItem('bazuko.minimap_visible'), 'false');
+  assert.equal(localStorage.getItem('elpiedrero.minimap_visible'), 'false');
 
   const shown = map.toggle();
   assert.equal(shown, true);
   assert.equal(map.visible, true);
-  assert.equal(localStorage.getItem('bazuko.minimap_visible'), 'true');
+  assert.equal(localStorage.getItem('elpiedrero.minimap_visible'), 'true');
 });
 
 test('Minimap calcula y muestra el punto de interés más cercano', () => {

@@ -60,7 +60,7 @@ export function viaductSurface(x, z) {
 }
 
 export function buildColpatriaViaduct(map, { pavement: streetAsphalt = null } = {}) {
-  const group = new THREE.Group(); group.name = 'Puente continuo Colpatria–Lago';
+  const group = new THREE.Group(); group.name = 'Puente continuo Torre–Lago';
   const concrete = new THREE.MeshStandardMaterial({ color: '#a5aaa5', roughness: .9 });
   const pavement = streetAsphalt ?? new THREE.MeshStandardMaterial({ color: '#343434', roughness: .82 });
   const yellow = new THREE.MeshStandardMaterial({ color: '#d9b735', roughness: .7 });

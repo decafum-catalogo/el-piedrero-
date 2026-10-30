@@ -19,9 +19,9 @@ export class AudioSystem {
     this.eventTarget = eventTarget;
     this._masterVolume = .7; this.muted = false;
     try {
-      const saved = globalThis.localStorage?.getItem('bazuko.audio_volume');
+      const saved = globalThis.localStorage?.getItem('elpiedrero.audio_volume');
       if (saved !== null && saved !== undefined && Number.isFinite(Number(saved))) this._masterVolume = Math.max(0, Math.min(1, Number(saved)));
-      this.muted = globalThis.localStorage?.getItem('bazuko.audio_muted') === 'true';
+      this.muted = globalThis.localStorage?.getItem('elpiedrero.audio_muted') === 'true';
     } catch { /* sin almacenamiento */ }
     howler.volume(this.muted ? 0 : this._masterVolume);
 
@@ -108,8 +108,8 @@ export class AudioSystem {
   _applySettings() {
     this.howler.volume(this.muted ? 0 : this.volume);
     try {
-      globalThis.localStorage?.setItem('bazuko.audio_volume', String(this.volume));
-      globalThis.localStorage?.setItem('bazuko.audio_muted', String(this.muted));
+      globalThis.localStorage?.setItem('elpiedrero.audio_volume', String(this.volume));
+      globalThis.localStorage?.setItem('elpiedrero.audio_muted', String(this.muted));
     } catch { /* sin almacenamiento */ }
     this.eventTarget?.dispatchEvent(new CustomEvent('audio-settings-change', { detail: { volume: this.volume, muted: this.muted } }));
   }

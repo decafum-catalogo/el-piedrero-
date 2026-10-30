@@ -5,7 +5,7 @@ export class Minimap {
   constructor() {
     this.visible = true;
     try {
-      const v = typeof localStorage !== 'undefined' ? localStorage.getItem('bazuko.minimap_visible') : null;
+      const v = typeof localStorage !== 'undefined' ? localStorage.getItem('elpiedrero.minimap_visible') : null;
       if (v !== null) this.visible = v === 'true';
     } catch { /* sin almacenamiento */ }
 
@@ -55,7 +55,7 @@ export class Minimap {
       el.classList.toggle('hidden', !this.visible);
     }
     try {
-      localStorage?.setItem('bazuko.minimap_visible', String(this.visible));
+      localStorage?.setItem('elpiedrero.minimap_visible', String(this.visible));
     } catch { /* sin almacenamiento */ }
     window.dispatchEvent(new CustomEvent('toast', {
       detail: { text: this.visible ? '🧭 Radar visible (N)' : '🧭 Radar oculto (N)', type: 'info' }

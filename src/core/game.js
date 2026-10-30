@@ -121,7 +121,7 @@ export class Game {
     this.minimap = new Minimap();
     this.weather = new WeatherSystem(this.sceneMgr.scene);
     let quality = 'baja';
-    try { quality = localStorage.getItem('bazuko.graphics_quality') || quality; } catch { /* sin almacenamiento */ }
+    try { quality = localStorage.getItem('elpiedrero.graphics_quality') || quality; } catch { /* sin almacenamiento */ }
     this.setGraphicsQuality(quality, false);
     this.hud.audioBtn?.setAttribute('aria-label', this.audio.isMuted() ? 'Activar sonido' : 'Silenciar sonido');
     if (this.hud.audioBtn) this.hud.audioBtn.textContent = this.audio.isMuted() ? '🔇' : '🔊';
@@ -215,7 +215,7 @@ export class Game {
     }
     await loading.stage('Cargando personajes y sonidos…', 2);
     let modelo = null;
-    try { modelo = localStorage.getItem('bazuko.modelo'); } catch { /* sin almacenamiento */ }
+    try { modelo = localStorage.getItem('elpiedrero.modelo'); } catch { /* sin almacenamiento */ }
     await withLoadTimeout(Promise.all([
       modelo !== 'procedural' ? this.player.setModel('realista') : Promise.resolve(),
       loadInBatches(district?.npcs ?? [], npc => npc.preload(), (done, total) =>
@@ -305,7 +305,7 @@ export class Game {
   /** Tecla M: alterna personaje realista / procedural (liviano) y lo recuerda */
   async _toggleModel() {
     const next = this.player.modelKind === 'realista' ? 'procedural' : 'realista';
-    try { localStorage.setItem('bazuko.modelo', next); } catch { /* sin almacenamiento */ }
+    try { localStorage.setItem('elpiedrero.modelo', next); } catch { /* sin almacenamiento */ }
     window.dispatchEvent(new CustomEvent('toast', {
       detail: { text: next === 'realista' ? '🧍 Personaje realista' : '🧸 Personaje liviano (para equipos lentos)', type: 'info' }
     }));
@@ -914,8 +914,8 @@ export class Game {
           return pos ? [{ name, icon, color, x: pos.x, z: pos.z }] : [];
         });
       if (this.world?.active?.gasStation) this._poiCache.push({ name: 'Gasolinera', icon: '⛽', x: 154, z: 94, color: '#f25b5b' });
-      if (this.world?.active?.stationGroup) this._poiCache.push({ name: 'Portal del Centro', icon: '🚏', x: 75, z: -2, color: '#e45960' });
-      if (this.world?.active?.colpatria) this._poiCache.push({ name: 'Torre Colpatria', icon: '🏙️', x: 81, z: 154, color: '#ffcb45' });
+      if (this.world?.active?.stationGroup) this._poiCache.push({ name: 'Terminal de buses', icon: '🚏', x: 75, z: -2, color: '#e45960' });
+      if (this.world?.active?.colpatria) this._poiCache.push({ name: 'Torre Central', icon: '🏙️', x: 81, z: 154, color: '#ffcb45' });
       if (this.world?.active?.lakePark) this._poiCache.push({ name: 'Parque del Lago', icon: '🌊', x: 138, z: 238, color: '#5ed4dc' });
       this._dogPOI = friend ? { name: 'El Chato', icon: '🐕', color: '#e6b566' } : null;
       if (this._dogPOI) this._poiCache.push(this._dogPOI);

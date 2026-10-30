@@ -51,7 +51,7 @@ export function paintColpatria(map) {
 
 /** Conjunto estilizado: torre ancha, zócalo acristalado y volumen comercial gris. */
 export function buildColpatria({ createSign = null } = {}) {
-  const group = new THREE.Group(); group.name = 'Torre Colpatria';
+  const group = new THREE.Group(); group.name = 'Torre Central';
   const stone = new THREE.MeshStandardMaterial({ color: '#c1beb0', roughness: .87 });
   const grey = new THREE.MeshStandardMaterial({ color: '#a9aaa5', roughness: .95 });
   const glass = new THREE.MeshStandardMaterial({ color: '#26353b', roughness: .32, metalness: .28 });
@@ -107,8 +107,8 @@ export function buildColpatria({ createSign = null } = {}) {
       }));
       mesh.position.set(x, y, z); mesh.rotation.y = yaw; group.add(mesh);
     };
-    sign('TORRE COLPATRIA', 'ACCESO PRINCIPAL', 81, 4.8, 154.91, Math.PI, 8);
-    sign('TORRE COLPATRIA', 'EDIFICIO ANEXO', 103.16, 6.5, 173, Math.PI / 2, 7);
+    sign('TORRE CENTRAL', 'ACCESO PRINCIPAL', 81, 4.8, 154.91, Math.PI, 8);
+    sign('TORRE CENTRAL', 'EDIFICIO ANEXO', 103.16, 6.5, 173, Math.PI / 2, 7);
     sign('LOCALES', 'CAFÉ · SERVICIOS', 103.19, 3.9, 165, Math.PI / 2, 6);
   }
   group.userData.lightMaterials = lights;

@@ -20,7 +20,7 @@ export function paintTerminalEntrance(map) {
 
 /** Estación propia con isla accesible, dos accesos en rampa y galerías de vidrio. */
 export function buildTransitTerminal({ createSign, asphalt }) {
-  const group = new THREE.Group(); group.name = 'Estación Portal del Centro';
+  const group = new THREE.Group(); group.name = 'Terminal de buses';
   const steel = new THREE.MeshStandardMaterial({ color: '#48575b', roughness: .65, metalness: .3 });
   const concrete = new THREE.MeshStandardMaterial({ color: '#b4b5aa', roughness: .9 });
   const glass = new THREE.MeshStandardMaterial({ color: '#accbd0', transparent: true, opacity: .3, roughness: .3, depthWrite: false });
@@ -36,7 +36,7 @@ export function buildTransitTerminal({ createSign, asphalt }) {
   const street = box(42,.08,74,75,-.02,-37,asphalt,'Calle ampliada',false);
   const p = street.geometry.attributes.position, uv = street.geometry.attributes.uv;
   for (let i=0;i<uv.count;i++) uv.setXY(i,(p.getX(i)+75)/14,(p.getZ(i)-37)/14);
-  for (const x of [56.5,93.5]) box(5,.12,74,x,.06,-37,concrete,'Andén lateral',false);
+  for (const x of [56.5,93.5]) box(5,.12,74,x,.06,-37,concrete,'Acera lateral',false);
   box(4,.9,40,75,.47,-30,concrete,'Plataforma transitable',false);
   for (const [z, reverse] of [[-54,false],[-6,true]]) {
     const g = new THREE.BufferGeometry();
@@ -70,8 +70,8 @@ export function buildTransitTerminal({ createSign, asphalt }) {
     }));
     mesh.position.set(75,3.9,z); group.add(mesh);
   };
-  sign('PORTAL DEL CENTRO','TRANSMILENIO · ACCESO PEATONAL',-9.8);
-  sign('NORTE  ←  ·  →  SUR','ANDENES A AMBOS LADOS',-30);
+  sign('TERMINAL','BUSES · ACCESO PEATONAL',-9.8);
+  sign('NORTE  ←  ·  →  SUR','ACERAS A AMBOS LADOS',-30);
   for (const x of [53.8,96.2]) box(.4,4,74,x,2,-37,steel,'Límite lateral',true).visible=false;
   box(42,4,.4,75,2,-74.2,steel,'Final de vía',true).visible=false;
   group.userData.colliders=colliders;

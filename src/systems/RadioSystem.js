@@ -16,7 +16,7 @@ export const STATIONS = [
     band: 'AM',
     name: 'Radio Recuerdos 540 AM',
     genre: 'Cumbia, Bolero y Música Popular',
-    program: 'Los Clásicos de Cantina Bogotana',
+    program: 'Los Clásicos de Cantina Tica',
     color: '#e67e22'
   },
   {
@@ -32,16 +32,16 @@ export const STATIONS = [
     id: 'deportes',
     freq: 1040,
     band: 'AM',
-    name: 'El Campín 1040 AM',
+    name: 'El Estadio 1040 AM',
     genre: 'Fútbol y Deportes',
-    program: 'Transmisión En Vivo: Santa Fe vs Millonarios',
+    program: 'Transmisión En Vivo: Saprissa vs Liga',
     color: '#2ecc71'
   },
   {
     id: 'rock',
     freq: 98.5,
     band: 'FM',
-    name: 'Radioactiva 98.5 FM',
+    name: 'Radio Chepe 98.5 FM',
     genre: 'Rock y Baladas en Español',
     program: 'Clásicos del Rock en tu Idioma',
     color: '#9b59b6'
@@ -71,9 +71,9 @@ export class RadioSystem {
     // Cargar preferencias guardadas
     try {
       if (typeof localStorage !== 'undefined') {
-        const savedFreq = localStorage.getItem('bazuko.radio_freq');
+        const savedFreq = localStorage.getItem('elpiedrero.radio_freq');
         if (savedFreq) this.frequency = parseFloat(savedFreq);
-        const savedVol = localStorage.getItem('bazuko.radio_vol');
+        const savedVol = localStorage.getItem('elpiedrero.radio_vol');
         if (savedVol) this.volume = parseFloat(savedVol);
       }
     } catch { /* sin almacenamiento */ }
@@ -166,7 +166,7 @@ export class RadioSystem {
   setFrequency(freq) {
     this.frequency = Math.round(freq * 10) / 10;
     try {
-      localStorage?.setItem('bazuko.radio_freq', String(this.frequency));
+      localStorage?.setItem('elpiedrero.radio_freq', String(this.frequency));
     } catch { /* sin almacenamiento */ }
     this._updateTuning();
   }
@@ -192,7 +192,7 @@ export class RadioSystem {
       this._applyOutput();
     }
     try {
-      localStorage?.setItem('bazuko.radio_vol', String(this.volume));
+      localStorage?.setItem('elpiedrero.radio_vol', String(this.volume));
     } catch { /* sin almacenamiento */ }
   }
 

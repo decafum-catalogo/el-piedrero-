@@ -1,7 +1,7 @@
 import { TILE_SIZE } from '../../utils/constants.js';
 
 export const ORIGINAL_SIZE = 48;
-export const ORIGINAL_CARRERAS = [[6, 7, 'Carrera 15'], [40, 41, 'Carrera 10']];
+export const ORIGINAL_CARRERAS = [[6, 7, 'Avenida 15'], [40, 41, 'Avenida 10']];
 export const ORIGINAL_CARACAS = { lanes: [[22, 23], [26, 27]], busway: [24, 25] };
 export const ORIGINAL_CALLES = [[12, 13, 'Calle 10'], [30, 31, 'Calle 9']];
 

@@ -163,10 +163,10 @@ export class Npc {
     // Gritos y quejas de los peatones
     const screams = [
       '¡¡PUTA VIDA, MAE, ME CAYÓ UNA CAGADA!! 🤮',
-      '¡¡HIJUEPUTA, MAE, ME TIRÓ CACA!! 🤬',
-      '¡¡LLAMEN A LA PACA, UN LOCO ESTÁ TIRANDO MIERDA!! 🚨',
-      '¡¡QUÉ COCHINADA TAN HIJUEPUCHA, MAE!! 🤢',
-      '¡¡QUÉ PESTE, MAE AYUDA, COCHINO MALPARIDO!! 🤮',
+      '¡¡DIAY MAE, ME TIRÓ CACA, QUÉ ASCO!! 🤬',
+      '¡¡LLAMEN A LA FUERZA PÚBLICA, UN LOCO ESTÁ TIRANDO MIERDA!! 🚨',
+      '¡¡QUÉ COCHINADA TAN ASQUEROSA, MAE!! 🤢',
+      '¡¡QUÉ PESTE, MAE AYUDA, COCHINO ASQUEROSO!! 🤮',
       '¡¡MALDITO ENFERMO, ME LAS VA A PAGAR, MAE!! 🏃‍♂️💨'
     ];
     const msg = screams[Math.floor(Math.random() * screams.length)];

@@ -70,7 +70,7 @@ test('los barrios nuevos son accesibles a pie y los cruces conectan toda la red 
 test('el distrito completo construye y actualiza barrios, vendedores, peatones y bus sin perder colisiones',async()=>{
   const scene=new THREE.Scene(),city=new Bogota(),collisions=new CollisionSystem();
   city.build(scene,collisions);
-  assert.equal(city.stationGroup.name, 'Estación Portal del Centro');
+  assert.equal(city.stationGroup.name, 'Terminal de buses');
   assert.equal(city.busServices.length, 2);
   try {
     await Promise.all(city.npcs.map(npc=>npc.ready));

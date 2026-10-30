@@ -13,7 +13,7 @@ export function skylineFloors(x, z, ruin, random = Math.random()) {
 
 /** Pasarela entre torres de acceso: referencia visual, sin acceso público a la planta superior. */
 export function buildAvenueOverpass() {
-  const group = new THREE.Group(); group.name = 'Pasarela urbana de la Caracas';
+  const group = new THREE.Group(); group.name = 'Pasarela urbana de la Avenida Central';
   const b = AVENUE_OVERPASS;
   const concrete = new THREE.MeshStandardMaterial({ color: '#a4a99d', roughness: .9 });
   const steel = new THREE.MeshStandardMaterial({ color: '#315d5a', roughness: .65, metalness: .3 });

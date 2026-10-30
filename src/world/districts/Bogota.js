@@ -825,7 +825,7 @@ export class Bogota {
     this._buildOverheadCables(poles);
     // placas en las esquinas
     for (const [za, zb, calle] of CALLES) {
-      for (const [xa, xb, carrera] of [...CARRERAS, [CARACAS.lanes[0][0], CARACAS.lanes[1][1], 'Av. Caracas']]) {
+      for (const [xa, xb, carrera] of [...CARRERAS, [CARACAS.lanes[0][0], CARACAS.lanes[1][1], 'Av. Central']]) {
         this._add(P.streetSign([calle, carrera]), W(xa - 1), W(za - 1), 0.4);
       }
     }
@@ -834,7 +834,7 @@ export class Bogota {
     this.group.add(this.busService.group);
     const route = this.getBusRoute();
     this.reverseBusService = new BusService({ ...route, x: TERMINAL.southLane, pathX: southBusPathX, startZ: route.endZ, endZ: route.startZ });
-    this.reverseBusService.group.name = 'TransMilenio hacia el sur';
+    this.reverseBusService.group.name = 'Bus hacia el sur';
     this.group.add(this.reverseBusService.group);
     this.busServices = [this.busService, this.reverseBusService];
     // cerca de la estación: vendedor de tinto y una chaza
@@ -906,7 +906,7 @@ export class Bogota {
         const bench = new Banca(new THREE.Vector3(W(x), this.getGroundHeight(W(x),W(pathZ)), W(pathZ)), 0);
         this.group.add(bench.group);
       }
-      this._add(P.streetSign([park.name, 'Bogotá']), W(park.x0), W(pathZ));
+      this._add(P.streetSign([park.name, 'San José']), W(park.x0), W(pathZ));
     }
     this._vendor(W(CARRERAS[2][0]-1.5), W(55), Math.PI/2, 'chaza', 'Carretillo de la Avenida 49', ['agua','pan','cafe']);
     this._vendor(W(52), W(CALLES[2][0]-1.5), 0, 'fritanga', 'Fritanga del Sur', ['lataComida','pan','refresco']);
@@ -922,7 +922,7 @@ export class Bogota {
       const bench = new Banca(new THREE.Vector3(x, this.getGroundHeight(x, z), z), 0);
       this.group.add(bench.group);
     }
-    this._add(P.streetSign([LAKE_PARK.name, 'Lago · Puente TransMilenio']), 150, 226);
+    this._add(P.streetSign([LAKE_PARK.name, 'Lago · Puente de buses']), 150, 226);
   }
 
   _createPedestrianNavigation() {

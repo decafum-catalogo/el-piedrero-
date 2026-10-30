@@ -6,7 +6,7 @@ export const CONFIG = {
   teleportDist: 22.0,
   lerpSpeed: 4.5,
   barkCooldown: 6.0,
-  storageKey: 'vagabundo.mascota_config',
+  storageKey: 'elpiedrero.mascota_config',
   defaultName: 'Firulais',
   defaultColor: '#965a28',
   defaultAccessory: 'bufanda',
@@ -185,7 +185,7 @@ export class Pet {
       <select id="pet-acc-select" style="width:100%;margin-bottom:10px;padding:5px;background:#111;color:#fff;border:1px solid #444;border-radius:4px;">
         <option value="ninguno">Ninguno</option>
         <option value="bufanda">Bufanda roja</option>
-        <option value="gorra">Gorra bogotana</option>
+        <option value="gorra">Gorra tica</option>
         <option value="collar">Collar azul</option>
       </select>
       <label style="display:block;font-size:12px;margin-bottom:4px;">Tamaño: <span id="pet-size-val">1.0</span></label>

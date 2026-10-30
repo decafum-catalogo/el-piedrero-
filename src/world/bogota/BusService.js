@@ -11,7 +11,7 @@ export class BusService {
     if (startZ === endZ || (stationZ !== null && !(stationZ > Math.min(startZ,endZ) && stationZ < Math.max(startZ,endZ)))) throw new Error('La estación debe quedar dentro del recorrido del bus.');
     this.group = articulatedBus();
     this.group.userData.noMerge = true;
-    this.group.name = 'Bus troncal Caracas';
+    this.group.name = 'Bus de la Avenida Central';
     this.position = this.group.position;
     this.length = ARTICULATED_BUS_SIZE.length;
     this.width = ARTICULATED_BUS_SIZE.width;

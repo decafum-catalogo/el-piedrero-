@@ -3,7 +3,7 @@
 // desenfoque). El efecto sube rápido, se sostiene y se va curando solo hasta volver a la normalidad.
 import * as THREE from 'three';
 
-export const SMOKE = { rise: 3, hold: 10, cure: 14, animo: 20, vicio: 25 };
+export const SMOKE = { rise: 3, hold: 10, cure: 14, animo: 20, vicio: 25, salud: 25 };
 export const smokeTotal = () => SMOKE.rise + SMOKE.hold + SMOKE.cure;
 
 /** Intensidad 0..1 del efecto según el tiempo transcurrido: sube, se sostiene y se cura. */
@@ -31,10 +31,10 @@ export class SmokingSystem {
     this.t = 0;
     this.puffTimer = 0;
     this._ensureOverlay();
-    for (const [k, v] of [['animo', SMOKE.animo], ['vicio', SMOKE.vicio]]) {
+    for (const [k, v] of [['animo', SMOKE.animo], ['vicio', SMOKE.vicio], ['salud', SMOKE.salud]]) {
       if (g.stats && typeof g.stats[k] === 'number') g.stats[k] = Math.min(100, g.stats[k] + v);
     }
-    window.dispatchEvent(new CustomEvent('toast', { detail: { text: '🚬 Se fumó el purito… ya se le va a ir pegando.', type: 'info' } }));
+    window.dispatchEvent(new CustomEvent('toast', { detail: { text: '🚬 Se fumó el purito… le sube el ánimo y se siente mejor (+salud).', type: 'info' } }));
   }
 
   _ensureOverlay() {

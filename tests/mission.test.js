@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MissionSystem, MISSION } from '../src/systems/MissionSystem.js';
+import { MissionSystem, MISSION, inMissionWindow } from '../src/systems/MissionSystem.js';
 import { InventorySystem } from '../src/systems/InventorySystem.js';
 import { smokeIntensity, smokeTotal } from '../src/systems/SmokingSystem.js';
 import { ITEMS, isRecyclable, isUsable } from '../src/data/items.js';
@@ -62,4 +62,9 @@ test('purito es fumable y no reciclable; bolsita no se usa', () => {
   assert.ok(isUsable(ITEMS.purito) && ITEMS.purito.smokable);
   assert.ok(!isRecyclable(ITEMS.purito) && !isRecyclable(ITEMS.bolsita));
   assert.ok(!isUsable(ITEMS.bolsita));
+});
+
+test('la misión está disponible de 10 pm a 5 am', () => {
+  assert.ok(inMissionWindow(22) && inMissionWindow(23) && inMissionWindow(0) && inMissionWindow(4.9));
+  assert.ok(!inMissionWindow(5) && !inMissionWindow(12) && !inMissionWindow(21.9));
 });

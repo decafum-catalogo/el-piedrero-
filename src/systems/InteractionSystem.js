@@ -1,3 +1,4 @@
+import { inMissionWindow } from './MissionSystem.js';
 import { ITEMS, itemRarityLabel } from '../data/items.js';
 import {
   INTERACT_RANGE,
@@ -150,7 +151,7 @@ export class InteractionSystem {
           window.dispatchEvent(new CustomEvent('open-cambuche'));
           break;
         case 'talk':
-          if (this.missions?.handleTalk(nearest, clock?.isNight)) break;
+          if (this.missions?.handleTalk(nearest, inMissionWindow(clock?.hour ?? 0))) break;
           window.dispatchEvent(new CustomEvent('toast', { detail: { text: `🗣️ ${nearest.name}: «${nearest.say(clock?.isNight)}»`, type: 'info' } }));
           break;
         case 'dog':

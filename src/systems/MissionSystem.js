@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import { ITEMS } from '../data/items.js';
 import { PoliceNpc } from '../entities/PoliceNpc.js';
 
+/** Ventana de la misión (decisión 7 del Excel): de 10 pm a 5 am. */
+export const inMissionWindow = (hour) => hour >= 22 || hour < 5;
 export const MISSION = { price: 10000, pay: 2000, fine: 2000 };
 const W = (t) => t * 2;
 const PATROLS = [

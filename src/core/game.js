@@ -1,5 +1,5 @@
 // src/core/Game.js
-import { MissionSystem } from '../systems/MissionSystem.js';
+import { MissionSystem, inMissionWindow } from '../systems/MissionSystem.js';
 import { SmokingSystem } from '../systems/SmokingSystem.js';
 import { DangerSystem } from '../systems/DangerSystem.js';
 import * as THREE from 'three';
@@ -843,7 +843,7 @@ export class Game {
     this.dealer?.update(dt);
     this.dog?.update(dt, this.player.position, this.pickups);
     if (this.stats.salud > 0) this.world.active?.dangers?.update(dt, this.player.position);
-    this.missions?.update(dt, this.player.position, !!this.clock.isNight);
+    this.missions?.update(dt, this.player.position, inMissionWindow(this.clock.hour));
     this.smoking?.update(dt);
 
     // 10. Audio

@@ -8,8 +8,8 @@ export const CONFIG = {
   npcCooldown: 30.0,
   markerSpeed: 1.8,
   baseZoneSize: 0.35,
-  lootMoneyCosquilleo: [3000, 18000],
-  lootMoneyDirect: [12000, 45000],
+  lootMoneyCosquilleo: [500, 3000],
+  lootMoneyDirect: [2000, 7000],
   lootItems: ['pan', 'lataComida', 'cigarrillo', 'tintico', 'moneda', 'reloj'],
   directDamageMin: 6,
   directDamageMax: 16

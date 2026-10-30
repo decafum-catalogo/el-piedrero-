@@ -1,105 +1,109 @@
 
 // src/data/items.js
-// Valores en pesos colombianos (COP): `value` es lo que pagan por el objeto.
+// Valores en colones (₡): `value` es lo que pagan por el objeto.
 
 export const ITEMS = {
   // ===== BASURA =====
-  lata:     { id: 'lata',     name: 'Lata vacía',    weight: 0.2,  value: 250, rarity: 'common' },
-  botella:  { id: 'botella',  name: 'Botella PET',   weight: 0.3,  value: 150 },
-  carton:   { id: 'carton',   name: 'Cartón',        weight: 0.5,  value: 200, rarity: 'common' },
-  chatarra: { id: 'chatarra', name: 'Chatarra',      weight: 1.0,  value: 900 },
-  cable:    { id: 'cable',    name: 'Cable cobre',   weight: 0.4,  value: 2400 },
+  lata:     { id: 'lata',     name: 'Lata vacía',    weight: 0.2,  value: 40, rarity: 'common', metal: true },
+  botella:  { id: 'botella',  name: 'Botella PET',   weight: 0.3,  value: 25 },
+  carton:   { id: 'carton',   name: 'Cartón',        weight: 0.5,  value: 30, rarity: 'common' },
+  chatarra: { id: 'chatarra', name: 'Chatarra',      weight: 1.0,  value: 150, metal: true },
+  // Cable con el forro puesto: se puede vender así (barato) o pelar para sacar el cobre (₡1.200).
+  cable:    { id: 'cable',    name: 'Cable forrado', weight: 0.4,  value: 600, metal: true, usable: true, peelable: true,
+              desc: 'Cable con forro. Use "Pelar" para sacarle el cobre y venderlo mejor al Chupacabras.' },
+  cobre:    { id: 'cobre',    name: 'Cobre pelado',  weight: 0.3,  value: 1200, metal: true,
+              desc: 'Cobre limpio. El Chupacabras Cochón lo paga bien.' },
 
   // ===== TESOROS =====
-  reloj:  { id: 'reloj',  name: 'Reloj oxidado', weight: 0.1,  value: 8000, rare: true },
-  moneda: { id: 'moneda', name: 'Moneda vieja',  weight: 0.02, value: 12000, rare: true },
-  anillo: { id: 'anillo', name: 'Anillo',        weight: 0.05, value: 20000, rare: true },
+  reloj:  { id: 'reloj',  name: 'Reloj oxidado', weight: 0.1,  value: 3000, rare: true },
+  moneda: { id: 'moneda', name: 'Moneda vieja',  weight: 0.02, value: 5000, rare: true },
+  anillo: { id: 'anillo', name: 'Anillo',        weight: 0.05, value: 15000, rare: true },
 
   // ===== RADIO Y PILAS =====
-  radioTransistor: { id: 'radioTransistor', name: 'Radio transistor AM/FM', weight: 0.6, value: 18000, usable: true },
-  pilas: { id: 'pilas', name: 'Pilas AA', weight: 0.1, value: 2000, usable: true },
+  radioTransistor: { id: 'radioTransistor', name: 'Radio transistor AM/FM', weight: 0.6, value: 6000, usable: true },
+  pilas: { id: 'pilas', name: 'Pilas AA', weight: 0.1, value: 500, usable: true },
 
   // ===== OBJETOS ROBADOS (AUTOS) =====
-  retrovisor: { id: 'retrovisor', name: 'Retrovisor',   weight: 0.8, value: 15000 },
-  radio:      { id: 'radio',      name: 'Radio auto',   weight: 1.5, value: 35000 },
+  retrovisor: { id: 'retrovisor', name: 'Retrovisor',   weight: 0.8, value: 5000 },
+  radio:      { id: 'radio',      name: 'Radio auto',   weight: 1.5, value: 12000 },
 
   // ===== CONSUMIBLES =====
   pan: {
-    id: 'pan', name: 'Pan duro', weight: 0.3, value: 1000,
+    id: 'pan', name: 'Pan duro', weight: 0.3, value: 150,
     consumable: 'hambre', amount: 25, animo: 5
   },
   lataComida: {
-    id: 'lataComida', name: 'Lata de atún', weight: 0.4, value: 4500,
+    id: 'lataComida', name: 'Lata de atún', weight: 0.4, value: 400,
     consumable: 'hambre', amount: 45, animo: 8
   },
   agua: {
-    id: 'agua', name: 'Botella agua', weight: 0.5, value: 1500,
+    id: 'agua', name: 'Botella agua', weight: 0.5, value: 300,
     consumable: 'sed', amount: 35
   },
   refresco: {
-    id: 'refresco', name: 'Refresco', weight: 0.4, value: 2500,
+    id: 'refresco', name: 'Refresco', weight: 0.4, value: 400,
     consumable: 'sed', amount: 50, energia: 10, animo: 10
   },
   cafe: {
-    id: 'cafe', name: 'Cafecito caliente', weight: 0.3, value: 1500,
+    id: 'cafe', name: 'Cafecito caliente', weight: 0.3, value: 500,
     consumable: 'energia', amount: 40, animo: 15
   },
   vendaje: {
-    id: 'vendaje', name: 'Vendaje', weight: 0.1, value: 3000,
+    id: 'vendaje', name: 'Vendaje', weight: 0.1, value: 500,
     consumable: 'salud', amount: 30
   },
 
   // ===== HIGIENE =====
   jabon: {
-    id: 'jabon', name: 'Jabón', weight: 0.2, value: 2500,
+    id: 'jabon', name: 'Jabón', weight: 0.2, value: 400,
     consumable: 'higiene', amount: 40
   },
   cepillo: {
-    id: 'cepillo', name: 'Cepillo', weight: 0.1, value: 2000,
+    id: 'cepillo', name: 'Cepillo', weight: 0.1, value: 300,
     consumable: 'higiene', amount: 20
   },
 
   // ===== CURAS =====
   vacuna: {
-    id: 'vacuna', name: 'Vacuna', weight: 0.1, value: 15000,
+    id: 'vacuna', name: 'Vacuna', weight: 0.1, value: 5000,
     cure: 'tetanos'
   },
   carbon: {
-    id: 'carbon', name: 'Carbón activo', weight: 0.1, value: 6000,
+    id: 'carbon', name: 'Carbón activo', weight: 0.1, value: 1000,
     cure: 'intoxicacion'
   },
   jarabe: {
-    id: 'jarabe', name: 'Jarabe', weight: 0.2, value: 8000,
+    id: 'jarabe', name: 'Jarabe', weight: 0.2, value: 1500,
     cure: 'gripe'
   },
   pomada: {
-    id: 'pomada', name: 'Pomada', weight: 0.15, value: 7000,
+    id: 'pomada', name: 'Pomada', weight: 0.15, value: 1200,
     cure: 'sarna'
   },
   antibiotico: {
-    id: 'antibiotico', name: 'Antibiótico', weight: 0.1, value: 18000,
+    id: 'antibiotico', name: 'Antibiótico', weight: 0.1, value: 3000,
     cure: 'infeccion'
   },
   antiparasitario: {
-    id: 'antiparasitario', name: 'Antiparasitario', weight: 0.1, value: 9000,
+    id: 'antiparasitario', name: 'Antiparasitario', weight: 0.1, value: 1500,
     cure: 'parasitos'
   },
 
   // ===== SUSTANCIAS =====
   tintico: {
-    id: 'tintico', name: 'Tintico', weight: 0.1, value: 1000,
+    id: 'tintico', name: 'Tintico', weight: 0.1, value: 300,
     consumable: 'vicio', amount: 20, animo: 15, energia: 20, substance: true
   },
   pegante: {
-    id: 'pegante', name: 'Pegante', weight: 0.2, value: 3000,
+    id: 'pegante', name: 'Pegante', weight: 0.2, value: 800,
     consumable: 'vicio', amount: 40, animo: 25, salud: -3, substance: true
   },
   pastilla: {
-    id: 'pastilla', name: 'Pastilla', weight: 0.05, value: 8000,
+    id: 'pastilla', name: 'Pastilla', weight: 0.05, value: 1500,
     consumable: 'vicio', amount: 60, animo: 40, salud: -5, substance: true
   },
   cigarrillo: {
-    id: 'cigarrillo', name: 'Cigarrillo suelto', weight: 0.01, value: 300,
+    id: 'cigarrillo', name: 'Cigarrillo suelto', weight: 0.01, value: 100,
     consumable: 'vicio', amount: 35, salud: -1
   },
 
@@ -114,17 +118,17 @@ export const ITEMS = {
   },
 
   // ===== MATERIALES DEL CAMBUCHE =====
-  lona:    { id: 'lona',    name: 'Lona azul',     weight: 2,    value: 4000, build: true, rarity: 'rare' },
-  madera:  { id: 'madera',  name: 'Tablas',        weight: 2,    value: 1500, build: true, rarity: 'uncommon' },
-  colchon: { id: 'colchon', name: 'Colchón viejo', weight: 6,    value: 5000, build: true, rarity: 'veryRare' },
-  vela:    { id: 'vela',    name: 'Vela',          weight: 0.05, value: 500,  build: true, rarity: 'rare' },
+  lona:    { id: 'lona',    name: 'Lona azul',     weight: 2,    value: 1500, build: true, rarity: 'rare' },
+  madera:  { id: 'madera',  name: 'Tablas',        weight: 2,    value: 500, build: true, rarity: 'uncommon' },
+  colchon: { id: 'colchon', name: 'Colchón viejo', weight: 6,    value: 2000, build: true, rarity: 'veryRare' },
+  vela:    { id: 'vela',    name: 'Vela',          weight: 0.05, value: 100,  build: true, rarity: 'rare' },
 
   // ===== ARMAS / HERRAMIENTAS =====
   popo: {
     id: 'popo',
     name: 'Mojón de popó',
     weight: 0.3,
-    value: 50,
+    value: 0,
     usable: true,
     desc: 'Proyectil biológico artesanal. Presiona [X] para lanzárselo a los peatones.'
   }
@@ -140,7 +144,7 @@ const ITEM_EMOJIS = {
   lona: '⛺', madera: '🪵', colchon: '🛏️', vela: '🕯️', pan: '🍞',
   agua: '💧', refresco: '🥤', cafe: '☕', lataComida: '🐟', vendaje: '🩹',
   reloj: '⌚', moneda: '🪙', anillo: '💍', jabon: '🧼', cepillo: '🪥',
-  retrovisor: '🪞', radio: '📻', radioTransistor: '📻', pilas: '🔋', popo: '💩', cigarrillo: '🚬', bolsita: '🛍️', purito: '🚬'
+  retrovisor: '🪞', radio: '📻', radioTransistor: '📻', pilas: '🔋', popo: '💩', cigarrillo: '🚬', bolsita: '🛍️', purito: '🚬', cobre: '🟠'
 };
 for (const item of Object.values(ITEMS)) {
   item.emoji = ITEM_EMOJIS[item.id] ?? (item.cure ? '💊' : item.substance ? '🧪' : '📦');
@@ -151,6 +155,7 @@ export function describeEffects(item) {
   const lines = [];
   if (item.id === 'radioTransistor') lines.push('Usar: abrir el sintonizador. También con R.');
   if (item.id === 'pilas') lines.push('Usar: recargar 50% de batería de la radio.');
+  if (item.peelable) lines.push('Pelar: saca el cobre del cable (vale el doble).');
   if (item.smokable) lines.push('Fumar: sube el ánimo, distorsiona la pantalla un rato y se cura solo.');
   if (item.id === 'popo') lines.push('Usar o X en la calle: lanzar a un peatón.');
   if (item.consumable) lines.push(`${item.consumable}: +${item.amount}`);
@@ -165,14 +170,14 @@ export function describeEffects(item) {
 
 /** La recicladora compra todo lo que no se come, no cura, no es sustancia ni sirve para construir */
 export const isRecyclable = (item) =>
-  !!item && !item.consumable && !item.cure && !item.substance && !item.contraband && !item.build && item.id !== 'popo' && item.id !== 'radioTransistor' && item.id !== 'pilas';
+  !!item && !item.consumable && !item.cure && !item.substance && !item.contraband && !item.build && !item.metal && item.id !== 'popo' && item.id !== 'radioTransistor' && item.id !== 'pilas';
 
 // Icono (lucide) para mostrar cada objeto en los menús
 const ICONS = {
   lata: 'recycle', botella: 'recycle', carton: 'package', chatarra: 'wrench', cable: 'flame',
   reloj: 'watch', moneda: 'coins', anillo: 'sparkles', retrovisor: 'eye', radio: 'phone', radioTransistor: 'radio', pilas: 'flame',
   pan: 'bread', lataComida: 'food', agua: 'water', refresco: 'water', cafe: 'coffee',
-  vendaje: 'bandage', jabon: 'bath', cepillo: 'bath', cigarrillo: 'flame', bolsita: 'package', purito: 'flame',
+  vendaje: 'bandage', jabon: 'bath', cepillo: 'bath', cigarrillo: 'flame', bolsita: 'package', purito: 'flame', cobre: 'coins',
   lona: 'tent', madera: 'layers', colchon: 'bed', vela: 'flame', popo: 'alert-triangle'
 };
 export const itemIcon = (id) => ICONS[id] ?? (ITEMS[id]?.cure ? 'pill' : 'box');
@@ -209,30 +214,33 @@ export const LOOT_SUBSTANCE = [
   { item: 'pastilla', weight: 20 }
 ];
 
-// ===== TIENDA LA ESQUINITA (precios en COP) =====
+// ===== TIENDA LA ESQUINITA (precios en colones) =====
 
 export const SHOP_ITEMS = [
-  { item: 'pan',        price: 1500 },
-  { item: 'lataComida', price: 6000 },
-  { item: 'agua',       price: 2000 },
-  { item: 'refresco',   price: 3500 },
-  { item: 'cafe',       price: 2000, desc: 'Un cafecito caliente: quita el sueño.' },
-  { item: 'cigarrillo', price: 500,  desc: 'Calma el vicio. Le quita un poquito a la salud.' },
-  { item: 'vendaje',    price: 4500 },
-  { item: 'jabon',      price: 3500 },
-  { item: 'cepillo',    price: 3000 },
-  { item: 'jarabe',     price: 11000 },
-  { item: 'pomada',     price: 9500 },
-  { item: 'carbon',     price: 9000 },
-  { item: 'antiparasitario', price: 13000 },
-  { item: 'vacuna',     price: 20000 },
-  { item: 'antibiotico', price: 25000 },
-  { item: 'vela',       price: 1000, desc: 'Ilumina el chante: duermes más tranquilo.' },
-  { item: 'lona',       price: 9000, desc: 'Para el techo del chante.' },
+  { item: 'pan',        price: 500 },
+  { item: 'lataComida', price: 1300 },
+  { item: 'agua',       price: 800 },
+  { item: 'refresco',   price: 1000 },
+  { item: 'cafe',       price: 1500, desc: 'Un cafecito caliente: quita el sueño.' },
+  { item: 'cigarrillo', price: 300,  desc: 'Calma el vicio. Le quita un poquito a la salud.' },
+  { item: 'vendaje',    price: 1500 },
+  { item: 'jabon',      price: 900 },
+  { item: 'cepillo',    price: 1200 },
+  { item: 'jarabe',     price: 4500 },
+  { item: 'pomada',     price: 3500 },
+  { item: 'carbon',     price: 3000 },
+  { item: 'antiparasitario', price: 5000 },
+  { item: 'vacuna',     price: 12000 },
+  { item: 'antibiotico', price: 8000 },
+  { item: 'vela',       price: 400, desc: 'Ilumina el chante: duermes más tranquilo.' },
+  { item: 'lona',       price: 8000, desc: 'Para el techo del chante.' },
   { item: 'madera',     price: 6000, qty: 3, label: 'Tablas ×3', desc: 'Para las paredes del chante.' },
-  { item: 'pilas',           price: 2000,  desc: 'Pilas AA: recargan la radio transistor.' },
-  { item: 'radioTransistor', price: 18000, desc: 'Radio transistor: sintoniza emisoras y calma la mente.' },
-  { upgrade: 'costal',  price: 12000, label: 'Costal grande', icon: 'backpack', desc: 'Cargas 20 kg más.' }
+  { item: 'pilas',           price: 1500,  desc: 'Pilas AA: recargan la radio transistor.' },
+  { item: 'radioTransistor', price: 12000, desc: 'Radio transistor: sintoniza emisoras y calma la mente.' },
+  { upgrade: 'costal',  price: 10000, label: 'Costal grande', icon: 'backpack', desc: 'Cargas 20 kg más.' }
 ];
 
 export const COSTAL_BONUS = 20;
+
+/** Lo que compra El Chupacabras Cochón: latas, chatarra, cable y cobre. */
+export const isMetal = (item) => !!item?.metal;

@@ -56,7 +56,7 @@ import { paintLoadingFrame } from '../ui/LoadingScreen.js';
 import { el, button } from '../ui/dom.js';
 import { Menu } from '../ui/Menu.js';
 import { createCreator } from '../ui/Creator.js';
-import { openRecycler, openShop, openCambuche } from '../ui/placeMenus.js';
+import { openRecycler, openMetalBuyer, openShop, openCambuche } from '../ui/placeMenus.js';
 import { DEFAULT_LOOK, normalizeLook } from '../character/look.js';
 import { ITEMS, COSTAL_BONUS, isRecyclable } from '../data/items.js';
 import { SLEEP } from '../data/cambuche.js';
@@ -134,6 +134,7 @@ export class Game {
     window.addEventListener('audio-toggle', () => this.audio.toggleMute());
     window.addEventListener('camera-toggle', () => this._toggleCamera());
     window.addEventListener('open-recycler', () => openRecycler(this));
+    window.addEventListener('open-metal-buyer', () => openMetalBuyer(this));
     window.addEventListener('open-shop', (e) => openShop(this, e.detail?.target));
     window.addEventListener('open-cambuche', () => openCambuche(this));
     window.addEventListener('open-radio-modal', () => openRadioModal(this));

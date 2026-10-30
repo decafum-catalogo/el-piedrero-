@@ -151,6 +151,10 @@ export class InteractionSystem {
           window.dispatchEvent(new CustomEvent('open-cambuche'));
           break;
         case 'talk':
+          if (nearest.id === 'chupacabras' && this.inventory.items.some((i) => ITEMS[i.id]?.metal)) {
+            window.dispatchEvent(new CustomEvent('open-metal-buyer'));
+            break;
+          }
           if (this.missions?.handleTalk(nearest, inMissionWindow(clock?.hour ?? 0))) break;
           window.dispatchEvent(new CustomEvent('toast', { detail: { text: `🗣️ ${nearest.name}: «${nearest.say(clock?.isNight)}»`, type: 'info' } }));
           break;
@@ -406,11 +410,11 @@ export class InteractionSystem {
       return;
     }
 
-    // Dinero recibido: monedas ($200 a $1.500) o billete raro ($5.000 a $10.000)
+    // Dinero recibido: monedas (₡100 a ₡500) o billete raro (₡2.000 o ₡5.000)
     const isRare = Math.random() < 0.08;
     const amount = isRare
-      ? (Math.random() < 0.5 ? 5000 : 10000)
-      : Math.round((2 + Math.random() * 13) * this._origin('begMult')) * 100;
+      ? (Math.random() < 0.5 ? 2000 : 5000)
+      : Math.round((1 + Math.random() * 4) * this._origin('begMult')) * 100;
 
     this.stats.dinero += amount;
     this.stats.animo = Math.min(100, this.stats.animo + (isRare ? 6 : 2));

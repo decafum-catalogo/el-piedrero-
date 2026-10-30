@@ -1,5 +1,5 @@
 const KEY = 'habitante-de-calle-save-v1';
-const VERSION = 2; // v2: dinero en pesos colombianos + necesidad de vicio
+const VERSION = 3; // v3: dinero en colones (v2 era en pesos colombianos)
 
 // Cuántos pesos vale un "dólar" de las partidas v1
 const V1_TO_COP = 250;
@@ -13,6 +13,7 @@ export class SaveSystem {
     if (!data.v && data.stats?.dinero !== undefined) {
       data.stats.dinero = Math.round(data.stats.dinero * V1_TO_COP);
     }
+    if (data.v === 2 && data.stats?.dinero !== undefined) data.stats.dinero = Math.round(data.stats.dinero / 6);
     return data;
   }
   clear() { localStorage.removeItem(KEY); }

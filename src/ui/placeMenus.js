@@ -1,6 +1,6 @@
 // src/ui/placeMenus.js
 // Menús de los lugares: Recicladora El Progreso, Tienda La Esquinita y el cambuche.
-import { ITEMS, SHOP_ITEMS, isRecyclable, itemIcon, itemRarityLabel } from '../data/items.js';
+import { ITEMS, SHOP_ITEMS, isRecyclable, isMetal, itemIcon, itemRarityLabel } from '../data/items.js';
 import { CAMBUCHE } from '../data/cambuche.js';
 import { originEffect } from '../data/origins.js';
 import { XP_SELL } from '../utils/constants.js';
@@ -14,12 +14,14 @@ const toast = (text, type = 'info') => window.dispatchEvent(new CustomEvent('toa
 const moneyFoot = (game) => el('span', { class: 'menu__money' }, 'Tienes ', el('span', { text: cop(game.stats.dinero) }));
 const nameOf = (id) => ITEMS[id]?.name ?? id;
 
-export function openRecycler(game) {
+export function openMetalBuyer(game) { return openRecycler(game, { metal: true }); }
+
+export function openRecycler(game, { metal = false } = {}) {
   const { inventory, stats } = game;
   const mult = (game.interaction.boostActive ? 1.2 : 1) * originEffect(game.look?.origen, 'sellMult');
 
   const render = () => {
-    const sellable = inventory.items.filter((i) => isRecyclable(ITEMS[i.id] ?? i));
+    const sellable = inventory.items.filter((i) => (metal ? isMetal(ITEMS[i.id] ?? i) : isRecyclable(ITEMS[i.id] ?? i)));
     const total = Math.round(sellable.reduce((a, i) => a + i.value * i.qty * mult, 0));
     const body = sellable.length
       ? el('ul', { class: 'rows' }, sellable.map((i) => rowEl({
@@ -29,7 +31,7 @@ export function openRecycler(game) {
           qty: `× ${i.qty}`,
           price: cop(i.value * i.qty * mult)
         })))
-      : el('p', { class: 'empty', text: 'No traes nada para vender. Busca en las bolsas de basura: latas, botellas, cartón, chatarra y, con suerte, cobre.' });
+      : el('p', { class: 'empty', text: metal ? 'No traes latas, chatarra ni cobre.' : 'No traes nada para vender. Busca en las bolsas de basura: latas, botellas, cartón, chatarra y, con suerte, cobre.' });
     const foot = [
       moneyFoot(game),
       button(total ? `Vender todo · ${cop(total)}` : 'Vender todo', {
@@ -48,7 +50,9 @@ export function openRecycler(game) {
     return { body, foot };
   };
 
-  game.menu.open({ title: 'Recicladora El Progreso', sub: 'Pagan de contado. Comida, remedios y sustancias no se reciben.', ic: 'recycle', render });
+  game.menu.open(metal
+    ? { title: 'El Chupacabras Cochón', sub: 'Compra latas, chatarra y cobre. Pele el cable y le paga más.', ic: 'recycle', render }
+    : { title: 'Recicladora El Progreso', sub: 'Pagan de contado. Comida, remedios, sustancias y metales no se reciben aquí.', ic: 'recycle', render });
 }
 
 /** Tienda La Esquinita, o un vendedor ambulante si `target` trae { title, items } */

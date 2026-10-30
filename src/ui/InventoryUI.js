@@ -313,7 +313,7 @@ export class InventoryUI {
       ? `Peso ${def.weight} kg · Valor $${def.value}${s.qty > 1 ? ` · Total $${def.value * s.qty}` : ''}`
       : '';
     this.btnUse.disabled = !(def && isUsable(def));
-    this.btnUse.textContent = def?.smokable ? 'Fumar' : 'Usar';
+    this.btnUse.textContent = def?.smokable ? 'Fumar' : def?.peelable ? 'Pelar' : 'Usar';
     this.btnDrop1.disabled = !def;
     this.btnDropAll.disabled = !def || s.qty < 2;
   }

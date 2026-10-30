@@ -13,7 +13,7 @@ export class StatsSystem {
     this.higiene = 100;   // NUEVA
     this.animo   = 100;   // NUEVA
     this.vicio   = 80;    // ansiedad por consumir: si se vacía, abstinencia
-    this.dinero  = 0;     // pesos colombianos
+    this.dinero  = 0;     // colones
     this.xp      = 0;
     this.level   = 1;
 

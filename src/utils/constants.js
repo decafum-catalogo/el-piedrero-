@@ -56,7 +56,7 @@ export const XP_BEG = 4;
 // === Robo de retrovisores ===
 export const STEAL_CAUGHT_CHANCE = 0.25;   // probabilidad de ser atrapado
 export const STEAL_CAUGHT_PENALTY = 25;    // salud perdida al ser atrapado
-export const STEAL_CAUGHT_MONEY = 5000;    // pesos perdidos al ser atrapado
+export const STEAL_CAUGHT_MONEY = 1000;    // colones perdidos al ser atrapado
 export const CAR_COOLDOWN = 40;            // segundos hasta que revive el auto
 
 // === Venta de sustancias ===

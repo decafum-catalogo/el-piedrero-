@@ -4,7 +4,7 @@ import { TALENTS, BRANCHES } from '../data/talents.js';
 import { XP_PER_LEVEL, XP_CRAFT } from '../utils/constants.js';
 import { NEEDS } from '../systems/StatsSystem.js';
 import { cop } from '../utils/money.js';
-import { itemRarityLabel } from '../data/items.js';
+import { itemRarityLabel, ITEMS } from '../data/items.js';
 
 export class HUD {
   constructor() {
@@ -369,6 +369,15 @@ export class HUD {
     if (!game) return;
 
 
+    if (item.peelable) {
+      if (inv.count('cable') < 1) return;
+      inv.remove('cable', 1);
+      inv.add(ITEMS.cobre, 1);
+      game.audio?.play('pickup');
+      this._toast('🔌 Peló el cable: sacó cobre limpio.', 'sell');
+      this._renderInventory(inv);
+      return;
+    }
     if (item.smokable) {
       if (game.smoking?.active) { this._toast('Ya se está fumando uno.', 'info'); return; }
       game.inventoryUI?.close();

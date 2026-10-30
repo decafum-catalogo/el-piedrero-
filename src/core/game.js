@@ -1,4 +1,6 @@
 // src/core/Game.js
+import { MissionSystem } from '../systems/MissionSystem.js';
+import { SmokingSystem } from '../systems/SmokingSystem.js';
 import { DangerSystem } from '../systems/DangerSystem.js';
 import * as THREE from 'three';
 import { Renderer } from './Renderer.js';
@@ -451,6 +453,11 @@ export class Game {
 
     // Peligros de La Carpio: perros bravos, chapulines de noche y zonas a evitar
     if (district.hasDangers) {
+      const toast = (text, type = 'warn') => window.dispatchEvent(new CustomEvent('toast', { detail: { text, type } }));
+      this.missions?.dispose();
+      this.missions = new MissionSystem({ inventory: this.inventory, stats: this.stats, district }, { toast });
+      this.interaction.missions = this.missions;
+      if (!this.smoking) this.smoking = new SmokingSystem(this);
       district.dangers = new DangerSystem(district, {
         isNight: () => !!this.clock?.isNight,
         hurt: (n) => { this.stats.salud = Math.max(0, this.stats.salud - n); if (this.stats.salud === 0) this._deathCause = 'perro'; },
@@ -676,6 +683,8 @@ export class Game {
     for (const need of NEEDS) this.stats[need] = Math.max(60, this.stats[need]);
     this.diseases.cureAll();
     this.psychosis?.dispose?.();
+    this.smoking?.dispose?.();
+    this.missions?.dispose?.();
     this.poopSystem?.activeProjectiles?.forEach?.(p => p.dispose?.());
     if (this.poopSystem) this.poopSystem.activeProjectiles = [];
 
@@ -834,6 +843,8 @@ export class Game {
     this.dealer?.update(dt);
     this.dog?.update(dt, this.player.position, this.pickups);
     if (this.stats.salud > 0) this.world.active?.dangers?.update(dt, this.player.position);
+    this.missions?.update(dt, this.player.position, !!this.clock.isNight);
+    this.smoking?.update(dt);
 
     // 10. Audio
     const moving = !this.player.isStunned && Math.hypot(this.player.position.x - previousX, this.player.position.z - previousZ) > .001;
@@ -944,6 +955,8 @@ export class Game {
     this._running = false;
     this.pet?.dispose?.();
     this.psychosis?.dispose?.();
+    this.smoking?.dispose?.();
+    this.missions?.dispose?.();
     this.poopSystem?.dispose?.();
     this.radio?.destroy?.();
   }

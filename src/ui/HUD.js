@@ -369,6 +369,13 @@ export class HUD {
     if (!game) return;
 
 
+    if (item.smokable) {
+      if (game.smoking?.active) { this._toast('Ya se está fumando uno.', 'info'); return; }
+      game.inventoryUI?.close();
+      inv.remove(itemId, 1);
+      game.smoking?.start();
+      return;
+    }
     if (itemId === 'popo') {
       if (game.player?.isStunned) return;
       game.inventoryUI?.close();

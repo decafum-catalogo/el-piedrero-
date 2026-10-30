@@ -150,6 +150,7 @@ export class InteractionSystem {
           window.dispatchEvent(new CustomEvent('open-cambuche'));
           break;
         case 'talk':
+          if (this.missions?.handleTalk(nearest, clock?.isNight)) break;
           window.dispatchEvent(new CustomEvent('toast', { detail: { text: `🗣️ ${nearest.name}: «${nearest.say(clock?.isNight)}»`, type: 'info' } }));
           break;
         case 'dog':

@@ -88,6 +88,23 @@ export const TALK_NPCS = [
     ]
   },
   {
+    id: 'cliente',
+    name: 'El Cliente',
+    role: 'Recibe la vuelta de Celso',
+    pos: [108, 90],
+    look: {
+      piel: 2, pelo: 'corto', barba: 'ninguna', contextura: 'normal',
+      real: { sexo: 'hombre', edad: 'adulto', pelo: 'corto', barba: 'bigote', ropa: 'buzo', calzado: 'tenis' }
+    },
+    style: { skin: { tone: [205, 160, 125], strength: 0.7, ref: 0.78 }, eyes: [50, 34, 22], hair: [28, 22, 18] },
+    // Texto propuesto (pendiente de aprobación en el Excel)
+    lines: [
+      'Quién sabe, mae. Yo no vi nada.',
+      'Por aquí no pasó nadie.',
+      'Esté pendiente de la Fuerza Pública.'
+    ]
+  },
+  {
     id: 'chupacabras',
     name: 'El Chupacabras Cochón',
     role: 'Compra latas, cobre y chatarra',

@@ -103,6 +103,16 @@ export const ITEMS = {
     consumable: 'vicio', amount: 35, salud: -1
   },
 
+  // ===== LA VUELTA DE CELSO =====
+  bolsita: {
+    id: 'bolsita', name: 'Bolsita', weight: 0.05, value: 0, contraband: true,
+    desc: 'La vuelta de Celso. Llévela al parque sin que la vea la Fuerza Pública.'
+  },
+  purito: {
+    id: 'purito', name: 'Purito', weight: 0.02, value: 0, contraband: true, usable: true, smokable: true,
+    desc: 'Se fuma. Le da risa y le distorsiona la vista un rato; luego se le pasa.'
+  },
+
   // ===== MATERIALES DEL CAMBUCHE =====
   lona:    { id: 'lona',    name: 'Lona azul',     weight: 2,    value: 4000, build: true, rarity: 'rare' },
   madera:  { id: 'madera',  name: 'Tablas',        weight: 2,    value: 1500, build: true, rarity: 'uncommon' },
@@ -130,7 +140,7 @@ const ITEM_EMOJIS = {
   lona: '⛺', madera: '🪵', colchon: '🛏️', vela: '🕯️', pan: '🍞',
   agua: '💧', refresco: '🥤', cafe: '☕', lataComida: '🐟', vendaje: '🩹',
   reloj: '⌚', moneda: '🪙', anillo: '💍', jabon: '🧼', cepillo: '🪥',
-  retrovisor: '🪞', radio: '📻', radioTransistor: '📻', pilas: '🔋', popo: '💩', cigarrillo: '🚬'
+  retrovisor: '🪞', radio: '📻', radioTransistor: '📻', pilas: '🔋', popo: '💩', cigarrillo: '🚬', bolsita: '🛍️', purito: '🚬'
 };
 for (const item of Object.values(ITEMS)) {
   item.emoji = ITEM_EMOJIS[item.id] ?? (item.cure ? '💊' : item.substance ? '🧪' : '📦');
@@ -141,6 +151,7 @@ export function describeEffects(item) {
   const lines = [];
   if (item.id === 'radioTransistor') lines.push('Usar: abrir el sintonizador. También con R.');
   if (item.id === 'pilas') lines.push('Usar: recargar 50% de batería de la radio.');
+  if (item.smokable) lines.push('Fumar: sube el ánimo, distorsiona la pantalla un rato y se cura solo.');
   if (item.id === 'popo') lines.push('Usar o X en la calle: lanzar a un peatón.');
   if (item.consumable) lines.push(`${item.consumable}: +${item.amount}`);
   for (const key of ['hambre', 'sed', 'energia', 'salud', 'higiene', 'animo', 'vicio']) {
@@ -154,14 +165,14 @@ export function describeEffects(item) {
 
 /** La recicladora compra todo lo que no se come, no cura, no es sustancia ni sirve para construir */
 export const isRecyclable = (item) =>
-  !!item && !item.consumable && !item.cure && !item.substance && !item.build && item.id !== 'popo' && item.id !== 'radioTransistor' && item.id !== 'pilas';
+  !!item && !item.consumable && !item.cure && !item.substance && !item.contraband && !item.build && item.id !== 'popo' && item.id !== 'radioTransistor' && item.id !== 'pilas';
 
 // Icono (lucide) para mostrar cada objeto en los menús
 const ICONS = {
   lata: 'recycle', botella: 'recycle', carton: 'package', chatarra: 'wrench', cable: 'flame',
   reloj: 'watch', moneda: 'coins', anillo: 'sparkles', retrovisor: 'eye', radio: 'phone', radioTransistor: 'radio', pilas: 'flame',
   pan: 'bread', lataComida: 'food', agua: 'water', refresco: 'water', cafe: 'coffee',
-  vendaje: 'bandage', jabon: 'bath', cepillo: 'bath', cigarrillo: 'flame',
+  vendaje: 'bandage', jabon: 'bath', cepillo: 'bath', cigarrillo: 'flame', bolsita: 'package', purito: 'flame',
   lona: 'tent', madera: 'layers', colchon: 'bed', vela: 'flame', popo: 'alert-triangle'
 };
 export const itemIcon = (id) => ICONS[id] ?? (ITEMS[id]?.cure ? 'pill' : 'box');

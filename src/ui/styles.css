@@ -398,46 +398,7 @@ body.is-loading #creator-modal { visibility: visible; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;
 }
 
-/* === Menú de Pausa === */
-.pause-menu-body {
-  display: flex; flex-direction: column; gap: 14px;
-  font-family: monospace; color: #ddd; max-height: 65vh; overflow-y: auto; padding-right: 4px;
-}
-.pause-section {
-  background: rgba(0, 0, 0, 0.35); border: 1px solid #3d4a41;
-  border-radius: 5px; padding: 10px 12px;
-}
-.pause-section-title {
-  color: #eed688; font-size: 13px; margin-bottom: 8px; border-bottom: 1px solid #2d3b32; padding-bottom: 4px;
-}
-.pause-row {
-  display: flex; align-items: center; gap: 10px; font-size: 12px; flex-wrap: wrap;
-}
-.pause-slider {
-  flex: 1; min-width: 100px; accent-color: #27ae60; cursor: pointer;
-}
-.pause-vol-label {
-  min-width: 38px; color: #eed688; font-weight: bold;
-}
-.pause-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; font-size: 12px;
-}
-.pause-grid strong { color: #aaa; }
-.pause-grid span { color: #fff; }
-.pause-actions {
-  display: flex; gap: 8px; flex-wrap: wrap;
-}
-.pause-actions button {
-  padding: 6px 10px; font-size: 12px; border-radius: 4px;
-  background: #1c2b24; color: #d9f9e6; border: 1px solid #54776a; cursor: pointer;
-}
-.pause-actions button:hover { background: #2b4238; }
-.pause-details {
-  font-size: 11px; color: #aaa; cursor: pointer;
-}
-.pause-details summary {
-  color: #ffe199; font-weight: bold; margin-bottom: 6px;
-}
+/* El menú de pausa (pestañas) tiene sus estilos en menus.css */
 .pause-controls-list {
   list-style: none; padding-left: 4px; line-height: 1.8;
 }

@@ -24,6 +24,11 @@ export class MissionSystem {
     this.state = 'idle'; // idle | active | delivered | failed
     this.toast = hooks.toast ?? (() => {});
     this.police = [];
+    this.wanted = 0;        // segundos que la policía lo busca (vecinos avisaron)
+    this.hidden = false;
+    this.hideTimer = 0;
+    this.hideCooldown = 0;
+    this.hidePos = null;
     this.timers = [];
     const d = game.district;
     if (spawnPolice && d) {
@@ -83,15 +88,69 @@ export class MissionSystem {
     return false;
   }
 
-  update(dt, player, isNight) {
+  /** Un vecino vio algo ilegal y llamó a la Fuerza Pública. */
+  alertPolice(seconds = 25) {
+    if (this.hidden) return;
+    const first = this.wanted <= 0;
+    this.wanted = Math.max(this.wanted, seconds);
+    if (first) this.toast('📞 ¡Un vecino llamó a la Fuerza Pública! Escóndase o corra.', 'danger');
+  }
+
+  /** Esconderse en un basurero cercano (tecla H). */
+  toggleHide(player, targets = []) {
+    if (this.hidden) { this._unhide(player, 'Salió del escondite.'); return true; }
+    if (this.hideCooldown > 0) { this.toast('Todavía no puede esconderse otra vez.', 'warn'); return false; }
+    const near = targets.find((t) => t.kind === 'trash' && Math.hypot(t.position.x - player.x, t.position.z - player.z) < 2.6);
+    if (!near) { this.toast('Acérquese a un basurero para esconderse (H).', 'info'); return false; }
+    this.hidden = true;
+    this.hideTimer = 12;
+    this.hidePos = { x: player.x, z: player.z };
+    const root = this.game.player?.root; if (root) root.visible = false;
+    this.toast('🗑️ Se escondió en el basurero. Los policías ya no lo ven.', 'info');
+    return true;
+  }
+
+  _unhide(player, msg) {
+    this.hidden = false;
+    this.hideCooldown = 20;
+    const root = this.game.player?.root; if (root) root.visible = true;
+    if (msg) this.toast(msg, 'info');
+  }
+
+  /**
+   * @param {boolean} inWindow ventana de la misión (10 pm–5 am)
+   * @param {{running?:boolean, night?:boolean}} ctx
+   */
+  update(dt, player, inWindow, ctx = {}) {
     const carrying = this.carrying;
+    this.hideCooldown = Math.max(0, this.hideCooldown - dt);
+    this.wanted = Math.max(0, this.wanted - dt);
+    if (this.hidden) {
+      this.hideTimer -= dt;
+      if (this.hideTimer <= 0 || Math.hypot(player.x - this.hidePos.x, player.z - this.hidePos.z) > 3) this._unhide(player, 'Salió del escondite.');
+    }
     if (this.state === 'active' && !carrying) {
       this.state = 'failed';
       this.toast('Perdió la bolsita. Hable con Celso.', 'warn');
     }
+    const suspicious = carrying || !!(ctx.running && ctx.night);
     for (const p of this.police) {
-      p.setActive(isNight);
-      if (p.think(dt, player, carrying) === 'caught') this._caught();
+      p.setActive(true); // patrullan de día y de noche
+      const r = p.think(dt, player, carrying && inWindow, { wanted: this.wanted > 0, hidden: this.hidden, suspicious });
+      if (r === 'caught') this._caught();
+      else if (r === 'question') this._question(p, carrying);
+    }
+  }
+
+  _question(police, carrying) {
+    if (carrying) {
+      this.toast('🚔 Fuerza Pública: «¡Alto ahí, mae! ¿Qué anda cargando?»', 'danger');
+      police.state = 'chase';
+    } else if (this.wanted > 0) {
+      this.wanted = 0;
+      this.toast('🚔 Fuerza Pública: «Un vecino dijo que usted andaba robando. Esta vez lo dejamos ir, pero ojo.»', 'warn');
+    } else {
+      this.toast('🚔 Fuerza Pública: «¿Qué anda haciendo por aquí, mae? Siga, pero tranquilo.»', 'info');
     }
   }
 
@@ -106,6 +165,7 @@ export class MissionSystem {
 
   dispose() {
     for (const t of this.timers) clearTimeout(t);
+    const root = this.game.player?.root; if (root) root.visible = true;
     for (const p of this.police) p.dispose();
   }
 }

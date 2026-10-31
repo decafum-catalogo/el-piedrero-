@@ -149,6 +149,7 @@ export class StealSystem {
       if (Math.random() < noticeChance) {
         npc?.hitByPoop?.(this.game.player.position);
         this._toast('🚨 ¡Lo cogieron con las manos en la masa! El peatón gritó.', 'death');
+        this.game.missions?.alertPolice();
       } else {
         this._toast('💨 Fallaste al robar, pero lograste disimular.', 'warn');
       }
@@ -160,6 +161,7 @@ export class StealSystem {
     this.cooldown = CONFIG.globalCooldown;
     npc._robadoTimer = CONFIG.npcCooldown;
     this.buscado = Math.min(3, this.buscado + 1);
+    this.game.missions?.alertPolice();
     this._giveLoot(CONFIG.lootMoneyDirect, false);
     npc.hitByPoop?.(this.game.player.position);
     const isStrong = (npc.look?.real?.edad === 'adulto' || Math.random() < 0.45);

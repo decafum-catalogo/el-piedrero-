@@ -143,6 +143,7 @@ export class Game {
       if (e.code === 'KeyN' && !this.paused) this.minimap.toggle();
       if (e.code === 'Escape' && !e._panelHandled && !this.paused && !this.isSleeping) openPauseMenu(this);
       if (e.code === 'KeyV') this._toggleCamera();
+      if (e.code === 'KeyH' && !this.paused && !this.isSleeping) this.missions?.toggleHide(this.player.position, this.interaction?.targets ?? []);
       if (e.code === 'KeyP' && !this.paused) this.pet?.toggleCustomizationMenu();
       if (e.code === 'KeyM' && !this.paused) this._toggleModel();
       if (e.code === 'KeyR') {
@@ -844,7 +845,7 @@ export class Game {
     this.dealer?.update(dt);
     this.dog?.update(dt, this.player.position, this.pickups);
     if (this.stats.salud > 0) this.world.active?.dangers?.update(dt, this.player.position);
-    this.missions?.update(dt, this.player.position, inMissionWindow(this.clock.hour));
+    this.missions?.update(dt, this.player.position, inMissionWindow(this.clock.hour), { running: !!this.input.isRunning && this.player.speed > 1, night: !!this.clock.isNight });
     this.smoking?.update(dt);
 
     // 10. Audio

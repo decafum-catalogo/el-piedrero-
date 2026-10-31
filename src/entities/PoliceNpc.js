@@ -3,7 +3,7 @@
 import { Npc } from './Npc.js';
 import { TalkNpc, lookFromDef } from './TalkNpc.js';
 
-export const POLICE = { sight: 13, catchDist: 1.2, speed: 3.3, patrolSpeed: 1.3, giveUpDist: 28, giveUpTime: 6 };
+export const POLICE = { question: 3.2, questionEvery: 25, wantedSight: 38, sight: 13, catchDist: 1.2, speed: 3.3, patrolSpeed: 1.3, giveUpDist: 28, giveUpTime: 6 };
 
 // Uniforme de la Fuerza Pública de Costa Rica: camisa y pantalón azul marino, botas negras y gorra azul con escudo.
 const LOOK = {
@@ -34,6 +34,7 @@ export class PoliceNpc extends Npc {
     this.idx = 0;
     this.state = 'patrol';
     this.lost = 0;
+    this.questionCd = 0;
     this.active = false;
     this.player = null;
     this.root.visible = false;
@@ -45,17 +46,29 @@ export class PoliceNpc extends Npc {
     if (!on) { this.state = 'patrol'; this.lost = 0; }
   }
 
-  /** @param {boolean} carrying el jugador lleva la bolsita @returns {'caught'|null} */
-  think(dt, player, carrying) {
+  /**
+   * @param {boolean} carrying el jugador lleva la bolsita
+   * @param {{wanted?:boolean, hidden?:boolean, suspicious?:boolean}} flags
+   * @returns {'caught'|'question'|null}
+   */
+  think(dt, player, carrying, { wanted = false, hidden = false, suspicious = false } = {}) {
     this.player = player;
     if (!this.active) return null;
+    this.questionCd = Math.max(0, this.questionCd - dt);
     const dist = Math.hypot(player.x - this.position.x, player.z - this.position.z);
-    if (this.state === 'patrol' && carrying && dist < POLICE.sight) this.state = 'chase';
+    const hunting = !hidden && (carrying || wanted);
+    if (this.state === 'patrol' && hunting && dist < (wanted ? POLICE.wantedSight : POLICE.sight)) this.state = 'chase';
     if (this.state === 'chase') {
-      if (!carrying) { this.state = 'patrol'; return null; }
-      if (dist < POLICE.catchDist) { this.state = 'patrol'; return 'caught'; }
+      if (!hunting) { this.state = 'patrol'; return null; }
+      if (dist < POLICE.catchDist) { this.state = 'patrol'; return carrying ? 'caught' : 'question'; }
       this.lost = dist > POLICE.giveUpDist ? this.lost + dt : 0;
       if (this.lost > POLICE.giveUpTime) { this.state = 'patrol'; this.lost = 0; }
+      return null;
+    }
+    // un policía que lo ve de cerca y lo nota sospechoso lo detiene a preguntar
+    if (!hidden && suspicious && dist < POLICE.question && this.questionCd === 0) {
+      this.questionCd = POLICE.questionEvery;
+      return 'question';
     }
     return null;
   }

@@ -68,3 +68,35 @@ test('la misión está disponible de 10 pm a 5 am', () => {
   assert.ok(inMissionWindow(22) && inMissionWindow(23) && inMissionWindow(0) && inMissionWindow(4.9));
   assert.ok(!inMissionWindow(5) && !inMissionWindow(12) && !inMissionWindow(21.9));
 });
+
+test('un vecino avisa: la policía busca al jugador y se le pasa el aviso', () => {
+  const { m, toasts } = setup();
+  m.alertPolice(10);
+  assert.ok(m.wanted >= 10 && toasts.some(t => t.includes('vecino')));
+  m.update(11, { x: 0, z: 0 }, false);
+  assert.equal(m.wanted, 0);
+});
+
+test('esconderse en un basurero hace invisible al jugador y no funciona lejos', () => {
+  const { m, game } = setup();
+  game.player = { root: { visible: true } };
+  const player = { x: 0, z: 0 };
+  assert.equal(m.toggleHide(player, [{ kind: 'trash', position: { x: 10, z: 0 } }]), false);
+  assert.equal(m.toggleHide(player, [{ kind: 'trash', position: { x: 1, z: 0 } }]), true);
+  assert.equal(game.player.root.visible, false);
+  m.alertPolice(10);
+  assert.equal(m.wanted, 0, 'escondido nadie lo ve');
+  m.update(13, player, false);
+  assert.equal(m.hidden, false);
+  assert.equal(game.player.root.visible, true);
+});
+
+test('un policía sospecha de quien corre de noche', () => {
+  const { m } = setup();
+  const fake = { active: false, state: 'patrol', setActive(v) { this.active = v; }, think(dt, p, c, f) { this.flags = f; return null; } };
+  m.police.push(fake);
+  m.update(0.1, { x: 0, z: 0 }, false, { running: true, night: true });
+  assert.equal(fake.flags.suspicious, true);
+  m.update(0.1, { x: 0, z: 0 }, false, { running: true, night: false });
+  assert.equal(fake.flags.suspicious, false);
+});

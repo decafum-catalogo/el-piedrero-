@@ -4,6 +4,7 @@ import { Pickup } from './Pickup.js';
 export class TrashContainer extends Pickup {
   constructor(scene, position) {
     super(scene, position, { modelKind: 'contenedor', cooldown: 120 });
+    this.kind = 'trash'; // se puede usar para esconderse (H)
   }
 
   harvest(...args) {

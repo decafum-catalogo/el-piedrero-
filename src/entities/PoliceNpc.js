@@ -18,7 +18,11 @@ const LOOK = {
     eyes: [45, 30, 20],
     shirt: { factor: 0.42, tint: [0.62, 0.78, 1.3], jeans: true }
   },
-  accessories: ['gorraFP']
+  accessories: ['gorraFP'],
+  // rótulos en la camisa (hueso del pecho): «FUERZA PÚBLICA» en la espalda
+  patches: [
+    { bone: 'Spine2', text: 'FUERZA PÚBLICA', w: 0.3, h: 0.06, pos: [0, 0.03, -0.14], rotY: Math.PI }
+  ]
 };
 
 export class PoliceNpc extends Npc {

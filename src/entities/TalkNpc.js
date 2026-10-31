@@ -99,6 +99,12 @@ export class TalkNpc extends Npc {
     }
     if (d.build) char.group.scale.multiply(new THREE.Vector3(d.build.x ?? 1, d.build.y ?? 1, d.build.z ?? 1));
     if (head) for (const name of d.accessories ?? []) head.add(ACCESSORIES[name](d));
+    for (const patch of d.patches ?? []) {
+      let bone = null;
+      char.group.traverse((o) => { if (o.isBone && o.name.endsWith(patch.bone)) bone = o; });
+      const mesh = bone && textPatch(patch);
+      if (mesh) bone.add(mesh);
+    }
   }
 }
 
@@ -126,6 +132,23 @@ const MUSTACHE = (x, y, z) => {
   return Math.max(0, (1 - ss(0.032, 0.046, ax)) * ss(0.027, 0.034, y) * (1 - ss(0.043, 0.05, y)) * ss(0.05, 0.07, z));
 };
 function lerpW(t, a, b) { return a + (b - a) * t; }
+
+/** Rótulo de texto (p. ej. «FUERZA PÚBLICA» en la camisa) como plano pegado a un hueso. */
+function textPatch({ text, w, h, pos, rotY = 0, color = '#f2f2f2', bg = null }) {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = Math.max(32, Math.round(512 * h / w));
+  const x = c.getContext('2d');
+  if (!x) return null;
+  if (bg) { x.fillStyle = bg; x.fillRect(0, 0, c.width, c.height); }
+  x.fillStyle = color; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = `bold ${Math.round(c.height * 0.62)}px Arial, sans-serif`;
+  x.fillText(text, c.width / 2, c.height / 2 + 2, c.width - 10);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+  m.position.set(...pos); m.rotation.y = rotY; m.name = 'Rótulo ' + text;
+  return m;
+}
 
 const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...extra });
 // Todo se mide en metros dentro del hueso de la cabeza (Y arriba, Z hacia adelante).

@@ -1,6 +1,7 @@
 // src/world/districts/Carpio.js
 // La Carpio (San José, Costa Rica), sector Garabito / Av. 49. Reutiliza el motor de casas, suelo,
 // colisiones y peatones de Bogota.js y cambia el trazado, el tamaño de las casas y las escenas.
+import { buildPatrolCar } from '../props/PatrolCar.js';
 import * as THREE from 'three';
 import { Bogota } from './Bogota.js';
 import { TILE_SIZE } from '../../utils/constants.js';
@@ -139,6 +140,7 @@ export class Carpio extends Bogota {
 
     this._mergeStatic();
     this.group.add(this.buildingVisibility.buildClosedView());
+    this._buildPatrolCars();
     scene.add(this.group);
 
     this.isWalkableAt = (wx, wz) => {
@@ -367,6 +369,21 @@ export class Carpio extends Bogota {
   }
 
   // ---------- tránsito ----------
+  /** Dos patrullas de la Fuerza Pública estacionadas: una junto al parque y otra cerca del lote. */
+  _buildPatrolCars() {
+    const spots = this.getParkingSpots();
+    for (const [tx, tz] of [[104, 92], [104, 120]]) {
+      const spot = spots.reduce((a, b) => Math.hypot(b.x - W(tx), b.z - W(tz)) < Math.hypot(a.x - W(tx), a.z - W(tz)) ? b : a, spots[0]);
+      if (!spot) continue;
+      const car = buildPatrolCar();
+      car.position.set(spot.x, this.getGroundHeight(spot.x, spot.z), spot.z);
+      car.rotation.y = spot.rot;
+      this.group.add(car);
+      this.animated.push(car);
+      this.patrolCars = [...(this.patrolCars ?? []), car];
+    }
+  }
+
   getParkingSpots() {
     const m = this.map, spots = [];
     for (let z = 4; z < m.length - 4; z++) for (let x = 4; x < m[0].length - 4; x++) {

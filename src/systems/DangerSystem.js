@@ -6,7 +6,7 @@ import { Mugger } from '../entities/Mugger.js';
 import { DANGER_ZONES, zoneAt } from '../data/zones.js';
 
 const W = (t) => t * 2;
-const DOGS = [[96, 118], [112, 122], [56, 96], [174, 70], [172, 120]];
+const DOGS = [[96, 118], [112, 122], [54, 96], [169, 70], [169, 120]];
 const MUGGERS = [[100, 125], [112, 112], [54, 100], [54, 126]];
 
 export class DangerSystem {

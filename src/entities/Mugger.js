@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import { Npc, randomStreetLook } from './Npc.js';
 
-export const MUGGER = { sight: 14, reach: 1.1, speed: 3.4, fleeTime: 8, cooldown: 90, min: .3, max: .6 };
+// Se le puede escapar caminando rápido o corriendo: sigue de cerca pero se rinde pronto y no se aleja de su esquina.
+export const MUGGER = { sight: 8, reach: 1.1, speed: 3.2, fleeTime: 8, cooldown: 180, leash: 16, min: .3, max: .6 };
 
 export class Mugger extends Npc {
   constructor(scene, position, opts = {}) {
@@ -33,7 +34,7 @@ export class Mugger extends Npc {
     if (this.state === 'idle' && this.timer === 0 && dist < MUGGER.sight) this.state = 'approach';
     else if (this.state === 'approach') {
       if (dist < MUGGER.reach) { robbed = true; this.state = 'flee'; this.timer = MUGGER.fleeTime; }
-      else if (dist > MUGGER.sight * 2) this.state = 'idle';
+      else if (dist > MUGGER.sight * 1.5 || Math.hypot(this.position.x - this.home.x, this.position.z - this.home.z) > MUGGER.leash) { this.state = 'idle'; this.timer = 20; }
     } else if (this.state === 'flee' && this.timer === 0) { this.state = 'idle'; this.timer = MUGGER.cooldown; }
     return robbed;
   }

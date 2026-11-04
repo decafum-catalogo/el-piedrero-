@@ -2,7 +2,7 @@
 // Perro callejero bravo: merodea cerca de su casa, persigue si el jugador se acerca y muerde.
 import * as THREE from 'three';
 
-export const STRAY = { sight: 9, giveUp: 18, bite: 1.2, biteEvery: 1.5, damage: 8, speed: 4.2, wander: 1.2 };
+export const STRAY = { sight: 6, giveUp: 11, bite: 1.2, biteEvery: 2, damage: 5, speed: 3.6, wander: 1.2, leash: 16 };
 
 export class StrayDog {
   constructor(scene, position, opts = {}) {
@@ -43,7 +43,7 @@ export class StrayDog {
     let damage = 0;
 
     if (this.state === 'wander' && dist < STRAY.sight) this.state = 'chase';
-    else if (this.state === 'chase' && (dist > STRAY.giveUp || homeDist > 30)) { this.state = 'return'; }
+    else if (this.state === 'chase' && (dist > STRAY.giveUp || homeDist > STRAY.leash)) { this.state = 'return'; }
     else if (this.state === 'return' && homeDist < 2) this.state = 'wander';
 
     let goal = null, speed = STRAY.wander;

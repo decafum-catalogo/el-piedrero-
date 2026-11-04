@@ -1,13 +1,16 @@
 
 // src/data/items.js
 // Valores en colones (₡): `value` es lo que pagan por el objeto.
+import { conSigno } from '../utils/numeros.js';
+import { DEALER_MARKUP, SUBSTANCE_PRICE_MULT } from '../utils/constants.js';
+import { diseaseName } from './diseases.js';
 
 export const ITEMS = {
   // ===== BASURA =====
-  lata:     { id: 'lata',     name: 'Lata vacía',    weight: 0.2,  value: 40, rarity: 'common', metal: true },
+  lata:     { id: 'lata',     name: 'Lata vacía',    weight: 0.2,  value: 40, rarity: 'common', metal: true, sharp: true },
   botella:  { id: 'botella',  name: 'Botella PET',   weight: 0.3,  value: 25 },
   carton:   { id: 'carton',   name: 'Cartón',        weight: 0.5,  value: 30, rarity: 'common' },
-  chatarra: { id: 'chatarra', name: 'Chatarra',      weight: 1.0,  value: 150, metal: true },
+  chatarra: { id: 'chatarra', name: 'Chatarra',      weight: 1.0,  value: 150, metal: true, sharp: true },
   // Cable con el forro puesto: se puede vender así (barato) o pelar para sacar el cobre (₡1.200).
   cable:    { id: 'cable',    name: 'Cable forrado', weight: 0.4,  value: 600, metal: true, usable: true, peelable: true,
               desc: 'Cable con forro. Use "Pelar" para sacarle el cobre y venderlo mejor al Chupacabras.' },
@@ -32,6 +35,18 @@ export const ITEMS = {
     id: 'pan', name: 'Pan duro', weight: 0.3, value: 150,
     consumable: 'hambre', amount: 25, animo: 5
   },
+  empanada: {
+    id: 'empanada', name: 'Empanada con ají', weight: 0.2, value: 1200,
+    consumable: 'hambre', amount: 35, animo: 15, calor: 120, desc: 'Empanada de carne y papa con ají casero.'
+  },
+  morcilla: {
+    id: 'morcilla', name: 'Morcilla criolla', weight: 0.35, value: 2500,
+    consumable: 'hambre', amount: 60, energia: 20, animo: 10, calor: 180, desc: 'Rellena de la Mona: contundente y calórica.'
+  },
+  papaCriolla: {
+    id: 'papaCriolla', name: 'Papa criolla', weight: 0.25, value: 1000,
+    consumable: 'hambre', amount: 25, animo: 10, calor: 90, desc: 'Porción de papa criolla doradita con sal.'
+  },
   lataComida: {
     id: 'lataComida', name: 'Lata de atún', weight: 0.4, value: 400,
     consumable: 'hambre', amount: 45, animo: 8
@@ -39,6 +54,10 @@ export const ITEMS = {
   agua: {
     id: 'agua', name: 'Botella agua', weight: 0.5, value: 300,
     consumable: 'sed', amount: 35
+  },
+  aguapanela: {
+    id: 'aguapanela', name: 'Aguapanela caliente', weight: 0.35, value: 1200,
+    consumable: 'sed', amount: 40, energia: 25, animo: 15, calor: 180, cure: 'gripe', desc: 'Aguapanela con limón: revive y cura la gripe.'
   },
   refresco: {
     id: 'refresco', name: 'Refresco', weight: 0.4, value: 400,
@@ -102,6 +121,11 @@ export const ITEMS = {
     id: 'pastilla', name: 'Pastilla', weight: 0.05, value: 1500,
     consumable: 'vicio', amount: 60, animo: 40, salud: -5, substance: true
   },
+  basuco: {
+    id: 'basuco', name: 'Basuco', weight: 0.02, value: 4000,
+    consumable: 'vicio', amount: 70, animo: 30, energia: 15, salud: -6, hambre: -10, substance: true,
+    desc: 'Se fuma en pipa, agachado. Sube el ánimo de golpe pero trae paranoia y alucinaciones.'
+  },
   cigarrillo: {
     id: 'cigarrillo', name: 'Cigarrillo suelto', weight: 0.01, value: 100,
     consumable: 'vicio', amount: 35, salud: -1
@@ -126,11 +150,11 @@ export const ITEMS = {
   // ===== ARMAS / HERRAMIENTAS =====
   popo: {
     id: 'popo',
-    name: 'Mojón de popó',
+    name: 'Popó',
     weight: 0.3,
     value: 0,
     usable: true,
-    desc: 'Proyectil biológico artesanal. Presiona [X] para lanzárselo a los peatones.'
+    desc: 'Sirve para tirárselo a la gente. Oprima [X] para lanzárselo a los peatones.'
   }
 };
 
@@ -158,11 +182,13 @@ export function describeEffects(item) {
   if (item.peelable) lines.push('Pelar: saca el cobre del cable (vale el doble).');
   if (item.smokable) lines.push('Fumar: sube el ánimo, distorsiona la pantalla un rato y se cura solo.');
   if (item.id === 'popo') lines.push('Usar o X en la calle: lanzar a un peatón.');
+  if (item.weapon) lines.push('Usar: sacar o guardar. Se pega con clic o G, y golpes seguidos pegan más.');
   if (item.consumable) lines.push(`${item.consumable}: +${item.amount}`);
+  if (item.calor) lines.push(`Calor: +${Math.round(item.calor / 60)} min contra el frío`);
   for (const key of ['hambre', 'sed', 'energia', 'salud', 'higiene', 'animo', 'vicio']) {
-    if (item[key]) lines.push(`${key}: ${item[key] > 0 ? '+' : ''}${item[key]}`);
+    if (item[key]) lines.push(`${key}: ${conSigno(item[key])}`);
   }
-  if (item.cure) lines.push(`Cura: ${item.cure}`);
+  if (item.cure) lines.push(`Cura: ${diseaseName(item.cure)}`);
   const rarity = itemRarityLabel(item.id);
   if (rarity) lines.push(`Rareza: ${rarity}`);
   return lines;
@@ -172,15 +198,18 @@ export function describeEffects(item) {
 export const isRecyclable = (item) =>
   !!item && !item.consumable && !item.cure && !item.substance && !item.contraband && !item.build && !item.metal && item.id !== 'popo' && item.id !== 'radioTransistor' && item.id !== 'pilas';
 
-// Icono (lucide) para mostrar cada objeto en los menús
+/** Lo que la recicladora o un ladrón se llevan del costal: todo lo reciclable menos el arma que el jugador tiene en la mano. */
+export const isForSale = (item, equippedWeapon = null) => isRecyclable(item) && !(item.weapon && item.weapon === equippedWeapon);
+
+// El dibujo de cada objeto cuyo nombre no coincide con el de su dibujo (ver src/ui/icons.js)
 const ICONS = {
   lata: 'recycle', botella: 'recycle', carton: 'package', chatarra: 'wrench', cable: 'flame',
   reloj: 'watch', moneda: 'coins', anillo: 'sparkles', retrovisor: 'eye', radio: 'phone', radioTransistor: 'radio', pilas: 'flame',
-  pan: 'bread', lataComida: 'food', agua: 'water', refresco: 'water', cafe: 'coffee',
+  pan: 'bread', lataComida: 'food', agua: 'botellaAgua', refresco: 'water', cafe: 'pocillo',
   vendaje: 'bandage', jabon: 'bath', cepillo: 'bath', cigarrillo: 'flame', bolsita: 'package', purito: 'flame', cobre: 'coins',
   lona: 'tent', madera: 'layers', colchon: 'bed', vela: 'flame', popo: 'alert-triangle'
 };
-export const itemIcon = (id) => ICONS[id] ?? (ITEMS[id]?.cure ? 'pill' : 'box');
+export const itemIcon = (id) => ICONS[id] ?? id;
 
 // ===== LOOT TABLES =====
 
@@ -199,7 +228,11 @@ export const LOOT_COMMON = [
   { item: 'madera',     weight: 3 },
   { item: 'lona',       weight: 0.6 },
   { item: 'colchon',    weight: 0.4 },
-  { item: 'vela',       weight: 0.8 }
+  { item: 'vela',       weight: 0.8 },
+  // Sustancias: poco frecuentes porque el dealer las compra caras (la pastilla, muy rara)
+  { item: 'pegante',    weight: 1.0 },
+  { item: 'hierba',     weight: 1.5 },
+  { item: 'pastilla',   weight: 0.3 }
 ];
 
 export const LOOT_RARE = [
@@ -211,7 +244,8 @@ export const LOOT_RARE = [
 export const LOOT_SUBSTANCE = [
   { item: 'tintico',  weight: 50 },
   { item: 'pegante',  weight: 30 },
-  { item: 'pastilla', weight: 20 }
+  { item: 'pastilla', weight: 20 },
+  { item: 'basuco',   weight: 20 }
 ];
 
 // ===== TIENDA LA ESQUINITA (precios en colones) =====
@@ -244,3 +278,12 @@ export const COSTAL_BONUS = 20;
 
 /** Lo que compra El Chupacabras Cochón: latas, chatarra, cable y cobre. */
 export const isMetal = (item) => !!item?.metal;
+
+// ===== DEALER (precios en COP) =====
+// Cobra más de lo que paga de noche, también con «Contactos»: comprarle para revenderle nunca deja ganancia.
+
+/** Lo que cobra el dealer por una unidad. */
+export const dealerPrice = (item) => Math.round(item.value * DEALER_MARKUP);
+
+/** Lo que paga el dealer, de noche, por una unidad que le traes. */
+export const dealerOffer = (item, priceMult = 1) => Math.round(item.value * SUBSTANCE_PRICE_MULT * priceMult);

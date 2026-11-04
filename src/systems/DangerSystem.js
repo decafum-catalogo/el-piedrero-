@@ -36,12 +36,14 @@ export class DangerSystem {
     const night = this.hooks.isNight();
     for (const d of this.dogs) {
       const dmg = d.update(dt, player);
+      if (d.justGrowled) this.hooks.toast('🐕 Un perro le gruñe. Aléjese o defiéndase con G.', 'warn');
       if (dmg) { this.hooks.hurt(dmg); this.hooks.toast('¡Un perro le mordió!', 'danger'); }
     }
     for (const m of this.muggers) {
       m.setActive(night);
       if (m.think(dt, player)) {
         const lost = this.hooks.robFraction(0.3 + Math.random() * 0.3);
+        m.stolen = lost;
         this.hooks.toast(lost > 0 ? `¡Un chapulín le quitó ₡${lost}!` : '¡Un chapulín lo asaltó, pero no andaba nada!', 'danger');
       }
     }
@@ -49,6 +51,27 @@ export class DangerSystem {
     const relevant = z && (!z.night || night) ? z : null;
     if (relevant && relevant !== this.zone) this.hooks.toast(relevant.warn, 'warn');
     this.zone = relevant;
+  }
+
+  /** Defenderse (G): le pega a lo que tenga a menos de 2,2 m. @returns {boolean} true si le pegó a algo */
+  defend(player) {
+    const R = 2.2;
+    const near = (e) => Math.hypot(player.x - e.position.x, player.z - e.position.z) < R;
+    for (const m of this.muggers) {
+      if (!m.active || !near(m)) continue;
+      const r = m.fend();
+      if (!r) continue;
+      if (r.recovered) { this.hooks.refund?.(r.recovered); this.hooks.toast(`¡Le quitó la plata al chapulín! Recuperó ₡${r.recovered}.`, 'info'); }
+      else this.hooks.toast('¡Le plantó cara al chapulín y salió corriendo!', 'info');
+      return true;
+    }
+    for (const d of this.dogs) {
+      if (!near(d) || d.state === 'return') continue;
+      d.scare();
+      this.hooks.toast('¡Le pegó al perro y se fue chillando!', 'info');
+      return true;
+    }
+    return false;
   }
 
   dispose() {

@@ -14,7 +14,7 @@ export const PAUSE_TABS = [
 
 const CONTROL_GROUPS = [
   ['Movimiento', [['WASD', 'Caminar'], ['Shift', 'Correr'], ['Espacio', 'Saltar'], ['V', 'Vista tercera persona / isométrica']]],
-  ['Acciones', [['E', 'Interactuar: basura, pulperías, el chante, carros, hablar'], ['Q', 'Mantener para clasificar basura'], ['B / L', 'Pedir limosna'], ['H', 'Esconderse en un basurero'], ['X', 'Lanzar / recoger'], ['Z', 'Defecar']]],
+  ['Acciones', [['E', 'Interactuar: basura, pulperías, el chante, carros, hablar'], ['Q', 'Mantener para clasificar basura'], ['B / L', 'Pedir limosna'], ['H', 'Esconderse en un basurero'], ['G', 'Defenderse de perros y chapulines'], ['X', 'Lanzar / recoger'], ['Z', 'Defecar']]],
   ['Paneles', [['I / Tab', 'Inventario ∙ 1-5 acceso rápido'], ['T', 'Talentos'], ['C', 'Fabricar'], ['P', 'Mascota'], ['R', 'Radio transistor'], ['N', 'Radar'], ['M', 'Modelo liviano'], ['Esc', 'Pausa']]],
 ];
 

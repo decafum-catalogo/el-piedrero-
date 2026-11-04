@@ -15,13 +15,22 @@ export class Mugger extends Npc {
     this.active = false;
     this.root.visible = false;
     this.player = null;
+    this.stolen = 0; // lo que se llevó en el último asalto: se recupera si se le alcanza
   }
 
   /** Activa/desactiva según la hora. Cuando está inactivo no se ve ni actúa. */
   setActive(on) {
     if (on === this.active) return;
     this.active = on;
+    if (on) this.timer = 30; // al caer la noche tarda en aparecer con malas intenciones
     if (!on) { this.state = 'idle'; this.position.copy(this.home); }
+  }
+
+  /** El jugador se defiende. Si ya lo asaltó y huye, se recupera la plata; si se acerca, se asusta. */
+  fend() {
+    if (this.state === 'flee' && this.stolen > 0) { const back = this.stolen; this.stolen = 0; return { recovered: back }; }
+    if (this.state === 'approach') { this.state = 'flee'; this.timer = MUGGER.fleeTime; return { scared: true }; }
+    return null;
   }
 
   /** @returns {boolean} true si acaba de asaltar al jugador */
@@ -35,7 +44,7 @@ export class Mugger extends Npc {
     else if (this.state === 'approach') {
       if (dist < MUGGER.reach) { robbed = true; this.state = 'flee'; this.timer = MUGGER.fleeTime; }
       else if (dist > MUGGER.sight * 1.5 || Math.hypot(this.position.x - this.home.x, this.position.z - this.home.z) > MUGGER.leash) { this.state = 'idle'; this.timer = 20; }
-    } else if (this.state === 'flee' && this.timer === 0) { this.state = 'idle'; this.timer = MUGGER.cooldown; }
+    } else if (this.state === 'flee' && this.timer === 0) { this.state = 'idle'; this.timer = MUGGER.cooldown; this.stolen = 0; }
     return robbed;
   }
 

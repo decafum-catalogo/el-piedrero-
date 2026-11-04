@@ -2,7 +2,7 @@
 // Perro callejero bravo: merodea cerca de su casa, persigue si el jugador se acerca y muerde.
 import * as THREE from 'three';
 
-export const STRAY = { sight: 6, giveUp: 11, bite: 1.2, biteEvery: 2, damage: 5, speed: 3.6, wander: 1.2, leash: 16 };
+export const STRAY = { sight: 6, giveUp: 11, bite: 1.2, biteEvery: 2, damage: 5, speed: 3.6, wander: 1.2, leash: 16, growl: 3, scared: 15 };
 
 export class StrayDog {
   constructor(scene, position, opts = {}) {
@@ -14,6 +14,9 @@ export class StrayDog {
     this.isWalkable = opts.isWalkable ?? (() => true);
     this.state = 'wander';
     this.biteTimer = 0;
+    this.growlTimer = 0;   // avisa antes de atacar: da tiempo de alejarse
+    this.scaredTimer = 0;  // si le pegaron, no ataca por un rato
+    this.justGrowled = false;
     this.wait = 0;
     this.target = null;
     this.t = Math.random() * 10;
@@ -33,6 +36,9 @@ export class StrayDog {
     scene.add(this.group);
   }
 
+  /** El jugador le pegó: huye a su casa y no ataca por un rato. */
+  scare() { this.state = 'return'; this.scaredTimer = STRAY.scared; this.growlTimer = 0; }
+
   /** @returns {number} daño causado este cuadro (0 si no mordió) */
   update(dt, player) {
     this.t += dt;
@@ -42,7 +48,14 @@ export class StrayDog {
     this.biteTimer = Math.max(0, this.biteTimer - dt);
     let damage = 0;
 
-    if (this.state === 'wander' && dist < STRAY.sight) this.state = 'chase';
+    this.justGrowled = false;
+    this.scaredTimer = Math.max(0, this.scaredTimer - dt);
+    if (this.state === 'wander' && dist < STRAY.sight && this.scaredTimer === 0) {
+      // Primero gruñe: si el jugador se aleja a tiempo, no pasa nada.
+      this.growlTimer += dt;
+      if (this.growlTimer - dt === 0) this.justGrowled = true;
+      if (this.growlTimer >= STRAY.growl) { this.state = 'chase'; this.growlTimer = 0; }
+    } else if (this.state === 'wander') this.growlTimer = 0;
     else if (this.state === 'chase' && (dist > STRAY.giveUp || homeDist > STRAY.leash)) { this.state = 'return'; }
     else if (this.state === 'return' && homeDist < 2) this.state = 'wander';
 

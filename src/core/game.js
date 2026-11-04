@@ -144,6 +144,10 @@ export class Game {
       if (e.code === 'Escape' && !e._panelHandled && !this.paused && !this.isSleeping) openPauseMenu(this);
       if (e.code === 'KeyV') this._toggleCamera();
       if (e.code === 'KeyH' && !this.paused && !this.isSleeping) this.missions?.toggleHide(this.player.position, this.interaction?.targets ?? []);
+      if (e.code === 'KeyG' && !this.paused && !this.isSleeping) {
+        const hit = this.world.active?.dangers?.defend(this.player.position);
+        if (!hit) window.dispatchEvent(new CustomEvent('toast', { detail: { text: 'No hay nadie cerca para defenderse.', type: 'info' } }));
+      }
       if (e.code === 'KeyP' && !this.paused) this.pet?.toggleCustomizationMenu();
       if (e.code === 'KeyM' && !this.paused) this._toggleModel();
       if (e.code === 'KeyR') {
@@ -463,6 +467,7 @@ export class Game {
       district.dangers = new DangerSystem(district, {
         isNight: () => !!this.clock?.isNight,
         hurt: (n) => { this.stats.salud = Math.max(0, this.stats.salud - n); if (this.stats.salud === 0) this._deathCause = 'perro'; },
+        refund: (n) => { this.stats.dinero += n; },
         robFraction: (f) => { const lost = Math.floor(this.stats.dinero * f); this.stats.dinero -= lost; return lost; },
         toast: (text, type = 'warn') => window.dispatchEvent(new CustomEvent('toast', { detail: { text, type } }))
       });

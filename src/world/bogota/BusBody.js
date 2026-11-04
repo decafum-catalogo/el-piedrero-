@@ -900,7 +900,7 @@ function drawDecals(ctx) {
   box(DECAL.name, (w, h) => {
     ctx.font = 'italic 600 104px "Arial Narrow", Arial, sans-serif';
     ctx.fillStyle = '#f4f4ee'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('BUSES', w / 2, h / 2 + 4, w - 20);
+    ctx.fillText('TUASA', w / 2, h / 2 + 4, w - 20);
   });
   box(DECAL.number, (w, h) => {
     ctx.font = '700 54px "Arial Narrow", Arial, sans-serif'; ctx.fillStyle = '#f0efe6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

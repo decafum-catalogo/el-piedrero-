@@ -26,3 +26,12 @@ test('perros y chapulines aparecen en lugares caminables de La Carpio',()=>{
   });
   city.dispose(scene);
 });
+
+test('los personajes con nombre no aparecen sobre edificios ni paredes',async()=>{
+  const { TALK_NPCS }=await import('../src/data/npcs.js');
+  const map=buildCarpioMap();
+  for(const d of TALK_NPCS){
+    const [x,z]=d.pos; const tile=map[Math.floor(z)][Math.floor(x)];
+    assert.ok(!['building','wall'].includes(tile),`${d.id} está sobre ${tile}`);
+  }
+});

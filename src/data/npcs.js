@@ -5,7 +5,7 @@ export const TALK_NPCS = [
     id: 'ruben',
     name: 'Rubén',
     role: 'Advierte de peligros',
-    pos: [97, 101.5],
+    pos: [97, 102.5],
     // Albino (foto de referencia): rizos blancos cortos, barba blanca corta, lentes rectangulares negros,
     // chaqueta negra abierta y camiseta negra con franjas roja, amarilla y verde.
     look: {

@@ -16,6 +16,7 @@ mock.module('../src/character/RealisticCharacter.js',{namedExports:{
 }});
 const { Carpio }=await import('../src/world/districts/Carpio.js');
 const { DangerSystem }=await import('../src/systems/DangerSystem.js');
+const { buildCarpioMap }=await import('../src/world/carpio/CarpioLayout.js');
 
 test('perros y chapulines aparecen en lugares caminables de La Carpio',()=>{
   const scene=new THREE.Scene(); const city=new Carpio(); city.build(scene,new CollisionSystem());

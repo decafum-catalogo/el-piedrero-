@@ -37,7 +37,7 @@ export class StrayDog {
   }
 
   /** El jugador le pegó: huye a su casa y no ataca por un rato. */
-  scare() { this.state = 'return'; this.scaredTimer = STRAY.scared; this.growlTimer = 0; }
+  scare() { this.state = 'flee'; this.fleeTimer = 2.5; this.scaredTimer = STRAY.scared; this.growlTimer = 0; }
 
   /** @returns {number} daño causado este cuadro (0 si no mordió) */
   update(dt, player) {
@@ -57,12 +57,16 @@ export class StrayDog {
       if (this.growlTimer >= STRAY.growl) { this.state = 'chase'; this.growlTimer = 0; }
     } else if (this.state === 'wander') this.growlTimer = 0;
     else if (this.state === 'chase' && (dist > STRAY.giveUp || homeDist > STRAY.leash)) { this.state = 'return'; }
+    else if (this.state === 'flee' && (this.fleeTimer -= dt) <= 0) this.state = 'return';
     else if (this.state === 'return' && homeDist < 2) this.state = 'wander';
 
     let goal = null, speed = STRAY.wander;
     if (this.state === 'chase') {
       goal = player; speed = STRAY.speed;
       if (dist < STRAY.bite && this.biteTimer === 0) { this.biteTimer = STRAY.biteEvery; damage = STRAY.damage; }
+    } else if (this.state === 'flee') {
+      const d = Math.max(dist, .01);
+      goal = { x: this.position.x - dx / d * 6, z: this.position.z - dz / d * 6 }; speed = 5;
     } else if (this.state === 'return') {
       goal = this.home; speed = 2.5;
     } else {

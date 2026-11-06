@@ -66,7 +66,7 @@ export class DangerSystem {
       return true;
     }
     for (const d of this.dogs) {
-      if (!near(d) || d.state === 'return') continue;
+      if (!near(d) || d.state === 'return' || d.state === 'flee') continue;
       d.scare();
       this.hooks.toast('¡Le pegó al perro y se fue chillando!', 'info');
       return true;

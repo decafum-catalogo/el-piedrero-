@@ -14,30 +14,30 @@ export const ATLAS_HEIGHT = 2416;
 const DAY_FLOOR = 2048;
 
 export const PUBLIC_PLATES = [
-  { code: 'WDD 512', city: 'BOGOTÁ D.C.' },
-  { code: 'VEP 384', city: 'BOGOTÁ D.C.' },
-  { code: 'TLX 709', city: 'BOGOTÁ D.C.' },
-  { code: 'SPO 192', city: 'SOACHA' },
-  { code: 'SKM 463', city: 'BOGOTÁ D.C.' },
-  { code: 'WPD 204', city: 'BOGOTÁ D.C.' },
-  { code: 'STP 827', city: 'CHÍA' },
-  { code: 'TET 351', city: 'BOGOTÁ D.C.' },
-  { code: 'WDA 940', city: 'BOGOTÁ D.C.' },
-  { code: 'UPB 628', city: 'ENVIGADO' },
-  { code: 'VEE 175', city: 'BOGOTÁ D.C.' },
+  { code: 'WDD 512', city: 'SAN JOSÉ' },
+  { code: 'VEP 384', city: 'SAN JOSÉ' },
+  { code: 'TLX 709', city: 'SAN JOSÉ' },
+  { code: 'SPO 192', city: 'ESCAZÚ' },
+  { code: 'SKM 463', city: 'SAN JOSÉ' },
+  { code: 'WPD 204', city: 'SAN JOSÉ' },
+  { code: 'STP 827', city: 'HEREDIA' },
+  { code: 'TET 351', city: 'SAN JOSÉ' },
+  { code: 'WDA 940', city: 'SAN JOSÉ' },
+  { code: 'UPB 628', city: 'ALAJUELA' },
+  { code: 'VEE 175', city: 'SAN JOSÉ' },
 ];
 
 export const PRIVATE_PLATES = [
-  { code: 'BGO 418', city: 'BOGOTÁ D.C.' },
-  { code: 'CKM 890', city: 'BOGOTÁ D.C.' },
-  { code: 'DKS 214', city: 'BOGOTÁ D.C.' },
-  { code: 'FKB 719', city: 'BOGOTÁ D.C.' },
-  { code: 'RNY 531', city: 'ENVIGADO' },
-  { code: 'KLY 672', city: 'BOGOTÁ D.C.' },
-  { code: 'ZNT 108', city: 'CHÍA' },
-  { code: 'HWK 345', city: 'BOGOTÁ D.C.' },
-  { code: 'MHO 962', city: 'MEDELLÍN' },
-  { code: 'NCX 803', city: 'BOGOTÁ D.C.' },
+  { code: 'BGO 418', city: 'SAN JOSÉ' },
+  { code: 'CKM 890', city: 'SAN JOSÉ' },
+  { code: 'DKS 214', city: 'SAN JOSÉ' },
+  { code: 'FKB 719', city: 'SAN JOSÉ' },
+  { code: 'RNY 531', city: 'ALAJUELA' },
+  { code: 'KLY 672', city: 'SAN JOSÉ' },
+  { code: 'ZNT 108', city: 'HEREDIA' },
+  { code: 'HWK 345', city: 'SAN JOSÉ' },
+  { code: 'MHO 962', city: 'CARTAGO' },
+  { code: 'NCX 803', city: 'SAN JOSÉ' },
 ];
 
 // Celdas de placa: 8 columnas × 3 filas de 128×64. Públicas primero: la calcomanía de puerta y la placa del
@@ -406,10 +406,10 @@ function drawRim(ctx, [x, y, w, h], style) {
 
 // Rutas inventadas: el tablero se lee como de bus  sin citar ninguna empresa real.
 const ROUTES = [
-  { num: '14-2', dest: 'CRA 10 · SOACHA', via: 'SAN MATEO · BOSA', bg: '#1b5e20', numBg: '#fbc02d' },
-  { num: '314', dest: 'CL 80 · ENGATIVÁ', via: 'VÍA CORINTO · MINUTO', bg: '#0d47a1', numBg: '#d32f2f' },
-  { num: 'E25', dest: 'SUBA · CENTRO', via: 'CALLE 100 · CRA 7MA', bg: '#b71c1c', numBg: '#ffffff' },
-  { num: '496', dest: 'FONTIBÓN · CL 26', via: 'SALITRE · GERMANIA', bg: '#e65100', numBg: '#81c784' },
+  { num: '400', dest: 'LA CARPIO · SAN JOSÉ', via: 'PAVAS · LA URUCA', bg: '#1b5e20', numBg: '#fbc02d' },
+  { num: '37', dest: 'PAVAS · CENTRO', via: 'RUTA 27 · SABANA', bg: '#0d47a1', numBg: '#d32f2f' },
+  { num: '40', dest: 'TUASA · CENTRO', via: 'LA CARPIO · HOSPITAL', bg: '#b71c1c', numBg: '#ffffff' },
+  { num: '12', dest: 'ESCAZÚ · CL 3', via: 'SABANA · MERCED', bg: '#e65100', numBg: '#81c784' },
 ];
 
 function drawRoute(ctx, [x, y, w, h], r) {

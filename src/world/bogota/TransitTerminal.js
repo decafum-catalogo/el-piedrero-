@@ -383,7 +383,7 @@ function doorPatch(material, withReflection) {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n  transformed.z += aSlide * (position.x > 75.0 ? doorEast : doorWest);');
     if (withReflection) reflectivePatch(shader);
   };
-  material.customProgramCacheKey = () => `andén-puerta:${withReflection}`;
+  material.customProgramCacheKey = () => `acera-puerta:${withReflection}`;
   return chainSunField(material);
 }
 

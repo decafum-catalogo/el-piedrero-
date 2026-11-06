@@ -9,6 +9,13 @@ export const PALETTES = {
   zapato: ['#1c1c1c', '#e9e9e9', '#7a4a2a', '#2f6fb0', '#c0392b'],
 };
 
+// Albedo lineal de cada tono de PALETTES.piel. El color de la paleta es el de la muestra del creador;
+// multiplicado por una textura que ya es rojiza da naranja, así que aquí se guarda lo que debe verse.
+// Los dos más oscuros se quedan lo bastante arriba para que la cara conserve su forma a la sombra.
+export const SKIN_ALBEDO = [
+  [.5, .295, .19], [.44, .24, .146], [.35, .18, .105], [.25, .126, .074], [.21, .108, .066], [.17, .088, .059]
+];
+
 export const COLOR_NAMES = {
   piel: ['Muy clara', 'Clara', 'Trigueña', 'Morena', 'Oscura', 'Muy oscura', 'Albina'],
   pelo: ['Negro', 'Castaño oscuro', 'Castaño', 'Cobrizo', 'Rubio', 'Canoso', 'Blanco', 'Vinotinto', 'Azul'],
@@ -16,6 +23,12 @@ export const COLOR_NAMES = {
   ropa: ['Rojo', 'Azul', 'Verde', 'Gris', 'Naranja', 'Morado', 'Negro', 'Crema', 'Verde petróleo', 'Fucsia', 'Azul jean', 'Amarillo', 'Café'],
   zapato: ['Negro', 'Blanco', 'Café', 'Azul', 'Rojo'],
 };
+
+// Qué tanto se nota la calle en la ropa y la piel (ver streetMaterials.js)
+export const WEAR_LEVELS = [{ id: 0, label: 'Limpio' }, { id: 1, label: 'Gastado' }, { id: 2, label: 'Muy sucio' }];
+
+// Objetos que se cargan en el cuerpo (ver props.js); no son piezas exportadas de MakeHuman
+export const ACCESSORIES = [{ id: 'baston', label: 'Bastón' }, { id: 'mochila', label: 'Mochila' }];
 
 export const STYLES = {
   cuerpo: [{ id: 'a', label: 'Tipo A' }, { id: 'b', label: 'Tipo B' }],
@@ -53,6 +66,8 @@ export const DEFAULT_LOOK = {
   zapatoColor: 1,
   cabeza: 'gorra',
   cabezaColor: 0,
+  desgaste: 2,
+  accesorios: [],
 };
 
 export const NAME_IDEAS = ['Kenneth', 'Mayela', 'Marvin', 'Yorleny', 'Ronald', 'Maureen', 'Wálter', 'Hazel', 'Don Memo', 'Doña Xinia', 'El Chele', 'Doña Lela', 'Don Beto', 'Choche', 'Yendry', 'Julián'];
@@ -68,7 +83,7 @@ export function cleanName(s) {
 
 /** Normaliza (y migra) cualquier apariencia guardada al formato actual. */
 export function normalizeLook(raw = {}) {
-  const l = { ...DEFAULT_LOOK };
+  const l = { ...DEFAULT_LOOK, accesorios: [] };
   if (!raw || typeof raw !== 'object') return l;
   if (raw.v !== 2) {
     // formato anterior: { piel, buzo, gorra, barba, origen }
@@ -96,6 +111,10 @@ export function normalizeLook(raw = {}) {
   l.abajoColor = clampIdx(raw.abajoColor, PALETTES.ropa, l.abajoColor);
   l.zapatoColor = clampIdx(raw.zapatoColor, PALETTES.zapato, l.zapatoColor);
   l.cabezaColor = clampIdx(raw.cabezaColor, PALETTES.ropa, l.cabezaColor);
+  l.desgaste = clampIdx(raw.desgaste, WEAR_LEVELS, l.desgaste);
+  l.accesorios = Array.isArray(raw.accesorios)
+    ? ACCESSORIES.map((a) => a.id).filter((id) => raw.accesorios.includes(id))
+    : [];
   return l;
 }
 

@@ -106,7 +106,7 @@ export class MissionSystem {
     this.hideTimer = 12;
     this.hidePos = { x: player.x, z: player.z };
     const root = this.game.player?.root; if (root) root.visible = false;
-    this.toast('🗑️ Se escondió en el basurero. Los policías ya no lo ven.', 'info');
+    this.toast('🗑️ Se escondió en el basurero. La Fuerza Pública ya no lo ve.', 'info');
     return true;
   }
 

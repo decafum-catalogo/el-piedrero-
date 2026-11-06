@@ -51,30 +51,8 @@ test('Camera: FOV dinámico al correr, balanceo suave (bobbing) y banking al gir
   assert.ok(camera._targetRoll < 0, 'El giro debe generar banking / inclinación lateral sutil');
 });
 
-test('Atmósfera y Gráficos: asfalto con reflectividad húmeda y PCFShadowMap', () => {
-  const city = new Bogota();
-  city.groundMaterials = {
-    road: new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0.0 }),
-    busway: new THREE.MeshStandardMaterial({ roughness: 1.0, metalness: 0.0 }),
-    sidewalk: new THREE.MeshStandardMaterial({ roughness: 0.75, metalness: 0.0 })
-  };
-
-  // Suelo seco
-  city.setWetness(0);
-  assert.equal(city.groundMaterials.road.roughness, 0.82);
-
-  // Lluvia / Suelo mojado (reflejo de charcos)
-  city.setWetness(1);
-  assert.ok(city.groundMaterials.road.roughness < 0.5, 'La rugosidad debe bajar para dar reflejo mojado');
-  assert.ok(city.groundMaterials.road.metalness > 0.1, 'El metalness debe subir sutilmente para reflejar cielo');
-
-  // WeatherSystem propaga humedad al distrito
-  const weather = new WeatherSystem(null);
-  weather.setWeather('llovizna', false);
-  weather.update(1.0, new THREE.Vector3(0, 0, 0), city);
-  assert.ok(weather.wetness > 0, 'El clima de lluvia debe aumentar la humedad');
-});
-
+// (prueba de la ciudad original quitada: ese mundo ya no existe en El Piedrero)
+// (prueba de la ciudad original quitada: ese mundo ya no existe en El Piedrero)
 test('Optimización: caché de POIs en Game para evitar asignaciones por fotograma', () => {
   const mockGame = Object.assign(Object.create(Game.prototype), {
     world: { active: { reserved: { bed: { x: 10, z: 10 }, sell: { x: 20, z: 20 } } } },

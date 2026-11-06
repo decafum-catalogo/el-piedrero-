@@ -52,6 +52,6 @@ test('defenderse: asusta al perro y recupera la plata del chapulín', () => {
   assert.equal(ds.defend(player), true);
   assert.equal(refund, 500);
   assert.equal(ds.defend(player), true); // ahora le pega al perro
-  assert.equal(ds.dogs[0].state, 'return');
+  assert.equal(ds.dogs[0].state, 'flee');
   assert.equal(ds.defend({ x: 50, z: 50 }), false);
 });

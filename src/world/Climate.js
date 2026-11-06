@@ -16,7 +16,7 @@ const LUNAR_DAYS = 29.53;
 export const WEATHER_TYPES = Object.freeze({
   soleado:  { level: 0, icon: '☀️', nightIcon: '🌙', label: 'Soleado', nightLabel: 'Despejado', cloud: .1, rain: 0, wind: .2, fog: .75, lightning: 0,
     toast: '☀️ Se despeja el cielo: sale el sol sobre La Carpio.' },
-  parcial:  { level: 1, icon: '⛅', nightIcon: '☁️', label: 'Parcialmente nublado', cloud: .42, rain: 0, wind: .35, fog: .9, lightning: 0,
+  parcial:  { level: 1, icon: '⛅', nightIcon: '☁️', label: 'Medio nublado', cloud: .42, rain: 0, wind: .35, fog: .9, lightning: 0,
     toast: '⛅ Las nubes se abren a ratos sobre el centro.' },
   nublado:  { level: 2, icon: '☁️', label: 'Nublado', cloud: .85, rain: 0, wind: .3, fog: 1, lightning: 0,
     toast: '☁️ El cielo se cierra: se viene el chaparrón de la tarde.' },
@@ -25,8 +25,8 @@ export const WEATHER_TYPES = Object.freeze({
   llovizna: { level: 3, icon: '🌦️', label: 'Llovizna', cloud: .92, rain: .3, wind: .3, fog: 1.25, lightning: 0,
     toast: '🌦️ Comienza a lloviznar en La Carpio…' },
   aguacero: { level: 4, icon: '🌧️', label: 'Aguacero', cloud: .97, rain: .72, wind: .55, fog: 1.5, lightning: .15,
-    toast: '🌧️ ¡Se largó el aguacero! Busca dónde escampar.' },
-  tormenta: { level: 5, icon: '⛈️', label: 'Tormenta eléctrica', cloud: 1, rain: 1, wind: .9, fog: 1.7, lightning: 1,
+    toast: '🌧️ ¡Se largó el aguacero! Busque dónde escampar.' },
+  tormenta: { level: 5, icon: '⛈️', label: 'Tormenta', cloud: 1, rain: 1, wind: .9, fog: 1.7, lightning: 1,
     toast: '⛈️ Tormenta eléctrica sobre San José. Truenos en las montañas.' }
 });
 

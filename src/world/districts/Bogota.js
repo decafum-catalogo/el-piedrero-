@@ -102,7 +102,7 @@ export class Bogota {
     this.populationScale = Math.min(3, CITY_AREA_MULTIPLIER);
     this.size = Math.max(this.width, this.height);
     this.layoutVersion = WORLD_LAYOUT_VERSION;
-    this.props = [];          // { instance } con setNight/update (faroles de bazuko)
+    this.props = [];          // { instance } con setNight/update (faroles)
     this.animated = [];       // grupos con userData.update
     this.facadeMats = [];
     this._facadeTextures = new Map();
@@ -717,6 +717,12 @@ export class Bogota {
     this.group.add(obj);
     if (obj.userData.update) this.animated.push(obj);
     return obj;
+  }
+
+  /** Qué hay debajo de los pies: lo usan los pasos y el sonido. */
+  getGroundTypeAt(x, z) {
+    if (!this.map) return 'sidewalk';
+    return this.map[Math.round(z / T)]?.[Math.round(x / T)] ?? 'sidewalk';
   }
 
   getGroundHeight(x, z) {

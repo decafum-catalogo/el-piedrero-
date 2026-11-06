@@ -449,6 +449,17 @@ export class Carpio extends Bogota {
 
   get hasDangers() { return true; }
 
+  // El mapa abarca todo el barrio y no tiene viaducto.
+  get mapZMin() { return 0; }
+  get noViaduct() { return true; }
+  streetLabels(tileSize = TILE_SIZE) {
+    return [
+      ...V_ROADS.map(r => ({ name: r.name, x: r.x * tileSize, vertical: true })),
+      ...H_ROADS.map(r => ({ name: r.name, z: r.z * tileSize, vertical: false }))
+    ];
+  }
+  landmarks() { return []; }
+
   dispose(scene) {
     this.dangers?.dispose();
     super.dispose(scene);

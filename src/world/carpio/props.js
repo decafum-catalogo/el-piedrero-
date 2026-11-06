@@ -175,3 +175,122 @@ export function bigTree(scale = 1) {
   }
   return g;
 }
+
+/** Farol de calle: poste rojizo con brazo y luminaria, como los del barrio. */
+export function parkLamp() {
+  const g = new THREE.Group();
+  const pole = std('#7a4a38', { metalness: 0.3 });
+  cyl(g, 0.08, 6, 0, 3, 0, pole, 8);
+  box(g, 1.1, 0.07, 0.07, 0.5, 5.9, 0, pole);
+  box(g, 0.5, 0.12, 0.22, 1.0, 5.8, 0, std('#d9d9d4', { emissive: '#ffe9a8', emissiveIntensity: 0.6 }));
+  return g;
+}
+
+/** Torre de reflectores de la cancha: poste alto de concreto con varios focos. */
+export function floodlight() {
+  const g = new THREE.Group();
+  const pole = std('#c9c9c4'), head = std('#3c3f44');
+  cyl(g, 0.16, 9, 0, 4.5, 0, pole, 8);
+  box(g, 2.2, 0.12, 0.12, 0, 8.9, 0, head);
+  for (const x of [-0.9, -0.3, 0.3, 0.9]) {
+    box(g, 0.34, 0.34, 0.3, x, 9.15, 0.1, head);
+    box(g, 0.26, 0.26, 0.04, x, 9.15, 0.28, std('#fff3c4', { emissive: '#ffe9a8', emissiveIntensity: 0.7 }));
+  }
+  return g;
+}
+
+/** Cabeza de piedra tallada sobre una losa (como las esculturas del parque). */
+export function stoneHead(scale = 1) {
+  const g = new THREE.Group();
+  const rock = std('#9a9484', { roughness: 1, flatShading: true });
+  const dark = std('#3d3a33', { roughness: 1 });
+  box(g, 1.7 * scale, 0.2, 1.4 * scale, 0, 0.1, 0, std('#6f6a60'));
+  const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.8 * scale, 1), rock);
+  head.scale.set(0.95, 1.3, 0.95); head.position.y = 1.35 * scale; head.castShadow = true; g.add(head);
+  const f = 0.74 * scale; // cara hacia +z
+  box(g, 0.2 * scale, 0.55 * scale, 0.32 * scale, 0, 1.3 * scale, f + 0.12 * scale, rock);          // nariz
+  for (const x of [-0.28, 0.28]) {
+    box(g, 0.3 * scale, 0.16 * scale, 0.14 * scale, x * scale, 1.62 * scale, f, dark);               // ojos hundidos
+    box(g, 0.4 * scale, 0.1 * scale, 0.2 * scale, x * scale, 1.78 * scale, f + 0.04 * scale, rock);  // ceja
+  }
+  box(g, 0.5 * scale, 0.1 * scale, 0.12 * scale, 0, 0.92 * scale, f, dark);                          // boca
+  return g;
+}
+
+/** Rótulo informativo negro con letras amarillas sobre dos postes. */
+export function infoSign() {
+  const g = new THREE.Group();
+  const post = std('#2a2a2a');
+  box(g, 0.08, 1.7, 0.08, -0.5, 0.85, 0, post); box(g, 0.08, 1.7, 0.08, 0.5, 0.85, 0, post);
+  box(g, 1.3, 0.8, 0.06, 0, 1.35, 0, std('#15130f'));
+  for (let i = 0; i < 4; i++) box(g, 1.0 - i * 0.1, 0.05, 0.02, 0, 1.6 - i * 0.16, 0.04, std('#e8c94a'));
+  return g;
+}
+
+/** Parqueo de bicicletas en espiral. */
+export function bikeRack() {
+  const g = new THREE.Group();
+  const steel = std('#c7ccd1', { metalness: 0.6, roughness: 0.4 });
+  for (let i = 0; i < 4; i++) {
+    const r = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.035, 6, 16), steel);
+    r.position.set(i * 0.45 - 0.7, 0.4, 0); g.add(r);
+  }
+  return g;
+}
+
+/** Baranda de tubo amarillo (como la del parqueo del parque). */
+export function yellowRail(len = 6) {
+  const g = new THREE.Group();
+  const y = std('#e3b21c');
+  box(g, len, 0.07, 0.07, 0, 0.9, 0, y); box(g, len, 0.07, 0.07, 0, 0.5, 0, y);
+  for (let x = -len / 2; x <= len / 2 + 0.01; x += 2) box(g, 0.07, 0.95, 0.07, x, 0.47, 0, y);
+  return g;
+}
+
+/** Escalera triangular de juego (roja). */
+export function climbingFrame() {
+  const g = new THREE.Group();
+  const red = std('#b5432f');
+  for (const s of [-1, 1]) { const b = box(g, 0.1, 2.3, 0.1, 0, 1.0, s * 0.8, red); b.rotation.x = s * 0.5; }
+  for (let i = 0; i < 4; i++) box(g, 1.6, 0.06, 0.06, 0, 0.5 + i * 0.35, 0, red);
+  return g;
+}
+
+/** Mural: pared de ladrillo rojo con grafiti de colores (textura dibujada con canvas). */
+export function muralWall(len = 18, h = 2.6) {
+  const g = new THREE.Group();
+  box(g, len, h, 0.35, 0, h / 2, 0, std('#9b4a3a'));
+  if (typeof document === 'undefined') return g; // sin navegador (pruebas) no hay textura
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 160;
+  const x = c.getContext('2d');
+  x.fillStyle = '#9b4a3a'; x.fillRect(0, 0, 1024, 160);
+  const cols = ['#f2c230', '#2a6fc9', '#e24a1a', '#f6f2e2', '#3aa86a', '#d6479b', '#1d1d1d'];
+  for (let i = 0; i < 38; i++) {
+    x.fillStyle = cols[i % cols.length]; x.globalAlpha = 0.85;
+    const w = 40 + Math.random() * 120, hh = 24 + Math.random() * 70, px = Math.random() * 1000, py = Math.random() * 110;
+    x.beginPath(); x.ellipse(px, py + 30, w / 2, hh / 2, Math.random() - .5, 0, 7); x.fill();
+  }
+  x.globalAlpha = 1; x.fillStyle = '#f6f2e2'; x.font = 'bold 84px sans-serif'; x.fillText('LA CARPIO', 300, 110);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  for (const side of [1, -1]) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(len, h * 0.85), new THREE.MeshBasicMaterial({ map: tex }));
+    m.position.set(0, h * 0.5, side * 0.18); if (side < 0) m.rotation.y = Math.PI; g.add(m);
+  }
+  return g;
+}
+/** Seto bajo recortado. */
+export function hedge(len = 3) {
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.BoxGeometry(len, 0.9, 0.7), std('#2f6a2a', { roughness: 1, flatShading: true }));
+  m.position.y = 0.45; m.castShadow = true; g.add(m);
+  return g;
+}
+
+/** Basurero de parque: tonel verde con tapa. */
+export function trashCan() {
+  const g = new THREE.Group();
+  cyl(g, 0.3, 0.8, 0, 0.4, 0, std('#2f7a45'), 10);
+  cyl(g, 0.33, 0.07, 0, 0.84, 0, std('#1f4f2e'), 10);
+  return g;
+}
+

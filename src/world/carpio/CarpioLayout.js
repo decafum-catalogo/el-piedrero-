@@ -88,7 +88,14 @@ export function buildCarpioMap() {
   const p = AREAS.park;
   for (let z = p.z0; z <= p.z1; z++) for (let x = p.x0; x <= p.x1; x++) {
     if (m[z][x] !== 'building') continue;
-    m[z][x] = inside(AREAS.court, x, z) ? 'floor' : (x === 105 || x === 106) ? 'plaza' : 'grass';
+    if (inside(AREAS.court, x, z)) { m[z][x] = 'floor'; continue; }
+    // parqueo de asfalto junto a la calle, con el paso peatonal al centro
+    if (z >= 97) { m[z][x] = (x === 105 || x === 106) ? 'plaza' : 'floor'; continue; }
+    const sendero = x === 105 || x === 106                          // eje norte-sur
+      || (z === 93 && x >= 96 && x <= 114)                           // cruce este-oeste
+      || (x >= 96 && x <= 101 && ((z >= 89 && z <= 91) || (z >= 95 && z <= 96))); // losa del árbol y de las máquinas
+    const arena = !sendero && x >= 108 && x <= 114 && z >= 89 && z <= 91;      // juegos de niños
+    m[z][x] = sendero ? 'plaza' : arena ? 'dirt' : 'grass';
   }
   // lote baldío: zacate alto
   const l = AREAS.lot;

@@ -308,17 +308,54 @@ export class Carpio extends Bogota {
     fence(p.x0 - 0.5, p.z1 + 0.5, 104.5, p.z1 + 0.5);
     fence(106.5, p.z1 + 0.5, p.x1 + 0.5, p.z1 + 0.5);
     fence(p.x1 + 0.5, p.z0 - 0.5, p.x1 + 0.5, p.z1 + 0.5);
-    this._put(CP.playground(), 99, 93, 0);
-    for (let i = 0; i < 4; i++) this._put(CP.exerciseMachine(), 109 + i * 2, 95, Math.PI);
+    // Cancha: piso azul con borde rojo, como la del parque comunal
+    const cy = flatHeight(AREAS.park) + 0.15;
+    const cw = (c.x1 - c.x0 + 1) * T, cd = (c.z1 - c.z0 + 1) * T, cmx = W((c.x0 + c.x1) / 2), cmz = W((c.z0 + c.z1) / 2);
+    const rojo = new THREE.Mesh(new THREE.PlaneGeometry(cw, cd), new THREE.MeshStandardMaterial({ color: '#b5493a', roughness: 0.9 }));
+    rojo.rotation.x = -Math.PI / 2; rojo.position.set(cmx, cy, cmz); rojo.receiveShadow = true; this.group.add(rojo);
+    const azul = new THREE.Mesh(new THREE.PlaneGeometry(cw - 2.4, cd - 2.4), new THREE.MeshStandardMaterial({ color: '#4d86b8', roughness: 0.9 }));
+    azul.rotation.x = -Math.PI / 2; azul.position.set(cmx, cy + 0.01, cmz); azul.receiveShadow = true; this.group.add(azul);
     this._put(CP.hoop(), c.x0 + 1.5, (c.z0 + c.z1) / 2, Math.PI / 2);
     this._put(CP.hoop(), c.x1 - 1.5, (c.z0 + c.z1) / 2, -Math.PI / 2);
-    // sendero con guía táctil amarilla
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.03, (p.z1 - p.z0) * T), new THREE.MeshStandardMaterial({ color: '#e5b822', roughness: 0.8 }));
-    strip.position.set(W(105.5), flatHeight(AREAS.park) + 0.14, W((p.z0 + p.z1) / 2)); strip.receiveShadow = true; this.group.add(strip);
-    for (let i = 0; i < 10; i++) this._put(BP.tree(rand(0.9, 1.3)), rand(p.x0 + 1, p.x1 - 1), rand(c.z1 + 2, p.z1 - 1));
-    for (const [x, z, r] of [[102, 90, 0], [110, 90, Math.PI], [101.5, 97, 0], [112, 98, Math.PI]]) {
+    // reflectores altos en las esquinas de la cancha
+    for (const [fx, fz] of [[c.x0 - 0.5, c.z0 + 0.5], [c.x1 + 0.5, c.z0 + 0.5], [c.x0 - 0.5, c.z1 + 0.5], [c.x1 + 0.5, c.z1 + 0.5]]) this._put(CP.floodlight(), fx, fz);
+    // mural de grafiti detrás de la cancha (lado este)
+    this._put(CP.muralWall((c.z1 - c.z0 + 1) * T), p.x1 + 1.6, (c.z0 + c.z1) / 2, Math.PI / 2);
+
+    // árbol grande de sombra con banca alrededor (losa de la esquina oeste)
+    this._put(CP.bigTree(1.0), 98.5, 90);
+    for (const [x, z, r] of [[96.8, 91.6, 0], [100.4, 91.6, 0]]) {
       const b = new Banca(new THREE.Vector3(W(x), this.getGroundHeight(W(x), W(z)), W(z)), r); this.group.add(b.group);
     }
+    // juegos de niños sobre tierra
+    this._put(CP.playground(), 110, 90, 0);
+    this._put(CP.climbingFrame(), 113.4, 90.4, Math.PI / 2);
+    // máquinas de ejercicio azules
+    for (let i = 0; i < 4; i++) this._put(CP.exerciseMachine(), 96.6 + i * 1.5, 95.5, Math.PI);
+    // esculturas de piedra sobre el zacate, con su rótulo
+    this._put(CP.stoneHead(1.1), 109, 95.2, 0.3);
+    this._put(CP.stoneHead(1.2), 111.8, 95.4, -0.1);
+    this._put(CP.stoneHead(1.1), 114.4, 95.2, -0.35);
+    this._put(CP.infoSign(), 107.7, 96.4, 0);
+    // basureros verdes, setos y árboles por el zacate
+    for (const [x, z] of [[104.2, 91.5], [107.8, 91.5], [102.6, 93.7], [103.5, 96.4]]) this._put(CP.trashCan(), x, z);
+    this._put(CP.hedge(5), 99.5, 94.6, 0); this._put(CP.hedge(4), 113.2, 93.9, 0);
+    for (const [x, z, sc] of [[94.6, 94, 0.5], [103.6, 94.6, 0.45], [115.8, 93, 0.5], [116, 95.8, 0.45]]) this._put(CP.bigTree(sc), x, z);
+    // parqueo: rayas amarillas, baranda de tubo, parqueo de bicis y un par de carros
+    const py = flatHeight(AREAS.park) + 0.16;
+    const rayaMat = new THREE.MeshBasicMaterial({ color: '#e6c229' });
+    for (const x0 of [94, 98, 102, 110, 114]) for (let k = 0; k < 2; k++) {
+      const ray = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 4.4), rayaMat);
+      ray.rotation.x = -Math.PI / 2; ray.position.set(W(x0 + k * 2), py, W(98.8)); this.group.add(ray);
+    }
+    this._put(CP.yellowRail(9), 99.5, 96.8, 0); this._put(CP.yellowRail(9), 111.5, 96.8, 0);
+    this._put(CP.bikeRack(), 108.2, 97.7, 0);
+    const gris = makeVehicle('carro', 5, { beams: false }).group; this._put(gris, 99.2, 98.8, Math.PI / 2);
+    const blanco = makeVehicle('carro', 1, { beams: false }).group; this._put(blanco, 111.8, 98.8, -Math.PI / 2);
+    // postes de luz de la calle junto al parque y cordón amarillo
+    for (const [x, z] of [[94.2, 101.2], [116.4, 101.2]]) this._put(CP.parkLamp(), x, z, 0);
+    const bordillo = new THREE.Mesh(new THREE.BoxGeometry((p.x1 - p.x0 + 1) * T, 0.1, 0.22), new THREE.MeshStandardMaterial({ color: '#e0b21e', roughness: 0.8 }));
+    bordillo.position.set(W((p.x0 + p.x1) / 2), flatHeight(AREAS.park) + 0.17, W(p.z1 + 1.0)); this.group.add(bordillo);
 
     // --- Escena 3: el callejón de lastre ---
     this._put(CP.blackGate(3.2, 2.1), 69.45, 118, Math.PI / 2);

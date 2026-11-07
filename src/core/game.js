@@ -727,10 +727,13 @@ export class Game {
   _aplicarPartida(data) {
     if (data) {
       this.stats.deserialize(data.stats);
+      // Cada vez que se entra al juego se arranca descansado: sin hambre, sed ni sueño, y sin enfermedades.
+      this.stats.descansar?.();
       this.clock.deserialize(data.clock);
       this.inventory.deserialize(data.inventory ?? {});
       this.talents.deserialize(data.talents ?? {});
       this.diseases.deserialize(data.diseases ?? {});
+      this.diseases.cureAll?.();
       if (data.player) {
         // partidas de otro mapa: si la posición guardada no es transitable, vuelve al inicio
         const district = this.world.active;
@@ -1379,6 +1382,17 @@ export class Game {
       const gente = this.world?.active?.npcs?.find?.((n) => n.id === quien[0]);
       if (gente) this._poiCache.push({ name: quien[1], icon: quien[2], color: '#ff8a3d', x: gente.position.x, z: gente.position.z, fijo: true });
       this._poiVuelta = vuelta;
+      // Mientras falte cartón para el chante, el radar marca la bolsa de basura más cercana que lo trae.
+      if (this.built && !this.built.base && this.inventory?.count?.('carton') < 8) {
+        const me = this.player.position;
+        let mejor = null, dist = Infinity;
+        for (const b of this.pickups ?? []) {
+          if (b.used || b.cooldown > 0 || !b.guaranteedLoot?.includes('carton')) continue;
+          const d = (b.position.x - me.x) ** 2 + (b.position.z - me.z) ** 2;
+          if (d < dist) { dist = d; mejor = b; }
+        }
+        if (mejor) this._poiCache.push({ name: 'Cartón', icon: '📦', color: '#c8a26b', x: mejor.position.x, z: mejor.position.z });
+      }
       this._dogPOI = friend ? { name: 'El Chato', icon: '🐕', color: '#e6b566' } : null;
       if (this._dogPOI) this._poiCache.push(this._dogPOI);
       this._needs = needContext({

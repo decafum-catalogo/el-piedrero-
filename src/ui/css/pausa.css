@@ -248,3 +248,26 @@ body.mojado :is(#menu, #inv-overlay, #craft-panel, #talent-panel, #dealer-panel)
   .pause-settings, .pause-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 22px; }
   .pause-need { min-height: 34px; }
 }
+
+/* ---------- El Piedrero: la pausa con otra cara ---------- */
+/* Fondo de caja vieja: la luz cae desde arriba y los bordes quedan quemados. */
+#menu:has(.sign--wide) { background: radial-gradient(120% 90% at 50% 0%, #2a2216 0%, var(--marcador) 70%); }
+:where(#menu) .sign--wide::before {
+  background:
+    linear-gradient(180deg, rgba(255, 240, 205, .10), transparent 22%, transparent 80%, rgba(20, 17, 12, .22)),
+    var(--flauta), var(--cara);
+}
+/* Solapas: cada una un poquito torcida, como pegadas a mano; la elegida sube y lleva franja roja. */
+.pause-tab:nth-child(odd)::after { transform: rotate(-.6deg); }
+.pause-tab:nth-child(even)::after { transform: rotate(.5deg); }
+.pause-tab { transition: transform .12s ease-out; }
+.pause-tab.is-active { transform: translateY(-4px); }
+.pause-tab.is-active::before {
+  content: ''; position: absolute; left: 14%; right: 10%; bottom: 5px; height: 5px;
+  background: var(--rojo); transform: skewX(-18deg);
+}
+/* Título con subrayado de marcador rojo, y cinta pegada en la esquina. */
+:where(#menu) .sign--wide .menu__title { text-shadow: 2px 2px 0 rgba(255, 240, 205, .35); }
+:where(#menu) .sign--wide .menu__head { background: linear-gradient(var(--rojo), var(--rojo)) 24px calc(100% - 2px) / 84px 4px no-repeat; }
+:where(#menu) .sign--wide .menu__body { background: repeating-linear-gradient(0deg, transparent 0 31px, rgba(20, 17, 12, .06) 31px 32px); }
+@media (prefers-reduced-motion: reduce) { .pause-tab { transition: none; } }

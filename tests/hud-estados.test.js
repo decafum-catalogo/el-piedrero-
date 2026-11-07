@@ -58,8 +58,8 @@ test('la tecla de contexto se parte en tecla y verbo, sin emojis ni corchetes', 
 
 test('lo que toca del cambuche sale de lo armado y de lo que hay en el costal', () => {
   const costal = (n) => ({ count: (id) => n[id] ?? 0 });
-  assert.equal(textoDeMision({}, costal({ carton: 3 })), 'HAY QUE JUNTAR 5 CARTONES');
-  assert.equal(textoDeMision({}, costal({ carton: 7 })), 'HAY QUE JUNTAR 1 CARTÓN');
+  assert.equal(textoDeMision({}, costal({ carton: 3 })), 'HAY QUE JUNTAR 5 CARTONES. BUSQUE EN LAS BOLSAS DE BASURA DE LAS ACERAS (📦 EN EL RADAR)');
+  assert.equal(textoDeMision({}, costal({ carton: 7 })), 'HAY QUE JUNTAR 1 CARTÓN. BUSQUE EN LAS BOLSAS DE BASURA DE LAS ACERAS (📦 EN EL RADAR)');
   assert.equal(textoDeMision({}, costal({ carton: 8 })), 'HAY QUE ARMAR EL CHANTE');
   assert.equal(textoDeMision({ base: 1 }, costal({ lona: 1 })), 'HAY QUE PONER TECHO DE LONA');
   assert.equal(textoDeMision({ base: 1 }, costal({})), null);
@@ -206,4 +206,12 @@ test('el radar usa los mismos colores de la hoja, y sin Path2D no hay plano', ()
     assert.ok(hoja.includes(`--${v}: ${c};`), v);
   }
   assert.equal(hornearPlano({ ancho: 1, desdeZ: 0, hastaZ: 0, T: 1, tipo: () => null, originX: 0, originZ: 0 }), null);
+});
+
+import { StatsSystem } from '../src/systems/StatsSystem.js';
+test('al entrar al juego las necesidades se reinician y la plata se conserva', () => {
+  const s = new StatsSystem();
+  Object.assign(s, { hambre: 5, sed: 3, energia: 10, salud: 20, higiene: 1, animo: 2, vicio: 0, dinero: 900 });
+  s.descansar();
+  assert.deepEqual([s.hambre, s.sed, s.energia, s.salud, s.higiene, s.animo, s.vicio, s.dinero], [100, 100, 100, 100, 100, 100, 80, 900]);
 });

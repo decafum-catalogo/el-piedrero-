@@ -225,6 +225,13 @@ export class StatsSystem {
     };
   }
 
+  /** Al entrar al juego: necesidades llenas (el vicio arranca en 80). Plata y experiencia no se tocan. */
+  descansar() {
+    this.hambre = this.sed = this.energia = this.salud = this.higiene = this.animo = 100;
+    this.vicio = 80;
+    this.calor = 0;
+  }
+
   deserialize(d) {
     if (!d) return;
     if (d.hambre !== undefined)  this.hambre  = d.hambre;

@@ -82,7 +82,7 @@ export const TALK_NPCS = [
     accessories: ['aretes'],
     lines: [
       'Mae, ¿listo pa? usted ya sabe que hacer hagale',
-      'Tome, y que no lo vea ningún mae. Esto lo lleva al parque para la vuelta',
+      'Tome, y que no lo vea ningún mae. Esto lo lleva al parque: el cliente lo espera por el camino, cerca de los columpios.',
       'eso papi, mae. Tráigame la plata y yo le doy ₡2.000 y un purito.',
       '¿lo vio la Fuerza Pública?  ¿perdió la bolsita?'
     ]
@@ -91,7 +91,7 @@ export const TALK_NPCS = [
     id: 'cliente',
     name: 'El Cliente',
     role: 'Recibe la vuelta de Celso',
-    pos: [108, 90],
+    pos: [109.2, 92.8],
     look: {
       piel: 2, pelo: 'corto', barba: 'ninguna', contextura: 'normal',
       real: { sexo: 'hombre', edad: 'adulto', pelo: 'corto', barba: 'bigote', ropa: 'buzo', calzado: 'tenis' }

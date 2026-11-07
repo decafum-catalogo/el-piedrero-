@@ -100,3 +100,29 @@ test('un policía sospecha de quien corre de noche', () => {
   m.update(0.1, { x: 0, z: 0 }, false, { running: true, night: false });
   assert.equal(fake.flags.suspicious, false);
 });
+
+test('la vuelta tiene orden: el cliente contesta según el paso y Celso paga aunque ya sea de día', () => {
+  const { m, game, toasts } = setup();
+  const dice = () => toasts.at(-1);
+  m.handleTalk(cliente, true);                       // antes de empezar
+  assert.match(dice(), /esperando un encargo de Celso/);
+  m.handleTalk(celso, true);                         // Celso da la bolsita y dice dónde está el cliente
+  assert.equal(m.state, 'active');
+  assert.ok(toasts.some((t) => /columpios/.test(t)), 'se le dice dónde está el cliente');
+  m.handleTalk(celso, true);                         // si vuelve a hablarle, le repite el camino
+  assert.match(dice(), /cerca de los columpios/);
+  m.handleTalk(cliente, true);                       // entrega
+  assert.equal(m.state, 'delivered');
+  m.handleTalk(cliente, true);                       // el cliente manda de vuelta con Celso
+  assert.match(dice(), /Vaya donde Celso/);
+  game.stats.dinero = 100;                           // gastó plata en el camino
+  m.handleTalk(celso, false);                        // ya amaneció
+  assert.equal(m.state, 'delivered', 'no se pierde el paso por falta de plata');
+  assert.match(dice(), /Falta plata/);
+  game.stats.dinero = MISSION.price + 100;
+  m.handleTalk(celso, false);                        // paga de día también
+  assert.equal(m.state, 'idle');
+  assert.equal(game.stats.dinero, 100 + MISSION.pay);
+  assert.equal(game.inventory.count('purito'), 1);
+  m.dispose();
+});

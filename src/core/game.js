@@ -1356,7 +1356,8 @@ export class Game {
 
   _getPOIs(now = performance.now()) {
     const friend = !!this.dog?.isFriend;
-    if (!this._poiCache || now - this._poiCacheTime >= 350 || this._poiDogFriend !== friend) {
+    const vuelta = this.missions?.state ?? 'idle';
+    if (!this._poiCache || now - this._poiCacheTime >= 350 || this._poiDogFriend !== friend || this._poiVuelta !== vuelta) {
       const district = this.world?.active;
       const reserved = district?.reserved ?? {};
       // Puestos y fogatas van primero para que los lugares fijos queden encima.
@@ -1373,6 +1374,11 @@ export class Game {
       if (this.world?.active?.gasStation) this._poiCache.push({ name: 'Gasolinera', icon: '⛽', x: 154, z: 94, color: '#f25b5b' });
       if (this.world?.active?.stationGroup) this._poiCache.push({ name: 'Terminal de buses', icon: '🚏', x: 75, z: -2, color: '#e45960' });
       if (this.world?.active?.lakePark) this._poiCache.push({ name: 'Parque del Lago', icon: '🌊', x: 138, z: 238, color: '#5ed4dc' });
+      // La vuelta de Celso: el mapa siempre dice a quién buscar en cada paso.
+      const quien = vuelta === 'active' ? ['cliente', 'El Cliente', '💵'] : ['celso', 'Celso', '🗣️'];
+      const gente = this.world?.active?.npcs?.find?.((n) => n.id === quien[0]);
+      if (gente) this._poiCache.push({ name: quien[1], icon: quien[2], color: '#ff8a3d', x: gente.position.x, z: gente.position.z, fijo: true });
+      this._poiVuelta = vuelta;
       this._dogPOI = friend ? { name: 'El Chato', icon: '🐕', color: '#e6b566' } : null;
       if (this._dogPOI) this._poiCache.push(this._dogPOI);
       this._needs = needContext({

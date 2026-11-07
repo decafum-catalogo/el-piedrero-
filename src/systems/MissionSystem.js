@@ -55,18 +55,22 @@ export class MissionSystem {
   handleTalk(npc, isNight) {
     const inv = this.game.inventory, st = this.game.stats;
     if (npc.id === 'celso') {
-      if (!isNight) { this.toast('🗣️ Celso: «Venga de noche, mae.»', 'info'); return true; }
+      // Aceptar la vuelta solo se puede de noche; entregar la plata o avisar de un fallo, a cualquier hora.
       if (this.state === 'idle') {
+        if (!isNight) { this.toast('🗣️ Celso: «Venga de noche, mae.»', 'info'); return true; }
         if (inv.count('bolsita') === 0) inv.add(ITEMS.bolsita, 1);
         this.state = 'active';
         this._say(npc, npc.lines[0]);
         this._say(npc, npc.lines[1], 2200);
-        this.toast('📦 Recibió la bolsita. Llévela al cliente en el parque, sin que lo vea la Fuerza Pública.', 'rare');
+        this.toast('📦 Recibió la bolsita. Busque al cliente en el parque, por el camino cerca de los columpios (lo marca el radar), sin que lo vea la Fuerza Pública.', 'rare');
         return true;
       }
-      if (this.state === 'active') { this._say(npc, npc.lines[1]); return true; }
+      if (this.state === 'active') {
+        this._say(npc, 'Ya tiene la bolsita, mae. El cliente lo espera en el parque, cerca de los columpios. Vaya.');
+        return true;
+      }
       if (this.state === 'delivered') {
-        if (st.dinero < MISSION.price) { this._say(npc, npc.lines[3]); this.state = 'idle'; return true; }
+        if (st.dinero < MISSION.price) { this._say(npc, `Falta plata, mae. Tráigame los ₡${MISSION.price.toLocaleString('es-CR')} completos.`); return true; }
         st.dinero -= MISSION.price;
         st.dinero += MISSION.pay;
         inv.add(ITEMS.purito, 1);
@@ -84,6 +88,15 @@ export class MissionSystem {
       this.toast(`🗣️ ${npc.name}: «Ya era hora. Tome la plata y llévesela a Celso.»`, 'info');
       this.toast(`💵 Recibió ₡${MISSION.price.toLocaleString('es-CR')}. Regrese donde Celso.`, 'sell');
       return true;
+    }
+    if (npc.id === 'cliente') {
+      const respuesta = {
+        idle: 'Estoy esperando un encargo de Celso. Si él lo manda, aquí estoy.',
+        active: 'Sin la bolsita no hay trato, mae. Búsquela.',
+        delivered: 'Ya hicimos el trato. Vaya donde Celso, que lo espera.',
+        failed: 'Sin la bolsita no hay trato. Hable con Celso.'
+      }[this.state];
+      if (respuesta) { this._say(npc, respuesta); return true; }
     }
     return false;
   }

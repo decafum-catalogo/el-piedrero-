@@ -294,3 +294,158 @@ export function trashCan() {
   return g;
 }
 
+
+const MAT_LINE = () => std('#f4f1e6', { roughness: 0.6 });
+
+/** Líneas de la cancha pintadas en el piso (se ponen a ras, centradas en la cancha). */
+export function courtLines(w, d) {
+  const g = new THREE.Group();
+  const m = new THREE.MeshBasicMaterial({ color: '#f4f1e6' });
+  const line = (lw, ld, x, z) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(lw, ld), m); p.rotation.x = -Math.PI / 2; p.position.set(x, 0, z); g.add(p); };
+  const t = 0.1;
+  line(w, t, 0, -d / 2); line(w, t, 0, d / 2); line(t, d, -w / 2, 0); line(t, d, w / 2, 0); line(t, d, 0, 0);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(2.1, 2.2, 40), m); ring.rotation.x = -Math.PI / 2; g.add(ring);
+  for (const s of [-1, 1]) { // zonas pintadas bajo cada aro
+    const zx = s * (w / 2 - 2.4);
+    line(4.8, t, zx, -2.4); line(4.8, t, zx, 2.4); line(t, 4.8, s * (w / 2 - 4.8), 0);
+    const arc = new THREE.Mesh(new THREE.RingGeometry(2.3, 2.4, 28, 1, -Math.PI / 2, Math.PI), m);
+    arc.rotation.x = -Math.PI / 2; arc.rotation.z = s > 0 ? Math.PI : 0; arc.position.set(s * (w / 2 - 4.8), 0, 0); g.add(arc);
+  }
+  return g;
+}
+
+/** Malla baja de cancha: marco verde con paneles naranja (como la de la foto). */
+export function courtFence(len = 8, h = 1.3) {
+  const g = new THREE.Group();
+  const green = std('#4f7d3a'), orange = std('#e0772a');
+  box(g, len, 0.08, 0.08, 0, h, 0, green); box(g, len, 0.08, 0.08, 0, 0.1, 0, green);
+  const n = Math.max(1, Math.round(len / 1.6)), step = len / n;
+  for (let i = 0; i <= n; i++) box(g, 0.08, h, 0.08, -len / 2 + i * step, h / 2, 0, green);
+  for (let i = 0; i < n; i++) box(g, step - 0.1, h - 0.3, 0.04, -len / 2 + (i + 0.5) * step, h / 2 + 0.05, 0, i % 2 ? orange : std('#6aa0c8'));
+  return g;
+}
+
+/** Columpios: marco en A con dos asientos. */
+export function swingSet() {
+  const g = new THREE.Group();
+  const blue = std('#2a6fc9'), seat = std('#1b1b1b'), chain = std('#9aa0a6', { metalness: 0.6 });
+  for (const s of [-1, 1]) for (const z of [-0.7, 0.7]) { const b = box(g, 0.1, 2.7, 0.1, s * 1.4, 1.3, z * 0.9, blue); b.rotation.z = -s * 0.12; }
+  box(g, 3.2, 0.12, 0.12, 0, 2.6, 0, blue);
+  for (const x of [-0.6, 0.6]) {
+    for (const dz of [-0.18, 0.18]) box(g, 0.03, 1.9, 0.03, x, 1.65, dz, chain);
+    box(g, 0.5, 0.06, 0.4, x, 0.7, 0, seat);
+  }
+  return g;
+}
+
+/** Sube y baja. */
+export function seesaw() {
+  const g = new THREE.Group();
+  box(g, 0.3, 0.55, 0.3, 0, 0.28, 0, std('#2a6fc9'));
+  const plank = box(g, 3, 0.1, 0.35, 0, 0.62, 0, std('#f2c230')); plank.rotation.z = 0.14;
+  for (const s of [-1, 1]) box(g, 0.1, 0.35, 0.1, s * 1.2, 0.78 + s * 0.17 * -1, 0, std('#e24a1a'));
+  return g;
+}
+
+/** Arbusto con flores (el zacate solo se ve pobre). */
+export function shrub(scale = 1, flor = '#e0364a') {
+  const g = new THREE.Group();
+  for (let i = 0; i < 4; i++) {
+    const r = (0.45 + Math.random() * 0.25) * scale;
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), std(['#2f6a2a', '#3a7a32', '#27591f'][i % 3], { roughness: 1, flatShading: true }));
+    m.position.set((Math.random() - 0.5) * 0.9 * scale, r * 0.85, (Math.random() - 0.5) * 0.9 * scale); m.castShadow = true; g.add(m);
+  }
+  for (let i = 0; i < 14; i++) {
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.09 * scale, 5, 4), std(flor, { roughness: 0.7 }));
+    const a = Math.random() * Math.PI * 2, rr = Math.random() * 0.7 * scale;
+    f.position.set(Math.cos(a) * rr, (0.6 + Math.random() * 0.5) * scale, Math.sin(a) * rr); g.add(f);
+  }
+  return g;
+}
+
+/** Palma de adorno (las de la entrada). */
+export function palm(scale = 1) {
+  const g = new THREE.Group();
+  const trunk = std('#8a6f4e'), leaf = std('#3d7a2c', { roughness: 1 });
+  cyl(g, 0.16 * scale, 4.4 * scale, 0, 2.2 * scale, 0, trunk, 7);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const f = box(g, 0.28 * scale, 0.05, 2.1 * scale, Math.cos(a) * 0.9 * scale, 4.35 * scale, Math.sin(a) * 0.9 * scale, leaf);
+    f.rotation.y = -a + Math.PI / 2; f.rotation.x = 0.42;
+  }
+  return g;
+}
+
+/** Árbol mediano de sombra, más bajo que el grande. */
+export function shadeTree(scale = 1) {
+  const g = new THREE.Group();
+  cyl(g, 0.28 * scale, 2.8 * scale, 0, 1.4 * scale, 0, std('#5a4632'), 7);
+  const leaf = ['#2f5a24', '#3a6b2c', '#44782f'];
+  for (let i = 0; i < 6; i++) {
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry((1.2 + Math.random() * 0.6) * scale, 1), std(leaf[i % 3], { roughness: 1, flatShading: true }));
+    m.position.set((Math.random() - 0.5) * 2.4 * scale, (3.2 + Math.random() * 1.2) * scale, (Math.random() - 0.5) * 2.4 * scale); m.castShadow = true; g.add(m);
+  }
+  return g;
+}
+
+/** Mesa de picnic de concreto con bancas. */
+export function picnicTable() {
+  const g = new THREE.Group();
+  const c = std('#b9b4a6');
+  box(g, 1.9, 0.12, 0.8, 0, 0.8, 0, c);
+  for (const s of [-1, 1]) { box(g, 1.9, 0.1, 0.35, 0, 0.45, s * 0.7, c); box(g, 0.12, 0.8, 0.5, s * 0.7, 0.4, 0, c); }
+  return g;
+}
+
+/** Bebedero de pedestal. */
+export function drinkingFountain() {
+  const g = new THREE.Group();
+  box(g, 0.35, 0.95, 0.35, 0, 0.48, 0, std('#8b8f94', { metalness: 0.3 }));
+  box(g, 0.5, 0.1, 0.5, 0, 1.0, 0, std('#c7ccd1', { metalness: 0.5 }));
+  box(g, 0.06, 0.2, 0.06, 0, 1.12, 0.12, std('#3a3d42'));
+  return g;
+}
+
+/** Poste de concreto con dos crucetas y luminaria (como el de la entrada). */
+export function concretePole() {
+  const g = new THREE.Group();
+  const c = std('#a8a59d');
+  cyl(g, 0.13, 9, 0, 4.5, 0, c, 8);
+  box(g, 2.0, 0.1, 0.1, 0, 8.6, 0, std('#4a3b2c')); box(g, 1.6, 0.1, 0.1, 0, 8.0, 0, std('#4a3b2c'));
+  for (const x of [-0.9, -0.3, 0.3, 0.9]) cyl(g, 0.04, 0.14, x, 8.72, 0, std('#d9d9d4'), 6);
+  box(g, 0.9, 0.06, 0.06, 0.6, 7.3, 0, c);
+  box(g, 0.5, 0.1, 0.2, 1.05, 7.25, 0, std('#d9d9d4', { emissive: '#ffe9a8', emissiveIntensity: 0.5 }));
+  return g;
+}
+
+/** Hilera de piedras de río como bordillo del zacate (como en la foto de las esculturas). */
+export function stoneBorder(len = 6) {
+  const g = new THREE.Group();
+  const tones = ['#7d786d', '#8f897b', '#6c685e', '#a09a8a'];
+  for (let i = 0; i < len * 5; i++) {
+    const r = 0.1 + Math.random() * 0.1;
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), std(tones[i % 4], { roughness: 1, flatShading: true }));
+    m.position.set((Math.random() - 0.5) * len, r * 0.6, (Math.random() - 0.5) * 0.5); g.add(m);
+  }
+  return g;
+}
+
+/** Bolardo amarillo bajo. */
+export function bollard() {
+  const g = new THREE.Group();
+  cyl(g, 0.09, 0.8, 0, 0.4, 0, std('#e3b21c'), 8);
+  return g;
+}
+
+/** Pilares de entrada con rótulo plano (la textura la pasa quien lo llama). */
+export function gatePillars(width, signMap) {
+  const g = new THREE.Group();
+  const col = std('#c9c0a8'), cap = std('#8a8478');
+  for (const s of [-1, 1]) { box(g, 0.55, 2.6, 0.55, s * width / 2, 1.3, 0, col); box(g, 0.75, 0.14, 0.75, s * width / 2, 2.67, 0, cap); }
+  if (signMap) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(width - 0.6, (width - 0.6) / 4), new THREE.MeshBasicMaterial({ map: signMap, side: THREE.DoubleSide }));
+    m.position.set(0, 3.3, 0); g.add(m);
+    for (const s of [-1, 1]) box(g, 0.08, 0.7, 0.08, s * (width / 2 - 0.15), 2.95, 0, std('#2a2a2a'));
+  }
+  return g;
+}

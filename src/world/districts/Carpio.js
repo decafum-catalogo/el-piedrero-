@@ -308,54 +308,90 @@ export class Carpio extends Bogota {
     fence(p.x0 - 0.5, p.z1 + 0.5, 104.5, p.z1 + 0.5);
     fence(106.5, p.z1 + 0.5, p.x1 + 0.5, p.z1 + 0.5);
     fence(p.x1 + 0.5, p.z0 - 0.5, p.x1 + 0.5, p.z1 + 0.5);
-    // Cancha: piso azul con borde rojo, como la del parque comunal
-    const cy = flatHeight(AREAS.park) + 0.15;
-    const cw = (c.x1 - c.x0 + 1) * T, cd = (c.z1 - c.z0 + 1) * T, cmx = W((c.x0 + c.x1) / 2), cmz = W((c.z0 + c.z1) / 2);
-    const rojo = new THREE.Mesh(new THREE.PlaneGeometry(cw, cd), new THREE.MeshStandardMaterial({ color: '#b5493a', roughness: 0.9 }));
-    rojo.rotation.x = -Math.PI / 2; rojo.position.set(cmx, cy, cmz); rojo.receiveShadow = true; this.group.add(rojo);
-    const azul = new THREE.Mesh(new THREE.PlaneGeometry(cw - 2.4, cd - 2.4), new THREE.MeshStandardMaterial({ color: '#4d86b8', roughness: 0.9 }));
-    azul.rotation.x = -Math.PI / 2; azul.position.set(cmx, cy + 0.01, cmz); azul.receiveShadow = true; this.group.add(azul);
+    const parkY = flatHeight(AREAS.park);
+    const flat = (mesh, x, z, y, rotY = 0) => { mesh.rotation.x = -Math.PI / 2; mesh.rotation.z = rotY; mesh.position.set(W(x), y, W(z)); mesh.receiveShadow = true; this.group.add(mesh); return mesh; };
+
+    // Cancha: piso azul con borde rojo y líneas pintadas, como la del parque comunal
+    const cy = parkY + 0.15;
+    const cw = (c.x1 - c.x0 + 1) * T, cd = (c.z1 - c.z0 + 1) * T, cmx = (c.x0 + c.x1) / 2, cmz = (c.z0 + c.z1) / 2;
+    flat(new THREE.Mesh(new THREE.PlaneGeometry(cw, cd), new THREE.MeshStandardMaterial({ color: '#b5493a', roughness: 0.9 })), cmx, cmz, cy);
+    flat(new THREE.Mesh(new THREE.PlaneGeometry(cw - 2.4, cd - 2.4), new THREE.MeshStandardMaterial({ color: '#4d86b8', roughness: 0.9 })), cmx, cmz, cy + 0.01);
+    const lines = CP.courtLines(cw - 3.2, cd - 3.2); this._put(lines, cmx, cmz); lines.position.y = cy + 0.03;
     this._put(CP.hoop(), c.x0 + 1.5, (c.z0 + c.z1) / 2, Math.PI / 2);
     this._put(CP.hoop(), c.x1 - 1.5, (c.z0 + c.z1) / 2, -Math.PI / 2);
-    // reflectores altos en las esquinas de la cancha
+    // reflectores altos en las esquinas de la cancha y malla baja al sur, con portón en el paso
     for (const [fx, fz] of [[c.x0 - 0.5, c.z0 + 0.5], [c.x1 + 0.5, c.z0 + 0.5], [c.x0 - 0.5, c.z1 + 0.5], [c.x1 + 0.5, c.z1 + 0.5]]) this._put(CP.floodlight(), fx, fz);
+    this._put(CP.courtFence(19.6), 100.2, c.z1 + 0.6); this._put(CP.courtFence(16.6), 110.1, c.z1 + 0.6);
     // mural de grafiti detrás de la cancha (lado este)
     this._put(CP.muralWall((c.z1 - c.z0 + 1) * T), p.x1 + 1.6, (c.z0 + c.z1) / 2, Math.PI / 2);
 
-    // árbol grande de sombra con banca alrededor (losa de la esquina oeste)
+    // árbol grande de sombra con losa, bancas y mesas de picnic
+    flat(new THREE.Mesh(new THREE.CircleGeometry(1.7, 20), new THREE.MeshStandardMaterial({ color: '#4a3a2a', roughness: 1 })), 98.5, 90, parkY + 0.24);
     this._put(CP.bigTree(1.0), 98.5, 90);
-    for (const [x, z, r] of [[96.8, 91.6, 0], [100.4, 91.6, 0]]) {
-      const b = new Banca(new THREE.Vector3(W(x), this.getGroundHeight(W(x), W(z)), W(z)), r); this.group.add(b.group);
-    }
-    // juegos de niños sobre tierra
-    this._put(CP.playground(), 110, 90, 0);
-    this._put(CP.climbingFrame(), 113.4, 90.4, Math.PI / 2);
-    // máquinas de ejercicio azules
+    const banca = (x, z, r) => { const b = new Banca(new THREE.Vector3(W(x), this.getGroundHeight(W(x), W(z)), W(z)), r); this.group.add(b.group); };
+    banca(96.8, 91.7, 0); banca(100.3, 91.7, 0); banca(96.6, 89.4, Math.PI); banca(100.5, 89.4, Math.PI);
+    this._put(CP.picnicTable(), 103.2, 90.6, 0); this._put(CP.picnicTable(), 103.2, 92.0, 0);
+    this._put(CP.drinkingFountain(), 101.7, 93.6);
+
+    // juegos de niños sobre tierra, con borde de piedras
+    this._put(CP.playground(), 109.6, 90, 0);
+    this._put(CP.swingSet(), 112.2, 90.2, 0);
+    this._put(CP.climbingFrame(), 114.1, 90.4, Math.PI / 2);
+    this._put(CP.seesaw(), 108.9, 91.4, 0);
+    this._put(CP.stoneBorder(14), 111.2, 91.8);
+    this._put(CP.stoneBorder(14), 111.2, 88.9);
+
+    // máquinas de ejercicio azules en su losa, con rótulo
     for (let i = 0; i < 4; i++) this._put(CP.exerciseMachine(), 96.6 + i * 1.5, 95.5, Math.PI);
-    // esculturas de piedra sobre el zacate, con su rótulo
+    this._put(CP.infoSign(), 95.4, 94.2, 0);
+
+    // esculturas de piedra sobre el zacate, con su rótulo y borde de piedras de río
     this._put(CP.stoneHead(1.1), 109, 95.2, 0.3);
     this._put(CP.stoneHead(1.2), 111.8, 95.4, -0.1);
     this._put(CP.stoneHead(1.1), 114.4, 95.2, -0.35);
     this._put(CP.infoSign(), 107.7, 96.4, 0);
-    // basureros verdes, setos y árboles por el zacate
-    for (const [x, z] of [[104.2, 91.5], [107.8, 91.5], [102.6, 93.7], [103.5, 96.4]]) this._put(CP.trashCan(), x, z);
-    this._put(CP.hedge(5), 99.5, 94.6, 0); this._put(CP.hedge(4), 113.2, 93.9, 0);
-    for (const [x, z, sc] of [[94.6, 94, 0.5], [103.6, 94.6, 0.45], [115.8, 93, 0.5], [116, 95.8, 0.45]]) this._put(CP.bigTree(sc), x, z);
-    // parqueo: rayas amarillas, baranda de tubo, parqueo de bicis y un par de carros
-    const py = flatHeight(AREAS.park) + 0.16;
+    this._put(CP.stoneBorder(13), 111.8, 96.5);
+
+    // faroles a lo largo del sendero y basureros
+    for (const [x, z] of [[104.3, 90.2], [107.7, 90.2], [104.3, 94.8], [107.7, 94.8]]) this._put(CP.parkLamp(), x, z, 0);
+    for (const [x, z] of [[104.2, 91.6], [107.8, 91.6], [102.4, 93.6], [101.4, 95.6], [107.8, 93.6]]) this._put(CP.trashCan(), x, z);
+    this._put(CP.hedge(5), 99.5, 94.4, 0); this._put(CP.hedge(4), 113.2, 93.9, 0);
+
+    // jardín: árboles de sombra, palmas y arbustos con flores para que no sea solo zacate
+    for (const [x, z, sc] of [[94.2, 91.5, 0.9], [116.3, 91, 0.9], [103.5, 95.4, 0.75], [116.3, 95.2, 0.8], [94.3, 96, 0.7]]) this._put(CP.shadeTree(sc), x, z);
+    for (const [x, z] of [[94, 99.4], [117, 99.4], [102.6, 99.8], [108.6, 99.8]]) this._put(CP.palm(0.85), x, z);
+    const flores = ['#e0364a', '#f2c230', '#e86fb0', '#ffffff', '#f08a24', '#8a5bd6'];
+    [[94.2, 89.2], [94.4, 93.6], [94.3, 94.9], [102.6, 89.4], [102.6, 94.5], [107.4, 89.4], [107, 94.2], [115.6, 89.3],
+      [116.4, 93.4], [115.9, 94.2], [103.6, 93.1], [96.2, 97.0], [101.2, 97.0], [112, 93.7]]
+      .forEach(([x, z], i) => this._put(CP.shrub(0.9 + (i % 3) * 0.2, flores[i % flores.length]), x, z));
+    // florecitas y matas sueltas en el zacate
+    const rng = (() => { let v = 7; return () => (v = (v * 16807) % 2147483647) / 2147483647; })();
+    const speck = new THREE.SphereGeometry(0.07, 5, 4);
+    const mats = flores.map(c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 }));
+    for (let z = p.z0 + 9; z <= p.z1 - 4; z++) for (let x = p.x0; x <= p.x1; x++) {
+      if (this.map[z][x] !== 'grass') continue;
+      for (let k = 0; k < 3; k++) {
+        const m = new THREE.Mesh(speck, mats[Math.floor(rng() * mats.length)]);
+        this._put(m, x + (rng() - 0.5) * 0.9, z + (rng() - 0.5) * 0.9);
+      }
+    }
+
+    // entrada con pilares y rótulo, bolardos y parqueo con rayas
+    this._put(CP.gatePillars(5.2, signTexture({ title: 'PARQUE COMUNAL', sub: 'LA CARPIO', bg: '#2b5aa8', fg: '#ffffff', w: 768, h: 192 })), 105.5, 99.9, 0);
+    for (const x of [103.3, 107.7]) this._put(CP.bollard(), x, 99.5);
     const rayaMat = new THREE.MeshBasicMaterial({ color: '#e6c229' });
     for (const x0 of [94, 98, 102, 110, 114]) for (let k = 0; k < 2; k++) {
-      const ray = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 4.4), rayaMat);
-      ray.rotation.x = -Math.PI / 2; ray.position.set(W(x0 + k * 2), py, W(98.8)); this.group.add(ray);
+      flat(new THREE.Mesh(new THREE.PlaneGeometry(0.1, 4.4), rayaMat), x0 + k * 2, 98.8, parkY + 0.16);
     }
-    this._put(CP.yellowRail(9), 99.5, 96.8, 0); this._put(CP.yellowRail(9), 111.5, 96.8, 0);
-    this._put(CP.bikeRack(), 108.2, 97.7, 0);
+    this._put(CP.yellowRail(12), 99.5, 96.8, 0); this._put(CP.yellowRail(12), 111.5, 96.8, 0);
+    this._put(CP.bikeRack(), 108.4, 97.7, 0);
     const gris = makeVehicle('carro', 5, { beams: false }).group; this._put(gris, 99.2, 98.8, Math.PI / 2);
     const blanco = makeVehicle('carro', 1, { beams: false }).group; this._put(blanco, 111.8, 98.8, -Math.PI / 2);
-    // postes de luz de la calle junto al parque y cordón amarillo
+    // postes de luz junto a la calle y cordón amarillo
     for (const [x, z] of [[94.2, 101.2], [116.4, 101.2]]) this._put(CP.parkLamp(), x, z, 0);
+    this._put(CP.concretePole(), 92.3, 97.5, 0);
     const bordillo = new THREE.Mesh(new THREE.BoxGeometry((p.x1 - p.x0 + 1) * T, 0.1, 0.22), new THREE.MeshStandardMaterial({ color: '#e0b21e', roughness: 0.8 }));
-    bordillo.position.set(W((p.x0 + p.x1) / 2), flatHeight(AREAS.park) + 0.17, W(p.z1 + 1.0)); this.group.add(bordillo);
+    bordillo.position.set(W((p.x0 + p.x1) / 2), parkY + 0.17, W(p.z1 + 1.0)); this.group.add(bordillo);
 
     // --- Escena 3: el callejón de lastre ---
     this._put(CP.blackGate(3.2, 2.1), 69.45, 118, Math.PI / 2);
@@ -395,8 +431,8 @@ export class Carpio extends Bogota {
       }
     };
     tryPlace(['sidewalk'], (x, z) => this._put(BP.trashPile(3 + Math.floor(Math.random() * 4)), x, z, rand(0, 3)), 90);
-    tryPlace(['sidewalk'], (x, z) => this._put(BP.tree(rand(0.9, 1.4)), x, z), 45);
-    tryPlace(['grass'], (x, z) => this._put(BP.tree(rand(0.9, 1.5)), x, z), 30);
+    tryPlace(['sidewalk'], (x, z) => this._put(CP.shadeTree(rand(0.8, 1.2)), x, z), 45);
+    tryPlace(['grass'], (x, z) => this._put(CP.shadeTree(rand(0.8, 1.3)), x, z), 30);
     tryPlace(['grass'], (x, z) => this._put(CP.tallGrass(3, 3, 0.9), x, z), 60);
     tryPlace(['dirt'], (x, z) => this._put(Math.random() < 0.5 ? BP.trashPile(5) : BP.mattress(), x, z, rand(0, 3)), 14);
   }

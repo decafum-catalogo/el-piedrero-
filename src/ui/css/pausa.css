@@ -251,7 +251,7 @@ body.mojado :is(#menu, #inv-overlay, #craft-panel, #talent-panel, #dealer-panel)
 
 /* ---------- El Piedrero: la pausa con otra cara ---------- */
 /* Fondo de caja vieja: la luz cae desde arriba y los bordes quedan quemados. */
-#menu:has(.sign--wide) { background: radial-gradient(120% 90% at 50% 0%, #2a2216 0%, var(--marcador) 70%); }
+#menu:has(.sign--wide) { background: radial-gradient(120% 90% at 50% 0%, #16242c 0%, var(--marcador) 70%); }
 :where(#menu) .sign--wide::before {
   background:
     linear-gradient(180deg, rgba(255, 240, 205, .10), transparent 22%, transparent 80%, rgba(20, 17, 12, .22)),

@@ -591,10 +591,11 @@ export class Bogota {
     // el ladrillo necesita más resolución para que cada ladrillo (36 × 12 cm) se distinga
     // Variantes compartidas: ampliar el barrio no triplica las texturas de fachada en la GPU.
     const variant = Math.floor(Math.random() * 2);
-    const textureKey = `${widthM}:${floors}:${style}:${variant}:${shopFront}`;
+    const wallColor = this._houseWall?.(style, ruin) ?? null;
+    const textureKey = `${widthM}:${floors}:${style}:${variant}:${shopFront}:${wallColor ?? ''}`;
     let tex = this._facadeTextures.get(textureKey);
     if (!tex) {
-      tex = TX.facade({ seed: Math.floor(Math.random() * 1e6), width: widthM, floors, pxPerM: style === 'pintada' ? 28 : 40, shopFront, style });
+      tex = TX.facade({ seed: Math.floor(Math.random() * 1e6), width: widthM, floors, pxPerM: style === 'pintada' ? 28 : 40, shopFront, style, wallColor });
       this._facadeTextures.set(textureKey, tex);
     }
     for (const t of [tex.map, tex.emissiveMap, tex.bumpMap]) { t.anisotropy = 8; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; }

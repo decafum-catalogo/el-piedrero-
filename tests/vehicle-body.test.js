@@ -133,7 +133,8 @@ test('la mezcla de particulares y los colores siguen lo que se ve en la calle', 
     assert.ok(Math.abs(count[id]/20-share)<4,`${id}: ${(count[id]/20).toFixed(1)} %`);
   const neutral=['cdd0d0','b6bbc0','7e8388','1b1d20'].reduce((sum,hex)=>sum+(colors[new THREE.Color(`#${hex}`).getHexString()]??0),0);
   assert.ok(neutral/2000>.5,'dominan blanco, plata, gris y negro');
-  assert.equal(makeVehicle('taxi',4,{beams:false}).wetMaterials[0].color.getHexString(),new THREE.Color('#e8b321').getHexString());
+  // taxi rojo de San José
+  assert.equal(makeVehicle('taxi',4,{beams:false}).wetMaterials[0].color.getHexString(),new THREE.Color('#b3171c').getHexString());
   assert.ok(['citadino','sedanPopular'].includes(makeVehicle('taxi',4,{beams:false}).model));
   assert.ok(['sedanPopular','suv'].includes(makeVehicle('police',5,{beams:false}).model));
 });
@@ -168,4 +169,13 @@ test('un solo atlas acotado para los distintivos y con español legible en placa
   assert.equal(lamps.material.map,meshes(other).find(mesh=>mesh.name==='Lámparas y placas').material.map);
   assert.ok(lamps.geometry.attributes.uv.array.every(n=>n>=0&&n<=1));
   taxi.dispose(); other.dispose();
+});
+
+import * as CP from '../src/world/carpio/props.js';
+test('los detalles ticos (banderas, propaganda ficticia, paradas, teléfonos) se arman sin romperse', () => {
+  for (const f of [() => CP.banderaTica(1), () => CP.vallaPropaganda(2), () => CP.vallaDelJefe(), () => CP.grafitiPolitico(3), () => CP.pasquinRasgado(1),
+    () => CP.avisoToqueDeQueda(), () => CP.rotuloObra(), () => CP.cartelLoteria(), () => CP.rejaCasa(), () => CP.tendedero(), () => CP.ventaFruta(),
+    () => CP.paradaBus('400'), () => CP.telefonoPublico(), () => CP.cordelBanderitas(6)]) {
+    const g = f(); assert.ok(g.children.length > 0);
+  }
 });

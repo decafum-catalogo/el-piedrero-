@@ -8,9 +8,9 @@ Cartón y marcador. La interfaz está hecha de lo que el personaje tiene a mano:
 
 | Variable | Valor | Uso |
 | --- | --- | --- |
-| `--carton` | `#CBA26C` | Toda pieza de información |
-| `--carton-mojado` | `#BA8D56` | La misma pieza bajo la lluvia; el marcador sigue por encima de 6:1 |
-| `--canto` | `#3B2913` | El grueso del cartón, en lugar de sombra |
+| `--carton` | `#A3C1D0` | Toda pieza de información |
+| `--carton-mojado` | `#86A9BB` | La misma pieza bajo la lluvia; el marcador sigue por encima de 6:1 |
+| `--canto` | `#1E3340` | El grueso del cartón, en lugar de sombra |
 | `--marcador` | `#14110C` | Toda letra y trazo sobre cartón |
 | `--cinta` | `#E9DBB4` | Solo lo que se oprime, y la letra sobre rojo |
 | `--rojo` | `#AB1D17` | Elegido, destino, ruta, tombos, peligro. Sobre cartón mojado, solo como placa, nunca como letra |

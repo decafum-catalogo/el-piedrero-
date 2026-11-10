@@ -122,12 +122,14 @@ function drawPlate(ctx, x, y, plate, isPublic) {
 }
 
 function drawDoorDecal(ctx, x, y, plate) {
-  ctx.fillStyle = '#f4f4f0'; ctx.fillRect(x, y, CELL_W, CELL_H);
-  ctx.strokeStyle = '#111'; ctx.lineWidth = 3; ctx.strokeRect(x + 2, y + 2, CELL_W - 4, CELL_H - 4);
+  // Puerta del taxi rojo: triángulo amarillo con el número, como los de San José.
+  ctx.fillStyle = '#b3171c'; ctx.fillRect(x, y, CELL_W, CELL_H);
+  ctx.fillStyle = '#f2c417'; ctx.beginPath();
+  ctx.moveTo(x + CELL_W / 2, y + 2); ctx.lineTo(x + CELL_W - 6, y + CELL_H - 3); ctx.lineTo(x + 6, y + CELL_H - 3); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.fillStyle = '#111'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = '800 10px sans-serif'; ctx.fillText(plate.city, x + 64, y + 12);
-  ctx.font = '900 25px "Arial Black", sans-serif'; ctx.fillText(plate.code, x + 64, y + 32, CELL_W - 14);
-  ctx.font = '700 9px sans-serif'; ctx.fillText('SERVICIO PÚBLICO', x + 64, y + 53);
+  ctx.font = '900 11px "Arial Black", sans-serif'; ctx.fillText('TAXI', x + 64, y + 30);
+  ctx.font = '900 13px "Arial Black", sans-serif'; ctx.fillText(plate.code, x + 64, y + 44, CELL_W - 40);
 }
 
 function drawRoofPlate(ctx, x, y, plate) {
@@ -479,8 +481,8 @@ export function drawAtlas(ctx) {
   // Calcomanía de taxi en el vidrio trasero y tela de asientos.
   const [kx, ky, kw, kh] = RECT.sticker;
   ctx.fillStyle = '#f2c417'; ctx.fillRect(kx, ky, kw, kh);
-  ctx.fillStyle = '#111';
-  for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) if ((i + j) % 2) ctx.fillRect(kx + i * kw / 6, ky + j * kh / 6, kw / 6, kh / 6);
+  ctx.fillStyle = '#b3171c'; ctx.beginPath();
+  ctx.moveTo(kx + kw / 2, ky + 3); ctx.lineTo(kx + kw - 4, ky + kh - 3); ctx.lineTo(kx + 4, ky + kh - 3); ctx.closePath(); ctx.fill();
   const [tx, ty, tw, th] = RECT.seat;
   ctx.fillStyle = '#9a9a9a'; ctx.fillRect(tx, ty, tw, th);
   ctx.fillStyle = 'rgba(0,0,0,.25)';
@@ -489,7 +491,7 @@ export function drawAtlas(ctx) {
   // Franja damero de los taxis.
   const [fx, fy, fw, fh] = RECT.taxiStripe;
   for (let i = 0; i < fw; i += 4) for (let j = 0; j < fh; j += 4) {
-    ctx.fillStyle = ((i + j) / 4) % 2 ? '#111' : '#f4f4f0';
+    ctx.fillStyle = '#f2c417'; // franja amarilla corrida sobre el rojo
     ctx.fillRect(fx + i, fy + j, 4, 4);
   }
   // Rótulo genérico de la bus: nombre inventado, se lee como el de una cooperativa cualquiera.
@@ -497,8 +499,8 @@ export function drawAtlas(ctx) {
   // Sobre la franja de la bus: del mismo azul, para que solo se lea el letrero.
   ctx.fillStyle = BUS_BLUE; ctx.fillRect(nx, ny, nw, nh);
   ctx.fillStyle = '#f4f2ea'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = '900 21px sans-serif'; ctx.fillText('RUTAS DE LA CAPITAL', nx + nw / 2, ny + 19);
-  ctx.font = '800 13px sans-serif'; ctx.fillText('SERVICIO URBANO · 19 PASAJEROS', nx + nw / 2, ny + 42);
+  ctx.font = '900 21px sans-serif'; ctx.fillText('TRANSPORTES JOSEFINOS', nx + nw / 2, ny + 19);
+  ctx.font = '800 13px sans-serif'; ctx.fillText('SERVICIO URBANO · SAN JOSÉ', nx + nw / 2, ny + 42);
   drawOptics(ctx);
 }
 

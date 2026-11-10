@@ -284,7 +284,7 @@ function define(s) {
   return s;
 }
 
-const taxiYellow = ['#e8b321'];
+const taxiYellow = ['#b3171c']; // taxi rojo de San José
 
 export const CAR_MODELS = {
   // Citadino alto y corto: capó mínimo, faros grandes en flecha, cintura que sube, portón casi plano y stops en el pilar.

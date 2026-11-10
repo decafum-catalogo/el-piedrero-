@@ -64,6 +64,11 @@ export class Carpio extends Bogota {
   _fillHeight(type) { return type === 'wall' ? 9 : 3.3; }
   _shopFront() { return Math.random() < 0.18; }
   _houseStyle(ruin) { return ruin ? 'ruina' : Math.random() < 0.18 ? 'ladrillo' : 'pintada'; }
+  /** Colores de pared de barrio tico: cada dueño pintó la suya (turquesa, mostaza, rosado, verde menta, celeste...). */
+  _houseWall(style, ruin) {
+    if (ruin || style !== 'pintada') return null;
+    return pick(['#e9dcae', '#4fb3b0', '#e2b92a', '#e89aa8', '#9ed1a8', '#8ec3e6', '#d8662f', '#f2efe6', '#b7a0d6', '#cf4a3c']);
+  }
   _baseRoofTexture() { return TX.zinc(30, '#9fa5a8'); }
   _clayChance() { return 0.08; }
   _obstacles() { return gasObstaclesCR().map(o => ({ ...o, y: flatHeight(AREAS.gas) })); }
@@ -80,8 +85,25 @@ export class Carpio extends Bogota {
     return water;
   }
 
+  /** Lo que se ve en toda casa de aquí: reja, bandera, grafiti y pasquines del pleito entre bandos. */
+  _detallesDeFachada(shell, { dx, dz, yaw, ruin, face, fx, fz, cx, cz, widthM }) {
+    const pared = shell.walls?.get(face);
+    if (!pared) return;
+    const lat = (Math.random() - 0.5) * Math.max(0, widthM - 2.4);
+    const poner = (obj, alto, afuera = 0.08, lado = 0) => {
+      obj.position.set(fx + dx * afuera + dz * lado - cx, alto, fz + dz * afuera - dx * lado - cz);
+      obj.rotation.y = yaw; pared.add(obj); return obj;
+    };
+    if (!ruin && Math.random() < 0.6) poner(CP.rejaCasa(Math.min(1.8, widthM - 0.8), 1.3, pick(['#1a1a1a', '#2b2b2b', '#3b1f1f', '#1f2f3b'])), 0.9, 0.1, lat);
+    if (!ruin && Math.random() < 0.22) { const b = poner(CP.banderaTica(0.9), 2.3, 0.12, lat); b.rotation.y = yaw + Math.PI / 2 * 0; }
+    const r = Math.random();
+    if (r < 0.12) poner(CP.grafitiPolitico(Math.floor(Math.random() * 8)), 0.8, 0.05, lat * 0.5);
+    else if (r < 0.2) poner(CP.pasquinRasgado(Math.floor(Math.random() * 4)), 0.5, 0.05, lat * 0.5);
+  }
+
   /** Techo de zinc a una agua, con alero hacia la calle, sobre la losa plana de la casa. */
-  _afterHouse(shell, { sx, sz, h, dx, dz, alongX, yaw, ruin }) {
+  _afterHouse(shell, { sx, sz, h, dx, dz, alongX, yaw, ruin, face, fx, fz, cx, cz, widthM }) {
+    this._detallesDeFachada(shell, { dx, dz, yaw, ruin, face, fx, fz, cx, cz, widthM });
     if (ruin) return;
     this._zincMats ??= [['#a3a8ab', 31], ['#9298a0', 32], ['#8a9a9a', 33], ['#a85a42', 34], ['#b9bcbe', 35], ['#7d8a7a', 36]].map(([c, seed]) => new THREE.MeshStandardMaterial({ map: TX.zinc(seed, c).map, roughness: 0.55, metalness: 0.25 }));
     const span = alongX ? sx : sz, depth = alongX ? sz : sx;
@@ -431,6 +453,44 @@ export class Carpio extends Bogota {
       }
     };
     tryPlace(['sidewalk'], (x, z) => this._put(BP.trashPile(3 + Math.floor(Math.random() * 4)), x, z, rand(0, 3)), 90);
+    // En la acera, mirando a la calle: paradas, teléfonos públicos, banderas, vallas, avisos y el pleito de los bandos.
+    // Candidatos: acera junto a la calle y sin ningún edificio a 2 tiles (así nada se mete en una pared).
+    const candidatos = [];
+    for (let z = 3; z < CARPIO_H - 3; z++) for (let x = 3; x < CARPIO_W - 3; x++) {
+      if (map[z][x] !== 'sidewalk' || this.isNearArea(x, z)) continue;
+      const dir = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([a, b]) => map[z + b]?.[x + a] === 'road');
+      if (!dir) continue;
+      let libre = true;
+      for (let b = -2; b <= 2 && libre; b++) for (let a = -2; a <= 2; a++) if (map[z + b]?.[x + a] === 'building') { libre = false; break; }
+      if (libre) candidatos.push([x, z, Math.atan2(dir[0], dir[1])]);
+    }
+    for (let i = candidatos.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [candidatos[i], candidatos[j]] = [candidatos[j], candidatos[i]]; }
+    const usados = [];
+    this.puntosTicos = [];
+    const frente = (fn, count) => {
+      let placed = 0;
+      for (const [x, z, r] of candidatos) {
+        if (placed >= count) break;
+        if (usados.some(([ux, uz]) => Math.abs(ux - x) < 3 && Math.abs(uz - z) < 3)) continue;
+        usados.push([x, z]); this.puntosTicos.push([x, z]); fn(x, z, r); placed++;
+      }
+    };
+    frente((x, z, r) => this._put(CP.paradaBus(pick(['400', '37', '40', '12'])), x, z, r), 7);
+    frente((x, z, r) => this._put(CP.telefonoPublico(), x, z, r + Math.PI), 6);
+    frente((x, z, r) => this._put(CP.banderaTica(1), x, z, r), 14);
+    frente((x, z, r) => this._put(CP.vallaPropaganda(Math.floor(Math.random() * 4)), x, z, r + Math.PI), 6);
+    frente((x, z, r) => this._put(CP.vallaDelJefe(), x, z, r + Math.PI), 3);
+    frente((x, z, r) => this._put(CP.avisoToqueDeQueda(), x, z, r), 6);
+    frente((x, z, r) => this._put(CP.rotuloObra(), x, z, r), 4);
+    frente((x, z, r) => this._put(CP.cartelLoteria(), x, z, r), 6);
+    frente((x, z, r) => this._put(CP.ventaFruta(), x, z, r + Math.PI), 4);
+    frente((x, z, r) => this._put(CP.cordelBanderitas(6), x, z, r + Math.PI / 2), 5);
+    frente((x, z, r) => this._put(CP.grafitiPolitico(Math.floor(Math.random() * 8)), x, z, r + Math.PI), 8);
+    frente((x, z, r) => this._put(CP.pasquinRasgado(Math.floor(Math.random() * 4)), x, z, r + Math.PI), 6);
+    tryPlace(['dirt'], (x, z) => {
+      for (let b = -3; b <= 3; b++) for (let a = -3; a <= 3; a++) if (map[Math.round(z) + b]?.[Math.round(x) + a] === 'building') return;
+      this._put(CP.tendedero(3.2), x, z, rand(0, 3));
+    }, 40);
     tryPlace(['sidewalk'], (x, z) => this._put(CP.shadeTree(rand(0.8, 1.2)), x, z), 45);
     tryPlace(['grass'], (x, z) => this._put(CP.shadeTree(rand(0.8, 1.3)), x, z), 30);
     tryPlace(['grass'], (x, z) => this._put(CP.tallGrass(3, 3, 0.9), x, z), 60);

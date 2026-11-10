@@ -119,7 +119,7 @@ export function textoDeMision(built, inventory) {
   if (pieza.id !== 'base') return null;
   const [id, n] = Object.entries(pieza.req)[0];
   const falta = n - inventory.count(id);
-  return `HAY QUE JUNTAR ${falta} ${falta === 1 ? 'CARTÓN' : 'CARTONES'}. BUSQUE EN LAS BOLSAS DE BASURA DE LAS ACERAS (📦 EN EL RADAR)`;
+  return `HAY QUE JUNTAR ${falta} ${falta === 1 ? 'CARTÓN' : 'CARTONES'}. BOLSAS DE BASURA`;
 }
 
 /** Cuántas veces el valor paga el Dealer: 1,8×, o 2,34× con Contactos. */

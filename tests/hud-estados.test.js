@@ -58,8 +58,8 @@ test('la tecla de contexto se parte en tecla y verbo, sin emojis ni corchetes', 
 
 test('lo que toca del cambuche sale de lo armado y de lo que hay en el costal', () => {
   const costal = (n) => ({ count: (id) => n[id] ?? 0 });
-  assert.equal(textoDeMision({}, costal({ carton: 3 })), 'HAY QUE JUNTAR 5 CARTONES. BUSQUE EN LAS BOLSAS DE BASURA DE LAS ACERAS (📦 EN EL RADAR)');
-  assert.equal(textoDeMision({}, costal({ carton: 7 })), 'HAY QUE JUNTAR 1 CARTÓN. BUSQUE EN LAS BOLSAS DE BASURA DE LAS ACERAS (📦 EN EL RADAR)');
+  assert.equal(textoDeMision({}, costal({ carton: 3 })), 'HAY QUE JUNTAR 5 CARTONES. BOLSAS DE BASURA');
+  assert.equal(textoDeMision({}, costal({ carton: 7 })), 'HAY QUE JUNTAR 1 CARTÓN. BOLSAS DE BASURA');
   assert.equal(textoDeMision({}, costal({ carton: 8 })), 'HAY QUE ARMAR EL CHANTE');
   assert.equal(textoDeMision({ base: 1 }, costal({ lona: 1 })), 'HAY QUE PONER TECHO DE LONA');
   assert.equal(textoDeMision({ base: 1 }, costal({})), null);

@@ -449,3 +449,242 @@ export function gatePillars(width, signMap) {
   }
   return g;
 }
+
+// ---------- Costa Rica en la calle: banderas, propaganda, rótulos de obra, rejas y ropa tendida ----------
+const lienzo = (w, h, pintar) => {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  pintar(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+};
+let banderaMap = null;
+/** Bandera de Costa Rica: azul, blanco, rojo (doble de ancho), blanco, azul; franjas 1-1-2-1-1. */
+export function banderaTex() {
+  return banderaMap ??= lienzo(256, 128, (x, w, h) => {
+    const u = h / 6;
+    [['#00247d', 0, 1], ['#ffffff', 1, 1], ['#ce1126', 2, 2], ['#ffffff', 4, 1], ['#00247d', 5, 1]].forEach(([c, a, n]) => { x.fillStyle = c; x.fillRect(0, a * u, w, n * u); });
+  });
+}
+/** Asta con bandera tica que sale de una pared o de un poste (origen en la base del asta). */
+export function banderaTica(escala = 1) {
+  const g = new THREE.Group();
+  box(g, 0.04, 1.6 * escala, 0.04, 0, 0.8 * escala, 0, std('#4a4a4a'));
+  const map = banderaTex();
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(0.9 * escala, 0.45 * escala),
+    map ? new THREE.MeshStandardMaterial({ map, side: THREE.DoubleSide, roughness: 0.9 }) : std('#ce1126', { side: THREE.DoubleSide }));
+  f.position.set(0.46 * escala, 1.35 * escala, 0); f.rotation.y = 0.12; f.castShadow = true; g.add(f);
+  return g;
+}
+/** Hilera de banderitas de papel en un cordel (fiestas patrias y feria del barrio). */
+export function cordelBanderitas(largo = 6) {
+  const g = new THREE.Group();
+  const cuerda = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, largo, 4), std('#3a3a3a'));
+  cuerda.rotation.z = Math.PI / 2; cuerda.position.y = 3.2; g.add(cuerda);
+  const colores = ['#00247d', '#ffffff', '#ce1126'];
+  const n = Math.floor(largo / 0.35);
+  for (let i = 0; i < n; i++) {
+    const t = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.3), std(colores[i % 3], { side: THREE.DoubleSide }));
+    t.position.set(-largo / 2 + 0.25 + i * (largo - 0.5) / n, 3.02 - Math.sin(i / n * Math.PI) * 0.0 - Math.sin(i / n * Math.PI) * 0.12 * 0, 0);
+    g.add(t);
+  }
+  return g;
+}
+const PARTIDOS = [
+  { nombre: 'NUEVO AMANECER', lema: '¡MÁS EMPLEO PARA EL BARRIO!', fondo: '#1f7a3a', letra: '#ffffff' },
+  { nombre: 'ALIANZA POPULAR', lema: 'CALLES SIN HUECOS, AGUA PARA TODOS', fondo: '#c0392b', letra: '#ffffff' },
+  { nombre: 'FRENTE CIUDADANO', lema: 'SEGURIDAD Y OPORTUNIDADES', fondo: '#1b4a8c', letra: '#ffe27a' },
+  { nombre: 'RENOVACIÓN TICA', lema: 'CON EL PUEBLO, PURA VIDA', fondo: '#f2c600', letra: '#15130f' },
+];
+/** Valla de propaganda electoral inventada: partidos y lemas ficticios. */
+export function vallaPropaganda(i = 0) {
+  const p = PARTIDOS[i % PARTIDOS.length];
+  const g = new THREE.Group();
+  const poste = std('#2a2a2a');
+  box(g, 0.1, 2.6, 0.1, -1.0, 1.3, 0, poste); box(g, 0.1, 2.6, 0.1, 1.0, 1.3, 0, poste);
+  const map = lienzo(512, 256, (x, w, h) => {
+    x.fillStyle = p.fondo; x.fillRect(0, 0, w, h);
+    x.fillStyle = p.letra; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '900 52px system-ui, sans-serif'; x.fillText(p.nombre, w / 2, 70, w * 0.9);
+    x.font = '800 30px system-ui, sans-serif'; x.fillText(p.lema, w / 2, 140, w * 0.92);
+    x.fillStyle = p.letra; x.globalAlpha = 0.25; x.beginPath(); x.arc(w / 2, 215, 28, 0, Math.PI * 2); x.fill(); x.globalAlpha = 1;
+    x.font = '700 22px system-ui, sans-serif'; x.fillText('VOTE AQUÍ · PROPAGANDA PAGADA', w / 2, 232, w * 0.8);
+  });
+  const cara = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.1),
+    map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std(p.fondo, { side: THREE.DoubleSide }));
+  cara.position.set(0, 1.9, 0); g.add(cara);
+  return g;
+}
+/** Rótulo de obra municipal sobre dos varillas. */
+export function rotuloObra() {
+  const g = new THREE.Group();
+  box(g, 0.06, 1.5, 0.06, -0.55, 0.75, 0, std('#555')); box(g, 0.06, 1.5, 0.06, 0.55, 0.75, 0, std('#555'));
+  const map = lienzo(512, 256, (x, w, h) => {
+    x.fillStyle = '#f26a1b'; x.fillRect(0, 0, w, h);
+    x.fillStyle = '#15130f'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '900 46px system-ui, sans-serif'; x.fillText('OBRA EN EJECUCIÓN', w / 2, 60, w * 0.92);
+    x.font = '800 28px system-ui, sans-serif'; x.fillText('Mejoramiento de aceras y alcantarillado', w / 2, 125, w * 0.94);
+    x.font = '700 24px system-ui, sans-serif'; x.fillText('Municipalidad de San José', w / 2, 175, w * 0.9);
+    x.fillText('Disculpe las molestias', w / 2, 215, w * 0.9);
+  });
+  const t = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.7), map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std('#f26a1b', { side: THREE.DoubleSide }));
+  t.position.set(0, 1.2, 0); g.add(t);
+  return g;
+}
+/** Cartel de lotería y chances pegado a una tabla: se ve en cada esquina de San José. */
+export function cartelLoteria() {
+  const g = new THREE.Group();
+  box(g, 0.06, 1.8, 0.06, 0, 0.9, 0, std('#555'));
+  const map = lienzo(256, 256, (x, w, h) => {
+    x.fillStyle = '#ffd21f'; x.fillRect(0, 0, w, h);
+    x.fillStyle = '#ce1126'; x.fillRect(0, 0, w, 54);
+    x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '900 38px system-ui, sans-serif'; x.fillText('CHANCES', w / 2, 28);
+    x.fillStyle = '#15130f'; x.font = '900 44px system-ui, sans-serif'; x.fillText('¡HOY SÍ!', w / 2, 110);
+    x.font = '800 28px system-ui, sans-serif'; x.fillText('Lotería Nacional', w / 2, 165); x.fillText('Tiempos · 3 Monazos', w / 2, 205);
+  });
+  const t = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std('#ffd21f', { side: THREE.DoubleSide }));
+  t.position.set(0, 1.5, 0.05); g.add(t);
+  return g;
+}
+/** Reja de hierro de ventana/portón (todas las casas ticas tienen una). Origen al centro-abajo, mira a +z. */
+export function rejaCasa(w = 1.6, h = 1.3, color = '#1a1a1a') {
+  const g = new THREE.Group();
+  const m = std(color);
+  box(g, w, 0.05, 0.05, 0, 0.02, 0, m); box(g, w, 0.05, 0.05, 0, h, 0, m);
+  box(g, 0.05, h, 0.05, -w / 2, h / 2, 0, m); box(g, 0.05, h, 0.05, w / 2, h / 2, 0, m);
+  for (let x = -w / 2 + 0.2; x < w / 2 - 0.05; x += 0.2) box(g, 0.025, h, 0.025, x, h / 2, 0, m);
+  box(g, w, 0.025, 0.025, 0, h / 2, 0, m);
+  return g;
+}
+/** Tendedero con ropa de colores entre dos postes. */
+export function tendedero(largo = 3.2) {
+  const g = new THREE.Group();
+  for (const s of [-1, 1]) box(g, 0.05, 2.2, 0.05, s * largo / 2, 1.1, 0, std('#6a5a48'));
+  const cuerda = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, largo, 4), std('#999'));
+  cuerda.rotation.z = Math.PI / 2; cuerda.position.y = 2.1; g.add(cuerda);
+  const col = ['#ce1126', '#ffffff', '#1b4a8c', '#f2c600', '#2e8b57', '#e89aa8'];
+  const n = Math.floor(largo / 0.45);
+  for (let i = 0; i < n; i++) {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.5 + (i % 3) * 0.12), std(col[i % col.length], { side: THREE.DoubleSide }));
+    p.position.set(-largo / 2 + 0.3 + i * (largo - 0.6) / n, 1.82 - (i % 3) * 0.04, 0); p.rotation.y = (i % 2 ? 0.15 : -0.1); g.add(p);
+  }
+  return g;
+}
+/** Venta de frutas sobre una mesita con toldo (fresco de pipa, mangos). */
+export function ventaFruta() {
+  const g = new THREE.Group();
+  box(g, 1.6, 0.06, 0.8, 0, 0.8, 0, std('#8a5a2e'));
+  for (const sx of [-0.7, 0.7]) for (const sz of [-0.35, 0.35]) box(g, 0.05, 0.8, 0.05, sx, 0.4, sz, std('#6a4a2a'));
+  const toldo = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.04, 1.2), std('#f2c600'));
+  toldo.position.set(0, 2.1, 0); toldo.rotation.x = 0.12; g.add(toldo);
+  for (const sx of [-0.9, 0.9]) box(g, 0.04, 2.1, 0.04, sx, 1.05, -0.5, std('#555'));
+  const f = ['#f2a900', '#d33a2c', '#6fb43a', '#f2c600'];
+  for (let i = 0; i < 12; i++) {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), std(f[i % 4]));
+    s.position.set(-0.6 + (i % 6) * 0.24, 0.9, -0.15 + Math.floor(i / 6) * 0.3); g.add(s);
+  }
+  return g;
+}
+
+// ---------- Tensión política inventada: un "Jefe" ficticio, un barrio dividido (solo ambiente, no cambia el juego) ----------
+const BANDO_JEFE = ['EL JEFE SÍ CUMPLE', 'CON EL JEFE HASTA EL FINAL', 'LOS DEL JEFE MANDAMOS', 'ORDEN Y MANO DURA'];
+const BANDO_CONTRA = ['ABAJO EL JEFE', 'NO MÁS MANDONES', 'EL PUEBLO NO CALLA', 'LIBERTAD YA', 'FUERA EL DICTADOR'];
+/** Grafiti sobre pared: spray apurado, a veces tachado por el otro bando. */
+export function grafitiPolitico(i = 0) {
+  const g = new THREE.Group();
+  const contra = i % 2 === 1, lista = contra ? BANDO_CONTRA : BANDO_JEFE;
+  const texto = lista[Math.floor(i / 2) % lista.length];
+  const map = lienzo(512, 128, (x, w, h) => {
+    x.clearRect(0, 0, w, h);
+    x.fillStyle = contra ? '#e8e2d0' : '#c9232b'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '900 54px "Arial Black", sans-serif'; x.save(); x.translate(w / 2, h / 2); x.rotate(contra ? -0.04 : 0.03);
+    x.fillText(texto, 0, 0, w * 0.94);
+    if (i % 3 === 0) { x.strokeStyle = contra ? '#c9232b' : '#15130f'; x.lineWidth = 9; x.beginPath(); x.moveTo(-w * 0.45, -22); x.lineTo(w * 0.45, 24); x.stroke(); } // lo tachó el otro bando
+    x.restore();
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.55), map ? new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false }) : std('#c9232b', { transparent: true }));
+  m.position.set(0, 1.5, 0.03); g.add(m);
+  return g;
+}
+/** Pasquín pegado y rasgado: un rostro tachado sin nombre y un aviso. */
+export function pasquinRasgado(i = 0) {
+  const g = new THREE.Group();
+  const map = lienzo(256, 320, (x, w, h) => {
+    x.fillStyle = i % 2 ? '#e8dfc4' : '#d9d3c0'; x.fillRect(0, 0, w, h);
+    x.fillStyle = '#2a2a2a'; x.beginPath(); x.arc(w / 2, 110, 56, 0, Math.PI * 2); x.fill(); // silueta sin rostro
+    x.fillRect(w / 2 - 70, 165, 140, 60);
+    x.fillStyle = '#ce1126'; x.font = '900 34px system-ui, sans-serif'; x.textAlign = 'center';
+    x.fillText(i % 2 ? 'SE BUSCA' : 'EL JEFE', w / 2, 262); x.fillStyle = '#15130f'; x.font = '800 22px system-ui, sans-serif';
+    x.fillText(i % 2 ? 'por hablar de más' : 'manda y protege', w / 2, 298);
+    x.strokeStyle = '#ce1126'; x.lineWidth = 12; x.beginPath(); x.moveTo(20, 40); x.lineTo(w - 20, 200); x.stroke();
+    x.fillStyle = 'rgba(0,0,0,.35)'; x.beginPath(); x.moveTo(w, 0); x.lineTo(w - 60, 0); x.lineTo(w, 70); x.fill(); // esquina arrancada
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.75), map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std('#d9d3c0'));
+  m.position.set(0, 1.5, 0.03); m.rotation.z = (i % 3 - 1) * 0.05; g.add(m);
+  return g;
+}
+/** Aviso de toque de queda en un poste: lo que uno lee y se le seca la boca. */
+export function avisoToqueDeQueda() {
+  const g = new THREE.Group();
+  box(g, 0.06, 2.0, 0.06, 0, 1.0, 0, std('#444'));
+  const map = lienzo(256, 320, (x, w, h) => {
+    x.fillStyle = '#15130f'; x.fillRect(0, 0, w, h); x.fillStyle = '#ce1126'; x.fillRect(0, 0, w, 60);
+    x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '900 34px system-ui, sans-serif'; x.fillText('AVISO', w / 2, 32);
+    x.fillStyle = '#f2f2e8'; x.font = '900 40px system-ui, sans-serif'; x.fillText('TOQUE DE', w / 2, 120); x.fillText('QUEDA', w / 2, 168);
+    x.font = '800 26px system-ui, sans-serif'; x.fillText('10 PM – 4 AM', w / 2, 220); x.fillStyle = '#ce1126'; x.fillText('POR ORDEN DEL JEFE', w / 2, 270, w * 0.92);
+  });
+  const t = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.69), map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std('#15130f'));
+  t.position.set(0, 1.55, 0.05); g.add(t);
+  return g;
+}
+/** Valla grande del Jefe inventado, con spray encima y una esquina caída. */
+export function vallaDelJefe() {
+  const g = new THREE.Group();
+  const poste = std('#2a2a2a');
+  box(g, 0.14, 3.6, 0.14, -1.7, 1.8, 0, poste); box(g, 0.14, 3.6, 0.14, 1.7, 1.8, 0, poste);
+  const map = lienzo(512, 256, (x, w, h) => {
+    x.fillStyle = '#1b3a6b'; x.fillRect(0, 0, w, h);
+    x.fillStyle = '#0f2142'; x.beginPath(); x.arc(110, 140, 64, 0, Math.PI * 2); x.fill(); x.fillRect(50, 190, 120, 70); // silueta del Jefe, sin rostro
+    x.fillStyle = '#ffffff'; x.textAlign = 'left'; x.font = '900 54px system-ui, sans-serif'; x.fillText('EL JEFE', 220, 90);
+    x.font = '800 30px system-ui, sans-serif'; x.fillText('Un solo mando,', 220, 150); x.fillText('un solo país.', 220, 190);
+    x.strokeStyle = '#e63a2e'; x.lineWidth = 18; x.lineCap = 'round'; x.beginPath(); x.moveTo(40, 60); x.lineTo(470, 230); x.moveTo(470, 40); x.lineTo(60, 220); x.stroke(); // rayada
+    x.fillStyle = '#e8e2d0'; x.font = '900 40px "Arial Black", sans-serif'; x.fillText('MENTIRA', 230, 240);
+  });
+  const c = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.7), map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std('#1b3a6b', { side: THREE.DoubleSide }));
+  c.position.set(0, 3.0, 0); c.rotation.z = 0.0; g.add(c);
+  return g;
+}
+
+/** Parada de bus tica: techito de lámina sobre dos tubos, banca de tubo, rótulo de ruta y cartel pegado. Mira a +z. */
+export function paradaBus(ruta = '400') {
+  const g = new THREE.Group();
+  const tubo = std('#3a3f44'), lamina = std('#9aa3a8', { metalness: 0.3, roughness: 0.55 });
+  for (const sx of [-1.3, 1.3]) { box(g, 0.08, 2.5, 0.08, sx, 1.25, -0.5, tubo); box(g, 0.08, 2.3, 0.08, sx, 1.15, 0.5, tubo); }
+  const techo = box(g, 3.0, 0.07, 1.4, 0, 2.5, 0, lamina); techo.rotation.x = 0.08;
+  box(g, 2.6, 0.05, 0.4, 0, 0.5, -0.4, std('#8a6a3c')); box(g, 0.06, 0.5, 0.06, -1.1, 0.25, -0.4, tubo); box(g, 0.06, 0.5, 0.06, 1.1, 0.25, -0.4, tubo);
+  box(g, 2.6, 0.5, 0.05, 0, 0.9, -0.62, std('#8a6a3c'));
+  const map = lienzo(256, 128, (x, w, h) => {
+    x.fillStyle = '#1b4a8c'; x.fillRect(0, 0, w, h); x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '900 34px system-ui, sans-serif'; x.fillText('PARADA', w / 2, 36); x.fillStyle = '#ffd21f';
+    x.font = '900 40px system-ui, sans-serif'; x.fillText('RUTA ' + ruta, w / 2, 88);
+  });
+  const rot = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.45), map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std('#1b4a8c'));
+  rot.position.set(1.0, 1.95, 0.55); g.add(rot);
+  box(g, 0.05, 1.6, 0.05, 1.0, 1.15, 0.55, tubo);
+  return g;
+}
+/** Teléfono público de moneda y tarjeta, de los de antes: caseta de lámina azul con auricular y techito. */
+export function telefonoPublico() {
+  const g = new THREE.Group();
+  const azul = std('#1b4a8c'), gris = std('#c8ccd0');
+  box(g, 0.08, 2.3, 0.08, -0.5, 1.15, -0.3, azul); box(g, 0.08, 2.3, 0.08, 0.5, 1.15, -0.3, azul);
+  box(g, 1.1, 0.06, 0.7, 0, 2.3, -0.05, azul);
+  box(g, 1.0, 1.8, 0.04, 0, 1.3, -0.32, gris);
+  box(g, 0.5, 0.7, 0.18, 0, 1.25, -0.2, std('#2a2e33'));
+  box(g, 0.34, 0.06, 0.1, 0, 1.55, -0.08, std('#15130f'));
+  box(g, 0.08, 0.3, 0.06, -0.18, 1.35, -0.08, std('#15130f'));
+  const map = lienzo(128, 64, (x, w, h) => { x.fillStyle = '#ffffff'; x.fillRect(0, 0, w, h); x.fillStyle = '#1b4a8c'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '900 30px system-ui, sans-serif'; x.fillText('TELÉFONO', w / 2, 24); x.fillStyle = '#ce1126'; x.fillText('PÚBLICO', w / 2, 50); });
+  const r = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.4), map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std('#fff'));
+  r.position.set(0, 2.0, -0.31); g.add(r);
+  return g;
+}

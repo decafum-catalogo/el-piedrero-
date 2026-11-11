@@ -7,9 +7,9 @@
 
 :root {
   /* Seis colores. */
-  --carton: #A3C1D0;        /* toda pieza de información */
-  --carton-mojado: #86A9BB; /* la misma pieza bajo la lluvia */
-  --canto: #1E3340;         /* el grueso del cartón, en lugar de sombra */
+  --carton: #A9C79A;        /* toda pieza de información */
+  --carton-mojado: #8DB07F; /* la misma pieza bajo la lluvia */
+  --canto: #243D22;         /* el grueso del cartón, en lugar de sombra */
   --marcador: #14110C;      /* toda letra y trazo sobre cartón */
   --cinta: #E9DBB4;         /* solo lo que se oprime, y la letra sobre rojo */
   --rojo: #AB1D17;          /* elegido, destino, ruta, tombos, peligro. Sobre cartón mojado, solo como placa */

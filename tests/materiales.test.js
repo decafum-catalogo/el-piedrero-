@@ -15,7 +15,7 @@ const marcas = leer('src/ui/css/marcas.css');
 const hojas = fs.readdirSync(CSS).filter((f) => f.endsWith('.css'));
 const sinComentarios = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
-const TOKENS = { carton: '#A3C1D0', 'carton-mojado': '#86A9BB', canto: '#1E3340', marcador: '#14110C', cinta: '#E9DBB4', rojo: '#AB1D17' };
+const TOKENS = { carton: '#A9C79A', 'carton-mojado': '#8DB07F', canto: '#243D22', marcador: '#14110C', cinta: '#E9DBB4', rojo: '#AB1D17' };
 
 const lineal = (c) => { const v = c / 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; };
 const luz = (hex) => {

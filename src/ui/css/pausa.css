@@ -251,7 +251,7 @@ body.mojado :is(#menu, #inv-overlay, #craft-panel, #talent-panel, #dealer-panel)
 
 /* ---------- El Piedrero: la pausa con otra cara ---------- */
 /* Fondo de caja vieja: la luz cae desde arriba y los bordes quedan quemados. */
-#menu:has(.sign--wide) { background: radial-gradient(120% 90% at 50% 0%, #16242c 0%, var(--marcador) 70%); }
+#menu:has(.sign--wide) { background: radial-gradient(120% 90% at 50% 0%, #18261a 0%, var(--marcador) 70%); }
 :where(#menu) .sign--wide::before {
   background:
     linear-gradient(180deg, rgba(255, 240, 205, .10), transparent 22%, transparent 80%, rgba(20, 17, 12, .22)),
@@ -271,3 +271,29 @@ body.mojado :is(#menu, #inv-overlay, #craft-panel, #talent-panel, #dealer-panel)
 :where(#menu) .sign--wide .menu__head { background: linear-gradient(var(--rojo), var(--rojo)) 24px calc(100% - 2px) / 84px 4px no-repeat; }
 :where(#menu) .sign--wide .menu__body { background: repeating-linear-gradient(0deg, transparent 0 31px, rgba(20, 17, 12, .06) 31px 32px); }
 @media (prefers-reduced-motion: reduce) { .pause-tab { transition: none; } }
+
+/* ---------- La pausa tica: un panel al lado, no una cortina; se ve el barrio y se sabe dónde se está ---------- */
+#menu:has(.pause-tabs) { display: block; background: linear-gradient(90deg, rgba(14, 26, 16, .5), rgba(14, 26, 16, 0) 60%); }
+#menu:has(.pause-tabs) .sign--menu.sign--wide {
+  position: absolute; left: 0; top: 0; bottom: 0; width: min(540px, 100%); height: auto; margin: 0;
+  grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-areas: "tabs" "head" "body" "foot";
+  border-right: 4px solid var(--marcador);
+}
+#menu:has(.pause-menu-body--mapa) .sign--menu.sign--wide { width: min(640px, 100%); }
+#menu:has(.pause-tabs) .sign--wide::before { grid-area: 2 / 1 / 5 / -1; }
+#menu:has(.pause-tabs) .menu__head { padding: 18px 14px 6px 18px; }
+#menu:has(.pause-tabs) .menu__title { font-size: 36px; white-space: normal; }
+#menu:has(.pause-tabs) .menu__sub { font-size: 16px; }
+#menu:has(.pause-tabs) .menu__foot { padding: 8px 14px 10px; justify-content: stretch; background: var(--m-regla) center top / 100% 5px no-repeat; }
+#menu:has(.pause-tabs) .menu__foot .btn--primary { flex: 1; }
+#menu:has(.pause-tabs) .pause-tabs { gap: 3px; }
+#menu:has(.pause-tabs) .pause-tab { padding: 6px 7px 8px; font-size: 17px; }
+.pause-menu-body:not(.pause-menu-body--mapa) { padding: 4px 14px 10px 18px; }
+/* Cinta con la bandera de Costa Rica (azul, blanco, rojo doble, blanco, azul) sobre el título. */
+#menu:has(.pause-tabs) .menu__head::before {
+  content: ''; display: block; height: 10px; margin: -12px 0 10px; border: 1.5px solid var(--marcador);
+  background: linear-gradient(180deg, #00247d 0 16.6%, #ffffff 16.6% 33.3%, #ce1126 33.3% 66.6%, #ffffff 66.6% 83.3%, #00247d 83.3% 100%);
+}
+#menu:has(.pause-tabs) .menu__title::after { content: ' ¡Pura vida!'; display: block; font-size: 15px; font-weight: 800; color: var(--rojo); margin-top: 2px; letter-spacing: .04em; }
+@media (max-width: 700px) { #menu:has(.pause-tabs) .sign--menu.sign--wide, #menu:has(.pause-menu-body--mapa) .sign--menu.sign--wide { width: 100%; } }

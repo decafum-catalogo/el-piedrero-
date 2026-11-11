@@ -5,7 +5,7 @@
 export const NEED_META = [
   { id: 'salud', glyph: 'heart', label: 'Salud', color: '#97c887' },
   { id: 'hambre', glyph: 'food', label: 'Hambre', color: '#efca52' },
-  { id: 'sed', glyph: 'droplet', label: 'Sed', color: '#82b8dc' },
+  { id: 'sed', glyph: 'beer', label: 'Sed', color: '#e3a82b' },
   { id: 'energia', glyph: 'zap', label: 'Energía', color: '#8fc3cf' },
   { id: 'higiene', glyph: 'bath', label: 'Higiene', color: '#75bfa8' },
   { id: 'animo', glyph: 'smile', label: 'Ánimo', color: '#cc9cae' },

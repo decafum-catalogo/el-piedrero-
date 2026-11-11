@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { inkStrokes, contoursToPath, l, c, rnd } from './nib.mjs';
 
 const SALIDA = process.argv[2] ?? fileURLToPath(new URL('../../src/ui/css/marcas.css', import.meta.url));
-const TINTA = '#14110C', ROJO = '#AB1D17', CINTA = '#E9DBB4', CANTO = '#1E3340'; // los mismos valores de base.css
+const TINTA = '#14110C', ROJO = '#AB1D17', CINTA = '#E9DBB4', CANTO = '#243D22'; // los mismos valores de base.css
 
 const uri = (w, h, body, extra = '') =>
   `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${w} ${h}'${extra}>${body}</svg>`).replace(/%20/g, ' ').replace(/%3D/g, '=').replace(/%3A/g, ':').replace(/%2F/g, '/').replace(/%2C/g, ',').replace(/%27/g, "'")}")`;

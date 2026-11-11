@@ -16,7 +16,7 @@ const ICONOS = {
   crown: 'brillo', eye: 'vista', idcard: 'cedula', body: 'persona', palette: 'camisa', radio: 'radio',
   'cloud-sun': 'medioNublado', 'cloud-moon': 'nube', fog: 'neblina', wind: 'viento', zap: 'rayo', droplet: 'agua',
   cigarette: 'cigarrillo', clock: 'reloj', settings: 'ajustes', keyboard: 'teclado', chart: 'barras', dog: 'perro',
-  info: 'ayuda',
+  info: 'ayuda', beer: 'cerveza',
 };
 
 /** Vale el nombre de un icono o el de un dibujo directamente. */

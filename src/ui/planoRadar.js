@@ -3,7 +3,7 @@
 // el radar solo pinta el cartón, el plano horneado, una línea de ruta, los dibujos y la flecha. Lo mismo sirve para el
 // mapa grande: trazarPlano recibe un contexto ya en metros.
 
-export const CARTON = '#A3C1D0', CARTON_MOJADO = '#86A9BB', MARCADOR = '#14110C', CINTA = '#E9DBB4', ROJO = '#AB1D17';
+export const CARTON = '#A9C79A', CARTON_MOJADO = '#8DB07F', MARCADOR = '#14110C', CINTA = '#E9DBB4', ROJO = '#AB1D17';
 
 const SIN_LLENAR = new Set(['road', 'busway', 'sidewalk', 'floor', 'plaza', 'dirt', 'grass', 'water']);
 const esManzana = (tipo) => !!tipo && !SIN_LLENAR.has(tipo);

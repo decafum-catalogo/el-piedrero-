@@ -85,6 +85,19 @@ export class Carpio extends Bogota {
     return water;
   }
 
+  /** Quita el brillo de plástico: todo lo que no es metal de verdad queda mate y casi sin reflejo de cielo. */
+  _apagarBrillo() {
+    const vistos = new Set();
+    this.group.traverse((o) => {
+      for (const m of [].concat(o.material ?? [])) {
+        if (!m || vistos.has(m) || !('roughness' in m)) continue;
+        vistos.add(m);
+        if (m.transparent && m.opacity < 0.9) continue; // vidrios y cristales
+        if ((m.metalness ?? 0) < 0.6) { m.roughness = Math.max(m.roughness, 0.88); m.envMapIntensity = 0.45; }
+      }
+    });
+  }
+
   /** Lo que se ve en toda casa de aquí: reja, bandera, grafiti y pasquines del pleito entre bandos. */
   _detallesDeFachada(shell, { dx, dz, yaw, ruin, face, fx, fz, cx, cz, widthM }) {
     const pared = shell.walls?.get(face);
@@ -147,7 +160,7 @@ export class Carpio extends Bogota {
     this.vendors = [];
     this._buildGround(map);
     const gm = this.groundMaterials;
-    gm.grass.map = null; gm.grass.color.set('#6f9f3d'); gm.dirt.color.set('#a08a6a'); gm.road.color.set('#cfcfcf');
+    gm.grass.map = null; gm.grass.color.set('#7b9448'); gm.dirt.color.set('#9a8566'); gm.water?.color?.set('#5b7f78'); if (gm.water) { gm.water.roughness = 0.5; gm.water.opacity = Math.max(gm.water.opacity ?? 1, 0.92); } gm.road.color.set('#c4c4c0');
     this._buildMarkings();
     this._buildBlocks(map);
     this._buildCollisions(map, collisions);
@@ -161,6 +174,7 @@ export class Carpio extends Bogota {
     this.group.add(cer);
 
     this._mergeStatic();
+    this._apagarBrillo();
     this.group.add(this.buildingVisibility.buildClosedView());
     this._buildPatrolCars();
     scene.add(this.group);

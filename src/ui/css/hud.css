@@ -514,3 +514,13 @@ body.mando kbd:not([data-k], .cx kbd, #steal-ayuda kbd) { display: none; }
   .stat-bar__value { grid-column: 3; }
   .stat-bar[data-level="critical"] .stat-bar__orden { grid-column: 2; }
 }
+
+/* ---------- Menos plástico: grano de película y viñeta suave sobre el mundo (nada de esto toca la interfaz) ---------- */
+body::after {
+  content: ''; position: fixed; inset: 0; z-index: 2; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 45%, transparent 58%, rgba(20, 28, 12, .28) 100%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+  mix-blend-mode: multiply; opacity: .55;
+}
+@media (prefers-reduced-motion: reduce) { body::after { opacity: .4; } }

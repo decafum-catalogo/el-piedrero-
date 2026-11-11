@@ -449,7 +449,7 @@ export class SceneManager {
 
     // Relleno difuso en espacio lineal: conserva detalle en ropa y andenes durante la noche.
     // De día despejado baja mucho: si no, las sombras no se ven y todo queda plano.
-    const dayFill = THREE.MathUtils.lerp(1.35 + .25 * cloud, 1.26, clear);
+    const dayFill = THREE.MathUtils.lerp(1.35 + .25 * cloud, 1.08, clear);
     sunFieldUniforms.uSunLitFloor.value = (1 - sunLit) * .6;
     sunFieldUniforms.uSunSkyFloor.value = THREE.MathUtils.lerp(.62, .4, day);
     this.ambient.intensity = (THREE.MathUtils.lerp(1.3, dayFill, day) + twilight * .34)

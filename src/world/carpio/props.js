@@ -68,15 +68,22 @@ export function orangeFence(length) {
 /** Matas de zacate alto: planos cruzados. */
 export function tallGrass(w, d, density = 0.9) {
   const g = new THREE.Group();
-  const greens = ['#4f8a2e', '#5f9a34', '#3f7524', '#6aa63a', '#7bb446'];
+  const greens = ['#4f7f2e', '#5f8f34', '#3f6b24', '#6f9a3a', '#86a84a', '#a8a65a'];
   const count = Math.round(w * d * density);
+  const hoja = new THREE.BufferGeometry(); // hoja afilada: base ancha y punta fina, no un cono
+  hoja.setAttribute('position', new THREE.Float32BufferAttribute([-0.035, 0, 0, 0.035, 0, 0, 0, 1, 0], 3));
+  hoja.computeVertexNormals();
   for (let i = 0; i < count; i++) {
     const x = (Math.random() - 0.5) * w, z = (Math.random() - 0.5) * d;
-    const h = 1.1 + Math.random() * 1.1;
-    const blade = new THREE.Mesh(new THREE.ConeGeometry(0.28 + Math.random() * 0.2, h, 5), std(greens[i % greens.length], { roughness: 1 }));
-    blade.position.set(x, h / 2, z);
-    blade.rotation.set((Math.random() - 0.5) * 0.25, Math.random() * 3, (Math.random() - 0.5) * 0.25);
-    g.add(blade);
+    const h = 0.45 + Math.random() * 0.75, mat = std(greens[i % greens.length], { roughness: 1, side: THREE.DoubleSide });
+    for (let k = 0; k < 5; k++) {
+      const hh = h * (0.6 + Math.random() * 0.5), a = Math.random() * Math.PI * 2, abre = 0.1 + Math.random() * 0.5;
+      const blade = new THREE.Mesh(hoja, mat);
+      blade.scale.set(1, hh, 1);
+      blade.position.set(x + Math.cos(a) * 0.07, 0, z + Math.sin(a) * 0.07);
+      blade.rotation.set(Math.sin(a) * abre, Math.random() * Math.PI, -Math.cos(a) * abre, 'YXZ');
+      g.add(blade);
+    }
   }
   return g;
 }
@@ -379,12 +386,22 @@ export function palm(scale = 1) {
 /** Árbol mediano de sombra, más bajo que el grande. */
 export function shadeTree(scale = 1) {
   const g = new THREE.Group();
-  cyl(g, 0.28 * scale, 2.8 * scale, 0, 1.4 * scale, 0, std('#5a4632'), 7);
-  const leaf = ['#2f5a24', '#3a6b2c', '#44782f'];
-  for (let i = 0; i < 6; i++) {
-    const m = new THREE.Mesh(new THREE.IcosahedronGeometry((1.2 + Math.random() * 0.6) * scale, 1), std(leaf[i % 3], { roughness: 1, flatShading: true }));
-    m.position.set((Math.random() - 0.5) * 2.4 * scale, (3.2 + Math.random() * 1.2) * scale, (Math.random() - 0.5) * 2.4 * scale); m.castShadow = true; g.add(m);
+  const tronco = std('#5a4632', { roughness: 1 });
+  cyl(g, 0.3 * scale, 2.6 * scale, 0, 1.3 * scale, 0, tronco, 8);
+  for (const [ax, az] of [[0.5, 0.2], [-0.45, -0.3], [0.1, -0.55]]) { // ramas gruesas que abren la copa
+    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * scale, 0.12 * scale, 1.4 * scale, 6), tronco);
+    r.position.set(ax * scale, 2.9 * scale, az * scale); r.rotation.set(az * 1.1, 0, -ax * 1.1); r.castShadow = true; g.add(r);
   }
+  const hoja = ['#2c5a22', '#376a2a', '#44782f', '#58883a', '#2f6030'];
+  for (let i = 0; i < 9; i++) {
+    const ang = i / 9 * Math.PI * 2 + Math.random() * 0.5, rad = (0.6 + Math.random() * 1.1) * scale;
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry((0.9 + Math.random() * 0.7) * scale, 1), std(hoja[i % 5], { roughness: 1 }));
+    m.scale.set(1, 0.72 + Math.random() * 0.2, 1);
+    m.position.set(Math.cos(ang) * rad, (3.3 + Math.random() * 1.3) * scale, Math.sin(ang) * rad);
+    m.castShadow = true; g.add(m);
+  }
+  const arriba = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1 * scale, 1), std('#5f9040', { roughness: 1 }));
+  arriba.scale.set(1, 0.7, 1); arriba.position.set(0, 4.5 * scale, 0); arriba.castShadow = true; g.add(arriba);
   return g;
 }
 
@@ -790,5 +807,24 @@ export function loteroPuesto() {
   const sombr = new THREE.Mesh(new THREE.ConeGeometry(1.0, 0.35, 12), std('#ce1126')); sombr.position.set(0, 2.3, 0); g.add(sombr);
   box(g, 0.04, 1.5, 0.04, 0, 1.55, -0.28, std('#555'));
   for (let i = 0; i < 8; i++) box(g, 0.1, 0.14, 0.01, -0.35 + i * 0.1, 1.0, 0.05, std(['#f2c600', '#ffffff', '#2e8b57', '#ce1126'][i % 4]));
+  return g;
+}
+
+/** Tanque de agua negro sobre el techo, con su base: en La Carpio el agua no siempre llega, así que casi toda casa tiene uno. */
+export function tanqueAgua() {
+  const g = new THREE.Group();
+  box(g, 0.9, 0.12, 0.9, 0, 0.06, 0, std('#6a6a6a'));
+  const c = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.42, 0.95, 14), std('#1d2024', { roughness: 0.75 })); c.position.y = 0.6; g.add(c);
+  const t = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.38, 0.14, 14), std('#1d2024')); t.position.y = 1.14; g.add(t);
+  const tapa = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 10), std('#2d6fb5')); tapa.position.y = 1.23; g.add(tapa);
+  return g;
+}
+/** Antena parabólica de la tele por cable. */
+export function parabolica() {
+  const g = new THREE.Group();
+  box(g, 0.05, 0.5, 0.05, 0, 0.25, 0, std('#8a8f93'));
+  const d = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2.6), std('#d9dcdc', { side: THREE.DoubleSide }));
+  d.position.set(0, 0.62, 0); d.rotation.x = Math.PI / 2.4; g.add(d);
+  box(g, 0.03, 0.03, 0.34, 0, 0.7, 0.22, std('#555'));
   return g;
 }

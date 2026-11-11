@@ -85,6 +85,22 @@ export class Carpio extends Bogota {
     return water;
   }
 
+  /** Textura de ruido suave (parches claros y oscuros, motas) que rompe el color plano del zacate. */
+  _texturaRuido() {
+    if (typeof document === 'undefined') return null;
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const x = c.getContext('2d');
+    x.fillStyle = '#c9c9c9'; x.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 520; i++) {
+      const v = 150 + Math.floor(Math.random() * 105);
+      x.fillStyle = `rgba(${v},${v},${Math.max(90, v - 40)},${0.18 + Math.random() * 0.25})`;
+      const r = 1 + Math.random() * 5; x.beginPath(); x.arc(Math.random() * 128, Math.random() * 128, r, 0, 7); x.fill();
+    }
+    for (let i = 0; i < 260; i++) { x.strokeStyle = `rgba(70,90,40,${0.15 + Math.random() * 0.2})`; x.lineWidth = 1; const px = Math.random() * 128, py = Math.random() * 128; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (Math.random() - 0.5) * 4, py - 3 - Math.random() * 5); x.stroke(); }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    return t;
+  }
+
   /** Quita el brillo de plástico: todo lo que no es metal de verdad queda mate y casi sin reflejo de cielo. */
   _apagarBrillo() {
     const vistos = new Set();
@@ -130,6 +146,10 @@ export class Carpio extends Bogota {
     slab.castShadow = slab.receiveShadow = true;
     g.add(slab);
     shell.roof.add(g);
+    // Sobre el techo: tanque de agua y parabólica, como casi todas las casas del barrio.
+    const lado = (Math.random() - 0.5) * Math.max(0, span - 1.6);
+    if (Math.random() < 0.4) { const t = CP.tanqueAgua(); t.position.set(alongX ? lado : 0, h + 0.1, alongX ? 0 : lado); shell.roof.add(t); }
+    else if (Math.random() < 0.3) { const a = CP.parabolica(); a.rotation.y = yaw + Math.random(); a.position.set(alongX ? lado : 0.3, h + 0.1, alongX ? 0.3 : lado); shell.roof.add(a); }
   }
 
   // ---------- trazado ----------
@@ -160,7 +180,7 @@ export class Carpio extends Bogota {
     this.vendors = [];
     this._buildGround(map);
     const gm = this.groundMaterials;
-    gm.grass.map = null; gm.grass.color.set('#7b9448'); gm.dirt.color.set('#9a8566'); gm.water?.color?.set('#5b7f78'); if (gm.water) { gm.water.roughness = 0.5; gm.water.opacity = Math.max(gm.water.opacity ?? 1, 0.92); } gm.road.color.set('#c4c4c0');
+    gm.grass.map = this._texturaRuido(); gm.grass.color.set('#8aa056'); gm.dirt.color.set('#9a8566'); gm.water?.color?.set('#5b7f78'); if (gm.water) { gm.water.roughness = 0.5; gm.water.opacity = Math.max(gm.water.opacity ?? 1, 0.92); } gm.road.color.set('#c4c4c0');
     this._buildMarkings();
     this._buildBlocks(map);
     this._buildCollisions(map, collisions);

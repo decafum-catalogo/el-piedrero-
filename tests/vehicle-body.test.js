@@ -175,7 +175,7 @@ import * as CP from '../src/world/carpio/props.js';
 test('los detalles ticos (banderas, propaganda ficticia, paradas, teléfonos) se arman sin romperse', () => {
   for (const f of [() => CP.banderaTica(1), () => CP.vallaPropaganda(2), () => CP.vallaDelJefe(), () => CP.grafitiPolitico(3), () => CP.pasquinRasgado(1),
     () => CP.avisoToqueDeQueda(), () => CP.rotuloObra(), () => CP.cartelLoteria(), () => CP.rejaCasa(), () => CP.tendedero(), () => CP.ventaFruta(),
-    () => CP.paradaBus('400'), () => CP.telefonoPublico(), () => CP.cordelBanderitas(6)]) {
+    () => CP.cartelMarca(3), () => CP.grutaVirgen(), () => CP.carretaTipica(), () => CP.banderaEquipo(1), () => CP.pizarraSoda(), () => CP.loteroPuesto(), () => CP.paradaBus('400'), () => CP.telefonoPublico(), () => CP.cordelBanderitas(6)]) {
     const g = f(); assert.ok(g.children.length > 0);
   }
 });

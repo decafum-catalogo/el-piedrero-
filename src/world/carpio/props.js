@@ -688,3 +688,107 @@ export function telefonoPublico() {
   r.position.set(0, 2.0, -0.31); g.add(r);
   return g;
 }
+
+// ---------- Marcas ticas reales de la vida diaria (solo el nombre en letras sencillas, sin imitar logos) ----------
+const MARCAS = [
+  { nombre: 'Musmanni', lema: 'Pan fresco todo el día', fondo: '#f4e9c8', letra: '#7a1f1f' },
+  { nombre: 'Pops', lema: 'El helado de todos', fondo: '#d6202b', letra: '#ffffff' },
+  { nombre: 'Dos Pinos', lema: 'Leche y más', fondo: '#1f5fa8', letra: '#ffffff' },
+  { nombre: 'Imperial', lema: 'La cerveza de Costa Rica', fondo: '#1f6b3a', letra: '#f2d26b' },
+  { nombre: 'Salsa Lizano', lema: 'El sabor de la casa', fondo: '#2f9d4a', letra: '#ffffff' },
+  { nombre: 'Pipasa', lema: 'Pollo fresco', fondo: '#f2b01e', letra: '#7a1f1f' },
+  { nombre: 'Más x Menos', lema: 'Siempre precios bajos', fondo: '#c8102e', letra: '#ffffff' },
+  { nombre: 'Coca-Cola', lema: 'Bien fría', fondo: '#d6202b', letra: '#ffffff' },
+  { nombre: 'Banco Nacional', lema: 'Cajero automático', fondo: '#1b4a8c', letra: '#ffffff' },
+  { nombre: 'Correos de Costa Rica', lema: 'Envíos y encomiendas', fondo: '#f2c600', letra: '#15130f' },
+];
+export const CANTIDAD_MARCAS = MARCAS.length;
+/** Cartel de marca sobre dos postes, de los que hay en cada cuadra. Mira a +z. */
+export function cartelMarca(i = 0) {
+  const m = MARCAS[i % MARCAS.length];
+  const g = new THREE.Group();
+  box(g, 0.07, 2.4, 0.07, -0.8, 1.2, 0, std('#444')); box(g, 0.07, 2.4, 0.07, 0.8, 1.2, 0, std('#444'));
+  const map = lienzo(512, 192, (x, w, h) => {
+    x.fillStyle = m.fondo; x.fillRect(0, 0, w, h);
+    x.strokeStyle = m.letra; x.lineWidth = 8; x.strokeRect(10, 10, w - 20, h - 20);
+    x.fillStyle = m.letra; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '900 62px system-ui, sans-serif'; x.fillText(m.nombre, w / 2, 76, w * 0.88);
+    x.font = '700 30px system-ui, sans-serif'; x.fillText(m.lema, w / 2, 140, w * 0.86);
+  });
+  const c = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.72), map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std(m.fondo, { side: THREE.DoubleSide }));
+  c.position.set(0, 1.9, 0); g.add(c);
+  return g;
+}
+
+// ---------- Detalles que solo se ven en Costa Rica ----------
+/** Gruta de la Virgen de los Ángeles (la Negrita): nicho de piedra con flores y velas, en cualquier esquina de barrio. */
+export function grutaVirgen() {
+  const g = new THREE.Group();
+  const piedra = std('#8d8a84');
+  box(g, 1.6, 0.4, 1.0, 0, 0.2, 0, piedra); box(g, 1.2, 1.6, 0.8, 0, 1.2, -0.05, piedra); box(g, 1.4, 0.15, 0.95, 0, 2.05, -0.05, std('#6f6c66'));
+  box(g, 0.7, 1.2, 0.2, 0, 1.3, 0.34, std('#1c2b4a')); // nicho azul
+  const manto = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.8, 8), std('#2f5fa8')); manto.position.set(0, 1.25, 0.4); g.add(manto);
+  const cara = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), std('#2a1d16')); cara.position.set(0, 1.72, 0.4); g.add(cara);
+  const corona = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.07, 0.08, 8), std('#f2c600')); corona.position.set(0, 1.84, 0.4); g.add(corona);
+  for (const sx of [-0.55, 0.55]) { box(g, 0.09, 0.22, 0.09, sx, 0.5, 0.45, std('#f4efe0')); const l = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), std('#ffb347', { emissive: '#ff8a1f', emissiveIntensity: 0.9 })); l.position.set(sx, 0.66, 0.45); g.add(l); }
+  const flores = ['#ce1126', '#f2c600', '#ffffff', '#e89aa8'];
+  for (let i = 0; i < 8; i++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), std(flores[i % 4])); f.position.set(-0.4 + i * 0.115, 0.46, 0.5); g.add(f); }
+  return g;
+}
+/** Carreta típica pintada (la de las ruedas de colores), como adorno de portón o esquina. */
+export function carretaTipica() {
+  const g = new THREE.Group();
+  const madera = std('#9a5a2a'), colores = ['#ce1126', '#f2c600', '#1b4a8c', '#2e8b57'];
+  box(g, 1.7, 0.1, 0.9, 0, 0.75, 0, madera);
+  for (const sz of [-0.45, 0.45]) { box(g, 1.7, 0.45, 0.06, 0, 1.0, sz, std('#d8662f')); }
+  box(g, 0.06, 0.45, 0.9, -0.85, 1.0, 0, std('#d8662f'));
+  for (const sz of [-0.5, 0.5]) {
+    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.07, 20), std('#8a4a1f')); r.rotation.x = Math.PI / 2; r.position.set(0.1, 0.62, sz); g.add(r);
+    for (let k = 0; k < 6; k++) {
+      const a = k / 6 * Math.PI * 2, rad = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.05), std(colores[k % 4]));
+      rad.position.set(0.1 + Math.cos(a) * 0.3, 0.62 + Math.sin(a) * 0.3, sz + (sz > 0 ? 0.05 : -0.05)); rad.rotation.z = a; g.add(rad);
+    }
+  }
+  box(g, 1.4, 0.06, 0.08, 1.4, 0.8, 0, madera); // lanza
+  return g;
+}
+const EQUIPOS = [
+  { n: 'SAPRISSA', c: ['#5b2a86', '#ffffff'] }, { n: 'LA LIGA', c: ['#d6202b', '#15130f'] },
+  { n: 'HEREDIANO', c: ['#f2c600', '#d6202b'] }, { n: 'CARTAGINÉS', c: ['#1b4a8c', '#ffffff'] },
+  { n: 'LA SELE', c: ['#d6202b', '#1b4a8c'] },
+];
+/** Bandera de equipo de fútbol colgada de un asta: el barrio se pelea por los equipos, y por la Sele se une. */
+export function banderaEquipo(i = 0) {
+  const e = EQUIPOS[i % EQUIPOS.length], g = new THREE.Group();
+  box(g, 0.04, 1.8, 0.04, 0, 0.9, 0, std('#4a4a4a'));
+  const map = lienzo(256, 160, (x, w, h) => {
+    x.fillStyle = e.c[0]; x.fillRect(0, 0, w, h); x.fillStyle = e.c[1]; x.fillRect(0, h * 0.62, w, h * 0.12);
+    x.fillStyle = e.c[1]; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '900 40px system-ui, sans-serif'; x.fillText(e.n, w / 2, h * 0.34, w * 0.9);
+  });
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.62), map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std(e.c[0], { side: THREE.DoubleSide }));
+  f.position.set(0.52, 1.45, 0); g.add(f); return g;
+}
+const PLATOS = ['Casado ₡3.500', 'Gallo pinto ₡2.000', 'Chifrijo ₡3.800', 'Arroz con pollo ₡3.200', 'Olla de carne ₡4.000', 'Fresco natural ₡900'];
+/** Pizarra de soda con el menú del día (casado, gallo pinto, chifrijo, olla de carne y fresco). */
+export function pizarraSoda() {
+  const g = new THREE.Group();
+  box(g, 0.06, 1.5, 0.06, -0.45, 0.75, 0, std('#6a4a2a')); box(g, 0.06, 1.5, 0.06, 0.45, 0.75, 0, std('#6a4a2a'));
+  const map = lienzo(256, 320, (x, w, h) => {
+    x.fillStyle = '#1f2b22'; x.fillRect(0, 0, w, h); x.strokeStyle = '#b08850'; x.lineWidth = 8; x.strokeRect(4, 4, w - 8, h - 8);
+    x.fillStyle = '#f4efe0'; x.textAlign = 'center'; x.font = '900 36px system-ui, sans-serif'; x.fillText('SODA', w / 2, 52);
+    x.font = '800 22px system-ui, sans-serif'; x.fillText('Comida casera', w / 2, 82);
+    x.textAlign = 'left'; x.font = '700 20px system-ui, sans-serif';
+    PLATOS.forEach((p, k) => x.fillText(p, 18, 125 + k * 32, w - 28));
+  });
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 1.06), map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std('#1f2b22'));
+  p.position.set(0, 1.05, 0.04); g.add(p); return g;
+}
+/** Lotero: caballete con cuadrito de lotería y chances "para hoy" y una sombrilla. */
+export function loteroPuesto() {
+  const g = new THREE.Group();
+  box(g, 0.9, 0.05, 0.6, 0, 0.9, 0, std('#d9d3c0')); for (const sx of [-0.4, 0.4]) box(g, 0.05, 0.9, 0.05, sx, 0.45, 0, std('#555'));
+  const sombr = new THREE.Mesh(new THREE.ConeGeometry(1.0, 0.35, 12), std('#ce1126')); sombr.position.set(0, 2.3, 0); g.add(sombr);
+  box(g, 0.04, 1.5, 0.04, 0, 1.55, -0.28, std('#555'));
+  for (let i = 0; i < 8; i++) box(g, 0.1, 0.14, 0.01, -0.35 + i * 0.1, 1.0, 0.05, std(['#f2c600', '#ffffff', '#2e8b57', '#ce1126'][i % 4]));
+  return g;
+}

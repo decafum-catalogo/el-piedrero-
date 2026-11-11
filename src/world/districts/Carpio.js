@@ -461,7 +461,8 @@ export class Carpio extends Bogota {
       const dir = [[1, 0], [-1, 0], [0, 1], [0, -1]].find(([a, b]) => map[z + b]?.[x + a] === 'road');
       if (!dir) continue;
       let libre = true;
-      for (let b = -2; b <= 2 && libre; b++) for (let a = -2; a <= 2; a++) if (map[z + b]?.[x + a] === 'building') { libre = false; break; }
+      for (let b = -1; b <= 1 && libre; b++) for (let a = -1; a <= 1; a++) if (map[z + b]?.[x + a] === 'building') { libre = false; break; }
+      for (let b = -1; b <= 1 && libre; b++) for (let a = -1; a <= 1; a++) if (map[z + b]?.[x + a] === 'water' || map[z + b]?.[x + a] === undefined) { libre = false; break; }
       if (libre) candidatos.push([x, z, Math.atan2(dir[0], dir[1])]);
     }
     for (let i = candidatos.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [candidatos[i], candidatos[j]] = [candidatos[j], candidatos[i]]; }
@@ -471,22 +472,28 @@ export class Carpio extends Bogota {
       let placed = 0;
       for (const [x, z, r] of candidatos) {
         if (placed >= count) break;
-        if (usados.some(([ux, uz]) => Math.abs(ux - x) < 3 && Math.abs(uz - z) < 3)) continue;
+        if (usados.some(([ux, uz]) => Math.abs(ux - x) < 2 && Math.abs(uz - z) < 2)) continue;
         usados.push([x, z]); this.puntosTicos.push([x, z]); fn(x, z, r); placed++;
       }
     };
-    frente((x, z, r) => this._put(CP.paradaBus(pick(['400', '37', '40', '12'])), x, z, r), 7);
-    frente((x, z, r) => this._put(CP.telefonoPublico(), x, z, r + Math.PI), 6);
-    frente((x, z, r) => this._put(CP.banderaTica(1), x, z, r), 14);
-    frente((x, z, r) => this._put(CP.vallaPropaganda(Math.floor(Math.random() * 4)), x, z, r + Math.PI), 6);
-    frente((x, z, r) => this._put(CP.vallaDelJefe(), x, z, r + Math.PI), 3);
-    frente((x, z, r) => this._put(CP.avisoToqueDeQueda(), x, z, r), 6);
-    frente((x, z, r) => this._put(CP.rotuloObra(), x, z, r), 4);
-    frente((x, z, r) => this._put(CP.cartelLoteria(), x, z, r), 6);
-    frente((x, z, r) => this._put(CP.ventaFruta(), x, z, r + Math.PI), 4);
-    frente((x, z, r) => this._put(CP.cordelBanderitas(6), x, z, r + Math.PI / 2), 5);
-    frente((x, z, r) => this._put(CP.grafitiPolitico(Math.floor(Math.random() * 8)), x, z, r + Math.PI), 8);
-    frente((x, z, r) => this._put(CP.pasquinRasgado(Math.floor(Math.random() * 4)), x, z, r + Math.PI), 6);
+    frente((x, z, r) => this._put(CP.paradaBus(pick(['400', '37', '40', '12'])), x, z, r), 3);
+    frente((x, z, r) => this._put(CP.telefonoPublico(), x, z, r + Math.PI), 2);
+    frente((x, z, r) => this._put(CP.banderaTica(1), x, z, r), 4);
+    frente((x, z, r) => this._put(CP.vallaPropaganda(Math.floor(Math.random() * 4)), x, z, r + Math.PI), 3);
+    frente((x, z, r) => this._put(CP.vallaDelJefe(), x, z, r + Math.PI), 2);
+    frente((x, z, r) => this._put(CP.avisoToqueDeQueda(), x, z, r), 3);
+    frente((x, z, r) => this._put(CP.rotuloObra(), x, z, r), 1);
+    for (let i = 0; i < 6; i++) frente((x, z, r) => this._put(CP.cartelMarca(i), x, z, r + Math.PI), 1);
+    frente((x, z, r) => this._put(CP.grutaVirgen(), x, z, r + Math.PI), 2);
+    frente((x, z, r) => this._put(CP.carretaTipica(), x, z, r + Math.PI / 2), 1);
+    for (let i = 0; i < 5; i++) frente((x, z, r) => this._put(CP.banderaEquipo(i), x, z, r), 1);
+    frente((x, z, r) => this._put(CP.pizarraSoda(), x, z, r + Math.PI), 2);
+    frente((x, z, r) => this._put(CP.loteroPuesto(), x, z, r + Math.PI), 2);
+    frente((x, z, r) => this._put(CP.cartelLoteria(), x, z, r), 2);
+    frente((x, z, r) => this._put(CP.ventaFruta(), x, z, r + Math.PI), 2);
+    frente((x, z, r) => this._put(CP.cordelBanderitas(6), x, z, r + Math.PI / 2), 2);
+    frente((x, z, r) => this._put(CP.grafitiPolitico(Math.floor(Math.random() * 8)), x, z, r + Math.PI), 5);
+    frente((x, z, r) => this._put(CP.pasquinRasgado(Math.floor(Math.random() * 4)), x, z, r + Math.PI), 3);
     tryPlace(['dirt'], (x, z) => {
       for (let b = -3; b <= 3; b++) for (let a = -3; a <= 3; a++) if (map[Math.round(z) + b]?.[Math.round(x) + a] === 'building') return;
       this._put(CP.tendedero(3.2), x, z, rand(0, 3));

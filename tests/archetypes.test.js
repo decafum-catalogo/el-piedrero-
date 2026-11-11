@@ -77,7 +77,8 @@ const COMMON_WORDS = uncode([
   'Z2Vm', 'dmVsZXo='
 ]);
 // La estación de servicio viene de antes de la gente y se queda como está; en ningún otro lugar vale.
-const ALLOWED = new Map([['src/world/bogota/GasStation.js', uncode(['dGV4YWNv'])]]);
+// Los rótulos de La Carpio nombran marcas ticas de la vida diaria (decisión del dueño del juego).
+const ALLOWED = new Map([['src/world/bogota/GasStation.js', uncode(['dGV4YWNv'])], ['src/world/carpio/props.js', uncode(['Y29jYS1jb2xh'])]]);
 const TEXT_FILE = /\.(?:js|mjs|css|html|json|md|txt|glsl)$/;
 const ROOT = new URL('../', import.meta.url);
 
@@ -108,7 +109,7 @@ test('ni el código, ni la documentación, ni las guías de piezas nombran una m
     'README.md', 'AGENTS.md'
   ];
   assert.ok(files.length > 200, `solo se revisaron ${files.length} archivos`);
-  for (const path of files) assert.deepEqual(brandsIn(readFileSync(new URL(path, ROOT), 'utf8'), path), [], `${path} nombra una marca`);
+  for (const path of files) assert.deepEqual(brandsIn(readFileSync(new URL(path, ROOT), "utf8"), path), [], `${path} nombra una marca: ${brandsIn(readFileSync(new URL(path, ROOT), "utf8"), path)}`);
 });
 
 test('la prueba de marcas ve plurales, acentos y mayúsculas, y no se confunde con palabras comunes', () => {

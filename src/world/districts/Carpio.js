@@ -132,7 +132,8 @@ export class Carpio extends Bogota {
 
   /** Techo de zinc a una agua, con alero hacia la calle, sobre la losa plana de la casa. */
   _afterHouse(shell, { sx, sz, h, dx, dz, alongX, yaw, ruin, face, fx, fz, cx, cz, widthM }) {
-    this._detallesDeFachada(shell, { dx, dz, yaw, ruin, face, fx, fz, cx, cz, widthM });
+    try { this._detallesDeFachada(shell, { dx, dz, yaw, ruin, face, fx, fz, cx, cz, widthM }); }
+    catch (e) { console.warn('[Carpio] detalle de fachada omitido', e); } // el adorno nunca debe tumbar la carga
     if (ruin) return;
     this._zincMats ??= [['#a3a8ab', 31], ['#9298a0', 32], ['#8a9a9a', 33], ['#a85a42', 34], ['#b9bcbe', 35], ['#7d8a7a', 36]].map(([c, seed]) => new THREE.MeshStandardMaterial({ map: TX.zinc(seed, c).map, roughness: 0.55, metalness: 0.25 }));
     const span = alongX ? sx : sz, depth = alongX ? sz : sx;
@@ -194,7 +195,7 @@ export class Carpio extends Bogota {
     this.group.add(cer);
 
     this._mergeStatic();
-    this._apagarBrillo();
+    try { this._apagarBrillo(); } catch (e) { console.warn('[Carpio] brillo no ajustado', e); }
     this.group.add(this.buildingVisibility.buildClosedView());
     this._buildPatrolCars();
     scene.add(this.group);
@@ -507,7 +508,9 @@ export class Carpio extends Bogota {
       for (const [x, z, r] of candidatos) {
         if (placed >= count) break;
         if (usados.some(([ux, uz]) => Math.abs(ux - x) < 2 && Math.abs(uz - z) < 2)) continue;
-        usados.push([x, z]); this.puntosTicos.push([x, z]); fn(x, z, r); placed++;
+        usados.push([x, z]); this.puntosTicos.push([x, z]);
+        try { fn(x, z, r); } catch (e) { console.warn('[Carpio] adorno de acera omitido', e); }
+        placed++;
       }
     };
     frente((x, z, r) => this._put(CP.paradaBus(pick(['400', '37', '40', '12'])), x, z, r), 3);

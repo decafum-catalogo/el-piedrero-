@@ -344,7 +344,7 @@ export class Renderer {
     const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
     if (!fence) throw new Error('No se pudo comprobar la preparación gráfica.');
     gl.flush();
-    const deadline = performance.now() + (globalThis.__ESPERA_GPU_MS ?? 30000); // las pruebas con GPU de software piden más tiempo
+    const deadline = performance.now() + (globalThis.__ESPERA_GPU_MS ?? 120000); // las pruebas con GPU de software piden más tiempo
     try {
       while (true) {
         const result = gl.clientWaitSync(fence, 0, 0);

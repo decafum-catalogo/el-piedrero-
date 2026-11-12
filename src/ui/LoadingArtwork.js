@@ -1,4 +1,4 @@
-import { caber, cubrir, imprimir } from './impresion.js';
+import { caber, cubrir } from './impresion.js';
 
 const TOPE_MS = 8000;
 const ULTIMA = 'elpiedrero.carga_arte';
@@ -111,10 +111,14 @@ export class LoadingArtwork {
     const reserva = this.root.querySelector('.carga__texto')?.getBoundingClientRect() ?? null;
     const techo = H > W ? reserva?.bottom : this.root.querySelector('.carga__marca')?.getBoundingClientRect().bottom;
     const planos = encuadre(W, H, { w: fondo.naturalWidth, h: fondo.naturalHeight }, { w: personaje.naturalWidth, h: personaje.naturalHeight }, techo ?? 0);
-    imprimir(ctx, W, H, [
-      { img: fondo, ...planos.fondo, pNegro: 0, pBlanco: .3, tope: .42, gamma: .7 },
-      { img: personaje, ...planos.personaje, pNegro: .12, pBlanco: .9, tope: .8, gamma: .9 },
-    ], { celda: celdaPara(W, H), reserva, blando: Math.min(W, H) * .1 });
+    // La foto original, a todo color (sin trama ni tinta verde), con una sombra suave abajo y a la izquierda para que se lea.
+    const poner = (img, c) => ctx.drawImage(img, c.x, c.y, c.w, c.h);
+    ctx.fillStyle = '#0d0d0d'; ctx.fillRect(0, 0, W, H);
+    poner(fondo, planos.fondo); poner(personaje, planos.personaje);
+    const sombra = ctx.createLinearGradient(0, H * .55, 0, H); sombra.addColorStop(0, 'rgba(0,0,0,0)'); sombra.addColorStop(1, 'rgba(0,0,0,.72)');
+    ctx.fillStyle = sombra; ctx.fillRect(0, H * .55, W, H * .45);
+    const lado = ctx.createLinearGradient(0, 0, W * .6, 0); lado.addColorStop(0, 'rgba(0,0,0,.5)'); lado.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = lado; ctx.fillRect(0, 0, W * .6, H);
     this.printed = `${W}x${H}x${dpr}`;
     this.printMs = performance.now() - t0;
     if (!canvas.isConnected) this.root.prepend(canvas);

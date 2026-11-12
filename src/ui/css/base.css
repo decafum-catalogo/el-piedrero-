@@ -5,6 +5,12 @@
 @font-face { font-family: 'Dios Le Pague'; src: url('../fuentes/dios-le-pague-grueso.woff') format('woff'); font-weight: 800; font-display: block; }
 @font-face { font-family: 'Dios Le Pague'; src: url('../fuentes/dios-le-pague-fino.woff') format('woff'); font-weight: 400; font-display: block; }
 
+/* ---------- la letra de pantalla, estilo de calle: títulos gruesos y cuadrados, texto condensado y firme ---------- */
+@font-face { font-family: 'Texto SA'; src: url('../tipos/texto-sa-600.woff') format('woff'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'Texto SA'; src: url('../tipos/texto-sa-800.woff') format('woff'); font-weight: 800; font-display: block; }
+@font-face { font-family: 'Rotulo SA'; src: url('../tipos/rotulo-sa-700.woff') format('woff'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'Rotulo SA'; src: url('../tipos/rotulo-sa-900.woff') format('woff'); font-weight: 800; font-display: block; }
+
 :root {
   /* Seis colores. */
   --carton: #A9C79A;        /* toda pieza de información */
@@ -17,7 +23,10 @@
   --cara: var(--carton);    /* la cara de cada pieza: la lluvia solo cambia esto */
   --flauta: repeating-linear-gradient(90deg, rgba(20, 17, 12, .035) 0 2px, rgba(255, 240, 205, .03) 2px 4px, transparent 4px 11px);
 
-  --letra: 'Dios Le Pague', sans-serif;
+  --letra: 'Texto SA', 'Dios Le Pague', sans-serif; /* lo que no tenga la nueva (₡, dibujos) cae a la de siempre */
+  --letra-rotulo: 'Rotulo SA', 'Texto SA', 'Dios Le Pague', sans-serif;
+  --letra-dibujo: 'Dios Le Pague', sans-serif;
+  --noche-carga: #0d0d0d; --crema-carga: #f4edd4; /* pantalla de carga: foto a todo color, letras crema */
   --letra-menu: 14px;   /* lo mínimo en menús */
   --letra-juego: 16px;  /* lo mínimo en juego, Grueso o Fino */
   --letra-cifra: 20px;  /* lo mínimo para una cifra */
@@ -34,7 +43,7 @@ button, input, select, textarea { font-family: inherit; }
 .grueso { font-weight: 800; }
 .fino { font-weight: 400; }
 .cifra { font-weight: 800; font-size: max(var(--letra-cifra), 1em); }
-.picto { display: inline-block; font-family: var(--letra); font-size: var(--picto, 1em); font-weight: 400; font-style: normal; line-height: 1; }
+.picto { display: inline-block; font-family: var(--letra-dibujo); font-size: var(--picto, 1em); font-weight: 400; font-style: normal; line-height: 1; }
 .picto::before { content: attr(data-dibujo); }
 
 /* ---------- la pieza de cartón ----------
@@ -141,3 +150,9 @@ body.is-loading #app { visibility: hidden; }
 :where(.menu, .creator) button { font: inherit; color: inherit; cursor: pointer; }
 button, a, input, select { -webkit-tap-highlight-color: transparent; }
 button { touch-action: manipulation; }
+
+/* Títulos y cifras grandes con la letra gruesa, con el contorno negro de los rótulos de videojuego. */
+.menu__title, .creator__titulo, #money, #loading-status, .topbar__hoja #money, .cinta--verbo, h1, h2 {
+  font-family: var(--letra-rotulo); font-weight: 800; letter-spacing: .02em;
+}
+.menu__title, .creator__titulo { text-transform: uppercase; }

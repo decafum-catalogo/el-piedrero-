@@ -6,14 +6,14 @@ body.is-loading #creator-modal { visibility: visible; }
   position: fixed; inset: 0; z-index: 20000; overflow: hidden; isolation: isolate;
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; justify-items: start; gap: 12px;
   padding: max(20px, env(safe-area-inset-top)) max(28px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(28px, env(safe-area-inset-left));
-  background: var(--flauta), var(--carton); color: var(--marcador);
+  background: var(--noche-carga); color: var(--crema-carga);
 }
 .carga__arte { position: absolute; inset: 0; z-index: -1; pointer-events: none; animation: carga-sale .3s ease-out both; }
 @keyframes carga-sale { from { opacity: 0; } }
 .carga__marca { width: 100%; }
 .carga__marca svg { display: block; width: 100%; height: auto; overflow: visible; }
 /* Más grueso que cualquier punta: lo que se ve es la tinta que recorta cada trazo. */
-.carga__lomo { fill: none; stroke: var(--marcador); stroke-width: 210; stroke-linecap: round; stroke-linejoin: round; transition: stroke-dasharray .45s ease-out; }
+.carga__lomo { fill: none; stroke: var(--crema-carga); stroke-width: 210; stroke-linecap: round; stroke-linejoin: round; transition: stroke-dasharray .45s ease-out; }
 .carga__texto { grid-row: 3; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; max-width: min(620px, 100%); }
 #loading-status { font-weight: 800; font-size: var(--letra-retazo); line-height: 1; }
 .has-loading-error #loading-status { font-size: var(--letra-titulo); line-height: 1.1; }

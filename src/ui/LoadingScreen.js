@@ -85,6 +85,7 @@ export class LoadingScreen {
 
   error(error) {
     this.failed = true;
+    this.value = TOTAL; this._write(); // que la palabra no se quede cortada ('PIEDRERC')
     this.root.classList.add('has-loading-error');
     this.artwork.stop();
     console.error('[Inicio]', error);

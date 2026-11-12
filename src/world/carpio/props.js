@@ -840,25 +840,35 @@ const haloMaterial = () => {
     const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.3, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     x.fillStyle = gr; x.fillRect(0, 0, 64, 64); haloMap = new THREE.CanvasTexture(c);
   }
-  haloMat = new THREE.PointsMaterial({ size: 0.9, map: haloMap, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
+  haloMat = new THREE.PointsMaterial({ size: 1.15, map: haloMap, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
   registerNightGlowExtra(haloMat, 0.85); // de día no se ven; de noche cada bombilla tiene su resplandor
   return haloMat;
 };
+/** ¿Este material es el del resplandor de las luces? (para fundir todos los resplandores en un solo dibujo) */
+let nucleoMat = null;
+const nucleoMaterial = () => nucleoMat ??= new THREE.PointsMaterial({ size: 0.1, vertexColors: true, sizeAttenuation: true, depthWrite: false });
+export const esHalo = (m) => !!m && (m === haloMat || m === nucleoMat);
+export const materialHalo = () => haloMaterial();
+export const materialNucleo = () => nucleoMaterial();
+const lucesPuntos = (pos, cols) => {
+  const g = new THREE.Group();
+  for (const mat of [nucleoMaterial(), haloMaterial()]) {
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+    g.add(new THREE.Points(geo, mat));
+  }
+  return g;
+};
 export function lucesNavidad(largo = 5) {
   const g = new THREE.Group();
-  const cuerda = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, largo, 4), std('#1f1f1f'));
+  const cuerda = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, largo, 3), std('#1f1f1f'));
   cuerda.rotation.z = Math.PI / 2; g.add(cuerda);
   const col = ['#ff3b30', '#ffd60a', '#34c759', '#0a84ff', '#ff9f0a', '#ffffff'];
-  const n = Math.floor(largo / 0.3);
+  const n = Math.floor(largo / 0.3), pos = [], cols = [], tmp = new THREE.Color();
   for (let i = 0; i < n; i++) {
-    const c = col[i % col.length];
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), std(c, { emissive: c, emissiveIntensity: 1.1, roughness: 0.4 }));
-    b.position.set(-largo / 2 + 0.15 + i * (largo - 0.3) / n, -Math.sin(i / n * Math.PI) * 0.14 - 0.04, 0); g.add(b);
+    tmp.set(col[i % col.length]);
+    pos.push(-largo / 2 + 0.15 + i * (largo - 0.3) / n, -Math.sin(i / n * Math.PI) * 0.14 - 0.04, 0.0); cols.push(tmp.r, tmp.g, tmp.b);
   }
-  const pos = [], cols = [], tmp = new THREE.Color();
-  g.children.forEach((b) => { if (b.geometry?.type === 'SphereGeometry') { pos.push(b.position.x, b.position.y, b.position.z); tmp.set(b.material.color); cols.push(tmp.r, tmp.g, tmp.b); } });
-  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-  const halos = new THREE.Points(geo, haloMaterial()); halos.frustumCulled = true; g.add(halos);
+  g.add(lucesPuntos(pos, cols));
   g.position.y = 3.0;
   return g;
 }
@@ -936,4 +946,56 @@ export function grafitiTico(i = 0) {
   });
   const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.55), map ? new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false }) : std(col, { transparent: true }));
   m.position.set(0, 1.4, 0.03); g.add(m); return g;
+}
+
+// ---------- Vibra de diciembre en la noche: luces que enmarcan ventanas, dibujos de luz en la pared, coronas y macetas ----------
+const COLORES_LUZ = ['#ff3b30', '#ffd60a', '#34c759', '#0a84ff', '#ff9f0a', '#ff4fd8', '#b06bff', '#ffffff'];
+/** Arma bombillas con resplandor a lo largo de una lista de puntos [x, y] (en el plano de la pared). */
+function bombillas(puntos, colores = COLORES_LUZ) {
+  const pos = [], cols = [], tmp = new THREE.Color();
+  puntos.forEach(([x, y], i) => { tmp.set(colores[i % colores.length]); pos.push(x, y, 0.02); cols.push(tmp.r, tmp.g, tmp.b); });
+  return lucesPuntos(pos, cols);
+}
+const linea = (ax, ay, bx, by, paso = 0.17) => {
+  const n = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / paso)), r = [];
+  for (let i = 0; i <= n; i++) r.push([ax + (bx - ax) * i / n, ay + (by - ay) * i / n]);
+  return r;
+};
+/** Luces que rodean una ventana con reja, como en la foto: un marco de bombillas de colores. Origen al centro-abajo. */
+export function lucesVentana(w = 1.1, h = 1.0) {
+  const pts = [...linea(-w / 2, 0, -w / 2, h), ...linea(-w / 2, h, w / 2, h), ...linea(w / 2, h, w / 2, 0), ...linea(w / 2, 0, -w / 2, 0)];
+  return bombillas(pts);
+}
+/** Dibujo de luz cálida en la pared: estrella de cinco puntas, casita del portal o ángel de campana. */
+export function adornoLuz(tipo = 'estrella') {
+  const dorado = ['#ffb347', '#ffcf66'];
+  let pts = [];
+  if (tipo === 'estrella') {
+    const v = []; for (let i = 0; i < 5; i++) { const a = Math.PI / 2 + i * 4 * Math.PI / 5; v.push([Math.cos(a) * 0.5, Math.sin(a) * 0.5]); }
+    for (let i = 0; i < 5; i++) pts.push(...linea(...v[i], ...v[(i + 1) % 5], 0.12));
+    pts = pts.map(([x, y]) => [x, y + 0.5]);
+  } else {
+    pts = [...linea(-0.55, 0, -0.55, 0.6, 0.12), ...linea(-0.55, 0.6, 0, 1.05, 0.12), ...linea(0, 1.05, 0.55, 0.6, 0.12), ...linea(0.55, 0.6, 0.55, 0, 0.12), ...linea(0.55, 0, -0.55, 0, 0.12)];
+    for (const [cx, h] of [[-0.18, 0.4], [0.05, 0.3], [0.22, 0.45]]) pts.push(...linea(cx, 0.05, cx, h, 0.1)); // figuras
+  }
+  return bombillas(pts, dorado, 0.035);
+}
+/** Corona navideña de puerta: aro verde con moño rojo y bolitas. Mira a +z. */
+export function coronaNavidad() {
+  const g = new THREE.Group();
+  const aro = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.07, 8, 18), std('#2b7d3c', { roughness: 1 })); g.add(aro);
+  for (const [x, y] of [[0, 0.24], [0.17, -0.17], [-0.17, -0.17], [0.24, 0.02]]) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 5), std('#ce1126', { emissive: '#ce1126', emissiveIntensity: 0.4 })); b.position.set(x, y, 0.06); g.add(b); }
+  const mono = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.07, 0.03), std('#ce1126')); mono.position.set(0, -0.25, 0.06); g.add(mono);
+  return g;
+}
+/** Maceta con planta: de las que cuelgan junto a cada puerta de barrio. */
+export function maceta(i = 0) {
+  const g = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.14, 0.3, 10), std(['#b5562f', '#8a8a8a', '#d9d3c0'][i % 3], { roughness: 1 })); m.position.y = 0.15; g.add(m);
+  for (let k = 0; k < 7; k++) {
+    const a = k / 7 * Math.PI * 2, h = 0.45 + (k % 3) * 0.15;
+    const hoja = new THREE.Mesh(new THREE.ConeGeometry(0.07, h, 5), std(['#2f6a2a', '#3d8a34', '#4f9c3c'][k % 3], { roughness: 1 }));
+    hoja.position.set(Math.cos(a) * 0.09, 0.3 + h / 2, Math.sin(a) * 0.09); hoja.rotation.set(Math.sin(a) * 0.4, 0, -Math.cos(a) * 0.4); g.add(hoja);
+  }
+  return g;
 }

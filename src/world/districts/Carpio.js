@@ -67,7 +67,7 @@ export class Carpio extends Bogota {
   /** Colores de pared de barrio tico: cada dueño pintó la suya (turquesa, mostaza, rosado, verde menta, celeste...). */
   _houseWall(style, ruin) {
     if (ruin || style !== 'pintada') return null;
-    return pick(['#e9dcae', '#4fb3b0', '#e2b92a', '#e89aa8', '#9ed1a8', '#8ec3e6', '#d8662f', '#f2efe6', '#b7a0d6', '#cf4a3c']);
+    return pick(['#e9dcae', '#4fb3b0', '#e2b92a', '#e89aa8', '#9ed1a8', '#8ec3e6', '#d8662f', '#f2efe6', '#b7a0d6', '#cf4a3c', '#7fd1c7', '#c9a0dc', '#f0a8b8']);
   }
   _baseRoofTexture() { return TX.zinc(30, '#9fa5a8'); }
   _clayChance() { return 0.08; }
@@ -101,6 +101,28 @@ export class Carpio extends Bogota {
     return t;
   }
 
+  /** Junta los resplandores de todas las luces en UN solo dibujo (cientos de lucecitas, una sola llamada a la tarjeta). */
+  _fundirHalos() {
+    this.group.updateMatrixWorld(true);
+    const lista = [];
+    this.group.traverse((o) => { if (o.isPoints && CP.esHalo(o.material)) lista.push(o); });
+    if (!lista.length) return;
+    const inv = this.group.matrixWorld.clone().invert(), v = new THREE.Vector3();
+    for (const mat of [CP.materialNucleo(), CP.materialHalo()]) {
+    const pos = [], col = [];
+    for (const o of lista.filter((x) => x.material === mat)) {
+      const a = o.geometry.getAttribute('position'), c = o.geometry.getAttribute('color');
+      for (let i = 0; i < a.count; i++) { v.fromBufferAttribute(a, i).applyMatrix4(o.matrixWorld).applyMatrix4(inv); pos.push(v.x, v.y, v.z); col.push(c.getX(i), c.getY(i), c.getZ(i)); }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    geo.computeBoundingSphere();
+    const todo = new THREE.Points(geo, mat); todo.frustumCulled = false; todo.renderOrder = 5;
+    this.group.add(todo);
+    }
+    for (const o of lista) { o.parent?.remove(o); o.geometry.dispose(); }
+  }
+
   /** Quita el brillo de plástico: todo lo que no es metal de verdad queda mate y casi sin reflejo de cielo. */
   _apagarBrillo() {
     const vistos = new Set();
@@ -125,7 +147,12 @@ export class Carpio extends Bogota {
     };
     if (!ruin && Math.random() < 0.6) poner(CP.rejaCasa(Math.min(1.8, widthM - 0.8), 1.3, pick(['#1a1a1a', '#2b2b2b', '#3b1f1f', '#1f2f3b'])), 0.9, 0.1, lat);
     if (!ruin && Math.random() < 0.22) { const b = poner(CP.banderaTica(0.9), 2.3, 0.12, lat); b.rotation.y = yaw + Math.PI / 2 * 0; }
-    if (Math.random() < 0.22) poner(CP.lucesNavidad(Math.max(2, widthM - 0.6)), 2.9, 0.1, 0).position.y += 0; // luces en el alero
+    // La vibra de diciembre de la foto: luces en el alero, marcos de luz en las ventanas, dibujos de luz, coronas y macetas.
+    if (Math.random() < 0.5) poner(CP.lucesNavidad(Math.max(2, widthM - 0.6)), 2.9, 0.1, 0);
+    if (!ruin && Math.random() < 0.4) poner(CP.lucesVentana(Math.min(1.3, widthM - 1), 1.1), 1.0, 0.12, -lat * 0.6);
+    if (!ruin && Math.random() < 0.18) poner(CP.adornoLuz(Math.random() < 0.5 ? 'estrella' : 'portal'), 1.2, 0.1, lat * 0.8);
+    if (!ruin && Math.random() < 0.3) poner(CP.coronaNavidad(), 1.7, 0.1, lat * 0.3);
+    if (!ruin && Math.random() < 0.5) poner(CP.maceta(Math.floor(Math.random() * 3)), 0, 0.45, lat);
     const r = Math.random();
     if (r < 0.12) poner(CP.grafitiPolitico(Math.floor(Math.random() * 8)), 0.8, 0.05, lat * 0.5);
     else if (r < 0.2) poner(CP.pasquinRasgado(Math.floor(Math.random() * 4)), 0.5, 0.05, lat * 0.5);
@@ -196,6 +223,7 @@ export class Carpio extends Bogota {
     this.group.add(cer);
 
     this._mergeStatic();
+    try { this._fundirHalos(); } catch (e) { console.warn('[Carpio] halos sin fundir', e); }
     try { this._apagarBrillo(); } catch (e) { console.warn('[Carpio] brillo no ajustado', e); }
     this.group.add(this.buildingVisibility.buildClosedView());
     this._buildPatrolCars();

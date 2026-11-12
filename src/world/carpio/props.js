@@ -828,3 +828,95 @@ export function parabolica() {
   box(g, 0.03, 0.03, 0.34, 0, 0.7, 0.22, std('#555'));
   return g;
 }
+
+// ---------- Navidad tica (lo que más se vive ahorita): luces, portales, tamales y festivales ----------
+/** Cordón de luces de colores entre dos puntos; las bombillas brillan solas. */
+export function lucesNavidad(largo = 5) {
+  const g = new THREE.Group();
+  const cuerda = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, largo, 4), std('#1f1f1f'));
+  cuerda.rotation.z = Math.PI / 2; g.add(cuerda);
+  const col = ['#ff3b30', '#ffd60a', '#34c759', '#0a84ff', '#ff9f0a', '#ffffff'];
+  const n = Math.floor(largo / 0.3);
+  for (let i = 0; i < n; i++) {
+    const c = col[i % col.length];
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), std(c, { emissive: c, emissiveIntensity: 1.1, roughness: 0.4 }));
+    b.position.set(-largo / 2 + 0.15 + i * (largo - 0.3) / n, -Math.sin(i / n * Math.PI) * 0.14 - 0.04, 0); g.add(b);
+  }
+  g.position.y = 3.0;
+  return g;
+}
+/** Portal (nacimiento): casita de tablas con techo de paja, pesebre, José, María, el Niño y pastorcitos, con luz tibia. */
+export function portalNacimiento() {
+  const g = new THREE.Group();
+  const madera = std('#8a5a2e'), paja = std('#c9a54a');
+  for (const sx of [-0.9, 0.9]) for (const sz of [-0.5, 0.5]) box(g, 0.08, 1.4, 0.08, sx, 0.7, sz, madera);
+  box(g, 2.0, 1.2, 0.05, 0, 0.8, -0.52, std('#6a4a2a'));
+  const techo = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.08, 1.4), paja); techo.position.set(0, 1.55, 0); techo.rotation.z = 0.0; g.add(techo);
+  const cumbre = new THREE.Mesh(new THREE.ConeGeometry(0.9, 0.5, 4), paja); cumbre.rotation.y = Math.PI / 4; cumbre.position.set(0, 1.85, 0); cumbre.scale.set(1.4, 1, 0.8); g.add(cumbre);
+  box(g, 2.2, 0.12, 1.1, 0, 0.06, 0, std('#4f7f2e'));
+  const fig = (x, z, h, c, cabeza = '#e0b48a') => {
+    const cuerpo = new THREE.Mesh(new THREE.ConeGeometry(0.13, h, 8), std(c)); cuerpo.position.set(x, 0.12 + h / 2, z); g.add(cuerpo);
+    const cab = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), std(cabeza)); cab.position.set(x, 0.12 + h + 0.05, z); g.add(cab);
+  };
+  fig(-0.35, 0.1, 0.55, '#2f5fa8'); fig(0.35, 0.1, 0.6, '#8a5a2e'); // María y José
+  box(g, 0.28, 0.14, 0.16, 0, 0.19, 0.2, std('#d9c28a'));
+  const nino = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), std('#f1d3b0')); nino.position.set(0, 0.3, 0.2); g.add(nino);
+  fig(-0.8, 0.3, 0.35, '#b53a2a'); fig(0.8, 0.3, 0.38, '#2e8b57');
+  const luz = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), std('#ffd27a', { emissive: '#ffb347', emissiveIntensity: 1.4 })); luz.position.set(0, 1.35, 0.3); g.add(luz);
+  const estrella = new THREE.Mesh(new THREE.OctahedronGeometry(0.12, 0), std('#ffe066', { emissive: '#ffd60a', emissiveIntensity: 1.5 })); estrella.position.set(0, 2.25, 0); g.add(estrella);
+  return g;
+}
+/** Arbolito de Navidad con luces y regalos, de los que se ponen en el portón. */
+export function arbolNavidad(escala = 1) {
+  const g = new THREE.Group();
+  box(g, 0.12 * escala, 0.3 * escala, 0.12 * escala, 0, 0.15 * escala, 0, std('#5a4632'));
+  for (let i = 0; i < 4; i++) {
+    const c = new THREE.Mesh(new THREE.ConeGeometry((0.85 - i * 0.17) * escala, 0.75 * escala, 10), std(i % 2 ? '#1f6b34' : '#2b7d3c', { roughness: 1 }));
+    c.position.y = (0.55 + i * 0.5) * escala; g.add(c);
+  }
+  const bolas = ['#ff3b30', '#ffd60a', '#0a84ff', '#ff9f0a'];
+  for (let i = 0; i < 14; i++) {
+    const a = i * 2.4, y = 0.45 + (i % 7) * 0.26, r = (0.7 - y * 0.28) * escala;
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.05 * escala, 6, 5), std(bolas[i % 4], { emissive: bolas[i % 4], emissiveIntensity: 0.9 }));
+    b.position.set(Math.cos(a) * r, y * escala, Math.sin(a) * r); g.add(b);
+  }
+  const est = new THREE.Mesh(new THREE.OctahedronGeometry(0.1 * escala, 0), std('#ffe066', { emissive: '#ffd60a', emissiveIntensity: 1.4 })); est.position.y = 2.5 * escala; g.add(est);
+  box(g, 0.28 * escala, 0.22 * escala, 0.28 * escala, 0.55 * escala, 0.11 * escala, 0.3 * escala, std('#ce1126')); box(g, 0.22 * escala, 0.18 * escala, 0.22 * escala, -0.5 * escala, 0.09 * escala, 0.4 * escala, std('#f2c600'));
+  return g;
+}
+const CARTELES_NAVIDAD = [
+  { t: 'TAMALES', s: 'Se venden. ¡Encargue los suyos!', fondo: '#d8662f', letra: '#ffffff' },
+  { t: 'FESTIVAL DE LA LUZ', s: 'Desfile y conciertos. ¡Todos a San José!', fondo: '#1b3a6b', letra: '#ffd60a' },
+  { t: 'PONCHE Y ROSQUILLAS', s: 'Sabor de diciembre', fondo: '#7a1f1f', letra: '#ffe9a8' },
+  { t: 'AGUINALDO', s: 'Rifas y ofertas navideñas', fondo: '#1f6b3a', letra: '#ffffff' },
+  { t: 'VIERNES NEGRO', s: 'Hasta 50% de descuento', fondo: '#15130f', letra: '#ffd60a' },
+  { t: 'CUMBIA Y MERENGUE', s: 'Baile en el salón comunal, sábado 8 pm', fondo: '#8a2be2', letra: '#ffffff' },
+];
+/** Cartel de temporada, de los que van en postes y paredes del barrio. */
+export function cartelNavidad(i = 0) {
+  const c = CARTELES_NAVIDAD[i % CARTELES_NAVIDAD.length], g = new THREE.Group();
+  box(g, 0.06, 2.0, 0.06, 0, 1.0, 0, std('#444'));
+  const map = lienzo(256, 320, (x, w, h) => {
+    x.fillStyle = c.fondo; x.fillRect(0, 0, w, h); x.strokeStyle = c.letra; x.lineWidth = 6; x.strokeRect(10, 10, w - 20, h - 20);
+    x.fillStyle = c.letra; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = '900 44px system-ui, sans-serif'; const pal = c.t.split(' '); const mitad = pal.length > 1 ? Math.ceil(pal.length / 2) : 1;
+    x.fillText(pal.slice(0, mitad).join(' '), w / 2, 100, w * 0.86); if (pal.length > 1) x.fillText(pal.slice(mitad).join(' '), w / 2, 150, w * 0.86);
+    x.font = '700 24px system-ui, sans-serif'; x.fillText(c.s, w / 2, 235, w * 0.84);
+    x.fillStyle = c.letra; x.font = '900 36px system-ui, sans-serif'; x.fillText('★', w / 2, 280);
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.78), map ? new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide }) : std(c.fondo, { side: THREE.DoubleSide }));
+  m.position.set(0, 1.5, 0.05); g.add(m); return g;
+}
+const JERGA = ['PURA VIDA', 'TUANIS', 'QUÉ CHIVA', 'DIAY MAE', 'MAE, QUÉ MAE', 'UPE', 'MAE, QUÉ SALADO', 'DE CHIVA', 'A LA PAR', 'MAE, NO SEA JUPA'];
+/** Grafiti con jerga tica de todos los días: nada de política, solo barrio. */
+export function grafitiTico(i = 0) {
+  const g = new THREE.Group();
+  const col = ['#ffd60a', '#ff5a4d', '#7fe0ff', '#b6ff6a', '#ffffff'][i % 5];
+  const map = lienzo(512, 128, (x, w, h) => {
+    x.clearRect(0, 0, w, h); x.textAlign = 'center'; x.textBaseline = 'middle'; x.save(); x.translate(w / 2, h / 2); x.rotate((i % 3 - 1) * 0.04);
+    x.font = '900 60px "Arial Black", sans-serif'; x.lineWidth = 10; x.strokeStyle = '#15130f'; x.strokeText(JERGA[i % JERGA.length], 0, 0, w * 0.94);
+    x.fillStyle = col; x.fillText(JERGA[i % JERGA.length], 0, 0, w * 0.94); x.restore();
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.55), map ? new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false }) : std(col, { transparent: true }));
+  m.position.set(0, 1.4, 0.03); g.add(m); return g;
+}

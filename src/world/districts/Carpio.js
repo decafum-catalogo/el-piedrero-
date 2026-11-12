@@ -125,7 +125,7 @@ export class Carpio extends Bogota {
     };
     if (!ruin && Math.random() < 0.6) poner(CP.rejaCasa(Math.min(1.8, widthM - 0.8), 1.3, pick(['#1a1a1a', '#2b2b2b', '#3b1f1f', '#1f2f3b'])), 0.9, 0.1, lat);
     if (!ruin && Math.random() < 0.22) { const b = poner(CP.banderaTica(0.9), 2.3, 0.12, lat); b.rotation.y = yaw + Math.PI / 2 * 0; }
-    if (Math.random() < 0.35) poner(CP.lucesNavidad(Math.max(2, widthM - 0.6)), 2.9, 0.1, 0).position.y += 0; // luces en el alero
+    if (Math.random() < 0.22) poner(CP.lucesNavidad(Math.max(2, widthM - 0.6)), 2.9, 0.1, 0).position.y += 0; // luces en el alero
     const r = Math.random();
     if (r < 0.12) poner(CP.grafitiPolitico(Math.floor(Math.random() * 8)), 0.8, 0.05, lat * 0.5);
     else if (r < 0.2) poner(CP.pasquinRasgado(Math.floor(Math.random() * 4)), 0.5, 0.05, lat * 0.5);

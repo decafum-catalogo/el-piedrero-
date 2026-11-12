@@ -366,7 +366,7 @@ export class Renderer {
       this.instance.setPixelRatio(ratio);
     }
     const exposure = scene.userData?.toneMappingExposure;
-    this.instance.toneMappingExposure = Number.isFinite(exposure) ? THREE.MathUtils.clamp(exposure, .8, 1.3) : 1.05;
+    this.instance.toneMappingExposure = Number.isFinite(exposure) ? THREE.MathUtils.clamp(exposure, .62, 1.3) : 1.05;
     if (this._environmentLost) {
       this._environmentLost = false;
       const { day, night } = this._bakeEnvironment();

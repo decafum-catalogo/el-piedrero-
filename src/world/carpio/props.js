@@ -1,6 +1,7 @@
 // Mobiliario y detalles propios de La Carpio. Cada función devuelve un THREE.Group
 // con origen en el suelo. Todo es geometría simple y barata para poder agruparla.
 import * as THREE from 'three';
+import { registerNightGlowExtra } from '../bogota/SunField.js';
 
 const mats = new Map();
 const std = (color, extra = {}) => {
@@ -831,6 +832,18 @@ export function parabolica() {
 
 // ---------- Navidad tica (lo que más se vive ahorita): luces, portales, tamales y festivales ----------
 /** Cordón de luces de colores entre dos puntos; las bombillas brillan solas. */
+let haloMat = null, haloMap = null;
+const haloMaterial = () => {
+  if (haloMat) return haloMat;
+  if (typeof document !== 'undefined') {
+    const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+    const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.3, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = gr; x.fillRect(0, 0, 64, 64); haloMap = new THREE.CanvasTexture(c);
+  }
+  haloMat = new THREE.PointsMaterial({ size: 0.9, map: haloMap, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
+  registerNightGlowExtra(haloMat, 0.85); // de día no se ven; de noche cada bombilla tiene su resplandor
+  return haloMat;
+};
 export function lucesNavidad(largo = 5) {
   const g = new THREE.Group();
   const cuerda = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, largo, 4), std('#1f1f1f'));
@@ -842,6 +855,10 @@ export function lucesNavidad(largo = 5) {
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), std(c, { emissive: c, emissiveIntensity: 1.1, roughness: 0.4 }));
     b.position.set(-largo / 2 + 0.15 + i * (largo - 0.3) / n, -Math.sin(i / n * Math.PI) * 0.14 - 0.04, 0); g.add(b);
   }
+  const pos = [], cols = [], tmp = new THREE.Color();
+  g.children.forEach((b) => { if (b.geometry?.type === 'SphereGeometry') { pos.push(b.position.x, b.position.y, b.position.z); tmp.set(b.material.color); cols.push(tmp.r, tmp.g, tmp.b); } });
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  const halos = new THREE.Points(geo, haloMaterial()); halos.frustumCulled = true; g.add(halos);
   g.position.y = 3.0;
   return g;
 }

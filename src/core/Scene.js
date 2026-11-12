@@ -449,17 +449,17 @@ export class SceneManager {
 
     // Relleno difuso en espacio lineal: conserva detalle en ropa y andenes durante la noche.
     // De día despejado baja mucho: si no, las sombras no se ven y todo queda plano.
-    const dayFill = THREE.MathUtils.lerp(1.35 + .25 * cloud, 1.08, clear);
+    const dayFill = THREE.MathUtils.lerp(1.1 + .25 * cloud, .82, clear); // ambiente más oscuro y con más contraste
     sunFieldUniforms.uSunLitFloor.value = (1 - sunLit) * .6;
     sunFieldUniforms.uSunSkyFloor.value = THREE.MathUtils.lerp(.62, .4, day);
-    this.ambient.intensity = (THREE.MathUtils.lerp(1.3, dayFill, day) + twilight * .34)
+    this.ambient.intensity = (THREE.MathUtils.lerp(.95, dayFill, day) + twilight * .3)
       * (1 - .06 * rain) + flash * 2.2;
     this.ambient.color.copy(HEMI.night).lerp(this._tmp.copy(HEMI.dayOvercast).lerp(HEMI.day, clear), day);
     this.ambient.groundColor.copy(HEMI.groundNight).lerp(HEMI.groundDay, day);
     this.scene.environmentIntensity = (THREE.MathUtils.lerp(.72, THREE.MathUtils.lerp(.92, .74, clear), day) + twilight * .08 + flash * .5);
     this._updateEnvironment(day);
     // Adaptación fotográfica lenta ligada al ciclo solar, sin medir píxeles ni añadir pasadas.
-    this.scene.userData.toneMappingExposure = 1.22 - day * (.17 + .3 * clear) - twilight * .06;
+    this.scene.userData.toneMappingExposure = 1.08 - day * (.14 + .3 * clear) - twilight * .08;
 
     // Colores del cielo: cenit (top) y horizonte (sky = fondo y niebla).
     const top = this._top.copy(SKY.nightTop).lerp(SKY.nightTopOvercast, cloud)

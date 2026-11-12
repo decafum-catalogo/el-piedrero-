@@ -172,8 +172,12 @@ let lastLight = null;
 /** Material compartido de los charcos de luz de los faroles; apagado no gasta ni una llamada. */
 const nightGlow = { material: null, amount: 0 };
 export function registerNightGlow(material) { nightGlow.material = material; setNightGlow(nightGlow.amount); }
+const nightGlowExtra = [];
+/** Otros brillos que solo se ven de noche (luces de Navidad, etc.): su opacidad sigue a la de los faroles. */
+export function registerNightGlowExtra(material, base = 1) { nightGlowExtra.push([material, base]); material.opacity = nightGlow.amount * base; material.visible = nightGlow.amount > .01; }
 export function setNightGlow(amount) {
   nightGlow.amount = amount;
+  for (const [m, base] of nightGlowExtra) { m.opacity = amount * base; m.visible = amount > .01; }
   if (!nightGlow.material) return;
   nightGlow.material.opacity = amount;
   nightGlow.material.visible = amount > .01;

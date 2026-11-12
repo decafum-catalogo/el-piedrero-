@@ -93,7 +93,7 @@ test('la exposición cambia suavemente durante el día y conserva margen en la n
   for (let hour = 0; hour <= 24; hour += 1 / 60) {
     manager.setTimeOfDay(hour, overcast, 1);
     const exposure = manager.scene.userData.toneMappingExposure;
-    assert.ok(exposure >= 1 && exposure <= 1.3);
+    assert.ok(exposure >= .9 && exposure <= 1.3);
     if (previous !== undefined) assert.ok(Math.abs(exposure - previous) < .01, 'sin saltos al amanecer o atardecer');
     previous = exposure;
   }
